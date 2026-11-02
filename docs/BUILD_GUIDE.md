@@ -24,16 +24,29 @@ Contents
 
 ## 1. What you need
 
+Every part below has a minimum that should work, the part the original deck uses (known to work), and notes on
+going up or down. Swap freely; the software doesn't care about brands except where noted.
+
 **Deck**
-| Part | Notes |
-|---|---|
-| Orange Pi 5 (RK3588S) | 8 GB RAM is the minimum; 16 GB keeps the fast and deep models loaded together (see the sizing table below). The original is a 16 GB v1.2 board. |
-| Storage | A 64 GB microSD card is enough for one or two makes. Use an M.2 NVMe SSD if you want many makes, or just for speed. See the sizing table below. |
-| Display | The UI is tuned for 1920x1280 at 150% scaling and works in landscape or portrait. Touch is optional: everything is keyboard-driven. |
-| Keyboard + pointing device | The original uses a keyboard and trackball. |
-| Wi-Fi | The OS image's Wi-Fi may not suit you. The original uses a USB RTL8821CU adapter (driver in step 3). Ethernet works out of the box. |
-| Powered USB hub | Recommended once you have cables, a mic and a keyboard plugged in. |
-| Microphone / headset | Optional, for voice. The board's onboard mic works; Bluetooth earbuds need the headset profile. |
+| Part | Minimum | Original (known to work) | Going up or down |
+|---|---|---|---|
+| Board | Any RK3588/RK3588S board with RKLLM support, 8 GB RAM | Orange Pi 5 v1.2, 16 GB | 8 GB runs the fast model and swaps the 4B in when needed (slower tab switches). 16 GB keeps both loaded. A 32 GB board (e.g. Orange Pi 5 Plus) gives more headroom, but other boards need their own OS image and NPU driver. Without an RK3588 there's no NPU: the app can still run against Ollama on a PC. |
+| Storage | 32-64 GB microSD | 256 GB M.2 NVMe | microSD is fine for one or two makes, but slower to load. NVMe for many makes; see the sizing table below. |
+| Display | Any HDMI screen, 1280x720 or more | 1920x1280 panel at 150% scaling | The UI reflows for landscape or portrait and small screens. Touch is optional. |
+| Input | Any USB keyboard + mouse | Keyboard + trackball | Everything is keyboard-driven, so a small keyboard alone works. |
+| Network | Ethernet or the board's Wi-Fi | USB RTL8821CU Wi-Fi adapter (morrownr driver) | Only needed for Home mode and pulling DBs from the PC. Tailscale over a phone hotspot works in the field. |
+| USB hub | None | None yet (a powered hub is planned) | A powered hub helps once cables, mic, keyboard and Wi-Fi share the ports. |
+| Microphone | None (voice is optional) | Board's onboard mic; Bluetooth earbuds | Any USB/3.5 mm headset. Bluetooth needs the headset (HFP) profile. |
+| Power | 5 V / 4 A USB-C supply (bench use) | Milwaukee M12 battery -> low-voltage disconnect -> two buck converters | Any tool-battery or 12 V pack with an LVD and a 5 V buck works. The car's 12 V socket works too, but it's noisy at cranking, so add a good buck converter. See section 2. |
+
+**PC** (optional: only for building databases and Home mode)
+| Part | Minimum | Original (known to work) | Going up or down |
+|---|---|---|---|
+| OS | Any 64-bit Linux | Manjaro KDE | Windows isn't supported by the scripts; WSL2 may work but is untested. |
+| CPU | 4 cores | Ryzen 9 5900X (12 cores) | More cores speed up PDF conversion and CPU embedding. |
+| RAM | 16 GB (build from PDFs) | 62 GB | 32 GB+ to export the 4B models in float32 (or use `--dtype bfloat16` on less). About 64 GB for Home mode's 80B models. |
+| GPU | None (CPU-only works, slowly) | RTX 3070, 8 GB | An NVIDIA card with 8 GB+ makes embedding, card baking and community extraction practical. More VRAM = faster Home mode. |
+| Disk | ~50 GB for a make or two | Main SSD + 458 GB SSD + 5 TB USB HDD | See the PC sizing table below: about 1 TB for all of CHARM with pictures, 2 TB+ with LEMON. |
 
 **How big does it need to be?** Size the build to how much data you want. Sizes are approximate: they come from the original build, rounded.
 
@@ -71,17 +84,13 @@ The raw archives can sit on a cheap external USB hard drive (`CYBERDECK_ARCHIVE`
 on an SSD. For RAM, 16 GB is enough to build a make from PDFs; 32 GB+ is needed to export the 4B models and to run the
 community extraction. Card baking and embedding need an NVIDIA GPU (8 GB VRAM works); everything else runs on the CPU, just slower.
 
-**Car cables** (at least one)
+**Car cables** (at least one; the original has both)
 | Cable | Use |
 |---|---|
 | OBDLink EX (USB) | Any OBD-II car (1996+): codes, all live PIDs, VIN, mode 06, plus Subaru SSM2 and GM mode 22 through it. Start with this one. |
 | KKL USB cable (FTDI-based "VAG-COM" style) | Subaru SSM2 on the K-line, which is the most reliable way to read 1999-2005-ish Subarus. Cheap. |
 
-**PC** (for building databases and Home mode; optional if someone gives you finished DBs and models)
-- Linux. See the PC sizing table above for disk and RAM. The original has 62 GB RAM, an RTX 3070 (8 GB) and a 5 TB
-  external drive for the raw archives.
-- Home mode needs [Ollama](https://ollama.com) and enough RAM/VRAM for the big models (the 80B MoE models run
-  on 62 GB RAM + 8 GB VRAM at about 30 tok/s).
+Home mode needs [Ollama](https://ollama.com) on the PC; the 80B MoE models run at about 30 tok/s on the original's 62 GB RAM + 8 GB VRAM.
 
 ## 2. Power and enclosure
 
