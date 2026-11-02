@@ -55,6 +55,10 @@ It has to be built this way for two reasons:
 - **Hallucinations.** A language model asked from memory for a torque spec, a wiring color or the next step of a
   diagnostic chart will often give a confident, plausible and wrong answer. On a car that can mean a stripped bolt or
   a replaced part that was never bad. With retrieval, every fact comes from a real page, and the answer cites it.
+  (There's a meme video of a guy standing in the empty engine bay of his car, right where the engine used to be,
+  scratching his head while a chatbot tells him: *"Yes, I was wrong. You actually don't need to remove the engine to
+  get the battery out! Let's put the engine back in, and I'll show you how to remove the battery!"* This project is
+  built so that never happens to you.)
 - **Small models on small hardware.** The deck runs 1.7B and 4B models on the Orange Pi's NPU. Models that size can
   reason well over text you give them, but they can't hold the service manuals for decades of cars in their weights.
   Even the 35B and 80B home-PC models don't know spec-level detail reliably. Keeping the knowledge in SQLite
@@ -62,13 +66,8 @@ It has to be built this way for two reasons:
 
 ## Built to stay grounded, not to guess
 
-The usual fear with AI is that it confidently makes things up. There's a meme video of a guy standing in the empty
-engine bay of his car, right where the engine used to be, scratching his head while a chatbot tells him:
-
-> "Yes, I was wrong. You actually don't need to remove the engine to get the battery out! Let's put the engine back
-> in, and I'll show you how to remove the battery!"
-
-This project was designed from top to bottom so that doesn't happen to you:
+The usual fear with AI is that it confidently makes things up. This project was designed from top to bottom around
+that problem:
 
 - **The models answer from the databases, not from memory.** Every question first goes through retrieval over the
   make's knowledge base (manual pages, diagnostic trees, spec tables, cards), and the prompts require the answer to
