@@ -1,7 +1,8 @@
 # How the databases, the models and live data fit together
 
-Four diagrams: how the databases are built (on the PC, once), what is inside a make's database, what
-happens on the deck every time you ask a question, and what each Brainstorm/Chat mode does and saves. GitHub draws them from the Mermaid text below.
+Five diagrams: how the databases are built (on the PC, once), what is inside a make's database, what
+happens on the deck every time you ask a question, what each Brainstorm/Chat mode does and saves, and how
+Final Diagnosis builds its work plan. GitHub draws them from the Mermaid text below.
 
 The short version: **the models never answer from memory.** Python reads the car, judges every reading against
 the manual's ranges and pulls the right pages out of SQLite. The model only gets that evidence to reason over,
@@ -181,6 +182,39 @@ flowchart TB
     CASE -- "filed with the visit<br/>(at intake, maintenance and verdict)" --> REC[("records/&lt;VIN&gt;.db<br/>this car's file:<br/>visit + case, readings, chat")]
     C6 --> REC
     REC -. "next time this car is scanned:<br/>past visits + same readings then vs now" .-> C3
+```
+
+## 5. Final Diagnosis: from the whole case to a ranked work plan
+
+```mermaid
+flowchart TB
+    BTN(["SYNTHESIZE ALL EVIDENCE & BUILD VERDICT"]) --> NOTES["Your edits to YOUR NOTES FROM CHAT<br/>are saved first (your version wins)"]
+    NOTES --> CASE["The whole case<br/>vehicle · codes · live data judged against the manual ·<br/>test-drive log · symptoms · what's ruled out ·<br/>earlier visits + same readings then vs now ·<br/>saved debate · saved wildcard (long shots) ·<br/>chart readings · maintenance picked for today · chat notes"]
+    CASE --> LOOK["Look up evidence for the case<br/>(bigger budget on the PC than the deck)<br/>1 manual diagnostic tree per code<br/>2 baked card causes<br/>3 best other manual page<br/>4 owner threads last, labelled 'ideas only'"]
+    LOOK --> PROMPT["Prompt: case + evidence + rules<br/>· up to 5 issues on the PC, 3 on the deck<br/>· likeliest and cheapest to confirm first, say why<br/>· every idea in your notes gets its own issue, for and against<br/>· a part you already replaced is never issue 1<br/>· quote real numbers; never write part numbers or prices"]
+
+    PROMPT --> TH{"THINK HARDER<br/>ticked?"}
+    TH -- "no" --> DEEP{{"Deep model writes the plan<br/>deck: Qwen3 4B Instruct<br/>home: Qwen3-Next 80B Instruct"}}
+    TH -- "yes" --> DRAFT{{"Deep model writes a draft"}}
+    DRAFT --> REV{{"Thinking model reviews the draft<br/>against the same case and manual text.<br/>Changes only what the evidence says is wrong,<br/>and says why. Reasoning shown, then hidden"}}
+    REV -- "didn't finish or failed" --> KEEP["Draft kept,<br/>marked 'unchecked'"]
+    REV -- "finished" --> PLAN
+    KEEP --> PLAN
+    DEEP --> PLAN["Plan in a fixed format<br/>SUMMARY, then per issue:<br/>WHY HERE · FOR · AGAINST · TEST · REPAIR · PARTS<br/>(+ ALSO DO: maintenance)"]
+
+    PLAN --> PARSE["Python splits it into tabs"]
+    PARSE --> SUM["SUMMARY tab<br/>order to work in + work order<br/>+ everything to buy"]
+    PARSE --> ISS["One tab per issue"]
+    PARSE --> FULL["FULL TEXT tab"]
+
+    ISS --> PN["Part numbers for each PARTS name<br/>from the make DB (CHARM labor/parts tables),<br/>never from the model"]
+    ISS --> SPC["Specs for the repair<br/>from the spec table"]
+    ISS --> MAN["Manual removal/installation pages<br/>with pictures"]
+    ISS --> BTNS["REPAIR GUIDE FOR THIS ·<br/>PARTS + PRICES FOR THIS"]
+
+    PLAN --> SAVE["Verdict saved to the case"]
+    SAVE --> PARTSTAB["Parts tab pre-filled with<br/>issue 1's first part → QR codes"]
+    SAVE --> REC[("records/&lt;VIN&gt;.db<br/>visit filed with the verdict")]
 ```
 
 ### What Python does vs. what the model does

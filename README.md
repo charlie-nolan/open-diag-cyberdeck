@@ -47,7 +47,7 @@ How a question flows from the car and the databases to the model's answer:
 
 ![Question flow](docs/images/3_question_flow.png)
 
-More diagrams (how the databases are built, what's inside each one, and what each Brainstorm mode does and saves)
+More diagrams (how the databases are built, what's inside each one, and what each Brainstorm mode does and saves, and how Final Diagnosis builds its plan)
 are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), with pictures in [docs/images](docs/images).
 
 It has to be built this way for two reasons:
