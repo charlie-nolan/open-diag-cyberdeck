@@ -31,6 +31,27 @@ the model sees it, and every conclusion still has to cite its source.
 In the author's use this goes well past what a simple OBD-II scanner shows. It's still a diagnostic aid, though:
 confirm with the manual's tests before you replace parts.
 
+## Built to stay grounded, not to guess
+
+The usual fear with AI is that it confidently makes things up. This project was designed from top to bottom around
+that problem:
+
+- **The models answer from the databases, not from memory.** Every question first goes through retrieval over the
+  make's knowledge base (manual pages, diagnostic trees, spec tables, cards), and the prompts require the answer to
+  come from what was retrieved.
+- **The manual comes first and wins.** The factory diagnostic tree is checked first, then the baked card, then other
+  manual pages. Community fixes are used only when owners confirmed them, and forum ideas are labelled "ideas only".
+- **Every step, spec and price cites its source**, so you can open the page and check it yourself.
+- **Python does the exact work.** Diagnostic-tree questions about the codes you scanned, and the meaning of each
+  live reading, are worked out in code before the model sees them, so the model doesn't do the arithmetic.
+- **Embeddings find the right page** even when your wording doesn't match the manual's. That means the model isn't
+  left to fill gaps on its own.
+- **Known-bad data is kept out.** Fabricated command tables and unverified torque values were found and removed.
+  The deck refuses any ECU write except the documented, reversible tests.
+
+No language model is perfect. But here an answer has to point at a real source, so an unsupported claim is easy to spot
+and doesn't quietly turn into a repair step.
+
 ---
 
 ## What it does
