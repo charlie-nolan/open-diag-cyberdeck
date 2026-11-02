@@ -161,8 +161,10 @@ with all the codes. `/part <name or number>` does the same from Chat.
      second pass drops any claim its sources don't support (dropped claims are kept for review).
    - Torque values, capacities and part numbers on a card are copied from the manual tables, never written by a model.
 
-   **What card baking is, in plain words:** a manual tells you how to test for a code, but not which cause owners
-   actually find most often. A card adds that. On the PC, a small model reads thousands of forum and Reddit threads
+   **What card baking is, in plain words:** each card belongs to one diagnostic trouble code (the codes behind a
+   check engine light, like P0301) on one car model and year range. When the deck reads that code from the car,
+   it pulls that car's card for it. With no code set, no card is used. A manual tells you how to test for a code,
+   but not which cause owners actually find most often. A card adds that. On the PC, a small model reads thousands of forum and Reddit threads
    and keeps only fixes the owner confirmed, each backed by a quote that's checked against the thread. Python
    counts those fixes per cause. A bigger model then writes one card per code from the manual's procedure, the
    counts and the TSBs, citing a source for every claim. A second pass throws out any claim its source doesn't
