@@ -43,6 +43,9 @@ For every question the deck first searches the make's knowledge base (keyword se
 matching manual pages, diagnostic trees, spec rows and cards, and hands those to the model with the car's live
 data. The model's job is to reason over that evidence and explain it, not to remember facts.
 
+Diagrams of the databases and of the path from the car's live data to the model's answer are in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 It has to be built this way for two reasons:
 
 - **Hallucinations.** A language model asked from memory for a torque spec, a wiring color or the next step of a
