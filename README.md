@@ -176,9 +176,18 @@ with all the codes. `/part <name or number>` does the same from Chat.
    things. A card packs the useful part into a few hundred tokens: what owners actually saw, heard and smelled with
    that code, which causes turned out to be real and how often, and the diagnostic logic for telling them apart
    (what to check first and what each result means). The small model gets real-world context and a reasoning path
-   it couldn't build itself, without spending its budget on raw forum text.
+   it couldn't build itself, without spending its budget on raw forum text. It also gives the models some room to
+   look past the service manual without slipping into made-up answers: every cause on a card is one that real owners
+   confirmed, with its source.
 
    ![Card baking](docs/images/6_card_baking.png)
+
+   **Why community data belongs next to the manual at all:** factory service manuals are written around the factory's
+   own procedures, warranty repairs and liability, for a car that's been maintained by the book. Most cars aren't,
+   especially older ones and ones with several previous owners. Skipped services, past repairs and worn parts
+   cause problems the manual never describes. Owners and mechanics have also found shortcuts and workarounds the
+   manual doesn't mention, like pulling an engine without disconnecting the power steering or the A/C system. The
+   community layer brings that real-world experience in, and the manual stays first for specs and test steps.
 
 3. Other manual pages: specs, connector views, component tests, cross-references.
 4. **Community reports**: what owners tested, ruled out and fixed, extracted from forum and Reddit threads
