@@ -48,6 +48,9 @@ that problem:
   left to fill gaps on its own.
 - **Known-bad data is kept out.** Fabricated command tables and unverified torque values were found and removed.
   The deck refuses any ECU write except the documented, reversible tests.
+- **You can always skip the AI and read the manual yourself.** `/fsm <words>`, `/torque <part>` and `/fluids <system>`
+  (or the MANUAL and TORQUE buttons in Chat) return the manual's own text and spec rows straight from the database,
+  with no model involved. `shopdeck` walks the factory diagnostic charts with no LLM at all.
 
 No language model is perfect. But here an answer has to point at a real source, so an unsupported claim is easy to spot
 and doesn't quietly turn into a repair step.
