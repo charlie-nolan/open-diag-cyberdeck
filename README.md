@@ -171,6 +171,13 @@ with all the codes. `/part <name or number>` does the same from Chat.
    back up, and Python strips any spec or part number the model wrote and puts in the manual's real ones. It runs
    once per car model (about 6 hours on an RTX 3070), so the deck just looks the card up.
 
+   **Why bake them ahead of time:** the deck's small models have a short context window and little time in the
+   field. Reading dozens of raw threads per code would use up that room and invite the model to get lost or invent
+   things. A card packs the useful part into a few hundred tokens: what owners actually saw, heard and smelled with
+   that code, which causes turned out to be real and how often, and the diagnostic logic for telling them apart
+   (what to check first and what each result means). The small model gets real-world context and a reasoning path
+   it couldn't build itself, without spending its budget on raw forum text.
+
    ![Card baking](docs/images/6_card_baking.png)
 
 3. Other manual pages: specs, connector views, component tests, cross-references.
