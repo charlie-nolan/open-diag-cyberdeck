@@ -36,6 +36,23 @@ instead of just agreeing with you.
 In the author's use this goes well past what a simple OBD-II scanner shows. It's still a diagnostic aid, though:
 confirm with the manual's tests before you replace parts.
 
+## Why it's a RAG system
+
+This is a retrieval-augmented generation (RAG) project: the models don't diagnose from what they learned in training.
+For every question the deck first searches the make's knowledge base (keyword search plus embeddings), pulls the
+matching manual pages, diagnostic trees, spec rows and cards, and hands those to the model with the car's live
+data. The model's job is to reason over that evidence and explain it, not to remember facts.
+
+It has to be built this way for two reasons:
+
+- **Hallucinations.** A language model asked from memory for a torque spec, a wiring color or the next step of a
+  diagnostic chart will often give a confident, plausible and wrong answer. On a car that can mean a stripped bolt or
+  a replaced part that was never bad. With retrieval, every fact comes from a real page, and the answer cites it.
+- **Small models on small hardware.** The deck runs 1.7B and 4B models on the Orange Pi's NPU. Models that size can
+  reason well over text you give them, but they can't hold the service manuals for decades of cars in their weights.
+  Even the 35B and 80B home-PC models don't know spec-level detail reliably. Keeping the knowledge in SQLite
+  databases means a small, fast model is enough, and adding a car or a make means loading data, not retraining.
+
 ## Built to stay grounded, not to guess
 
 The usual fear with AI is that it confidently makes things up. This project was designed from top to bottom around
@@ -100,12 +117,14 @@ Two apps share the same databases and can be used independently:
 | Parts | OEM part numbers from the make DB, which other models share the part, QR codes for parts-store and junkyard searches, and a junkyard quote (yard price list plus book labor hours) |
 | Tests | Two-way tests, locked down (see Safety) |
 
-**Every car gets its own history.** Each case is filed under the car's VIN (or the customer name plus year/make/model
-when no VIN can be read). That includes codes, live readings, test-drive logs, notes, the verdict and maintenance
-ticks. Scan the same car again and the deck says it's been seen before. PAST VISITS opens any earlier visit, so you
-can put last time's readings next to what the car is doing live, and the models are told what was found and decided
-on recent visits ("it came back" is part of the case). The deck also remembers which live readings each car actually
-supports on each cable. It's handy for your own car, friends and family, or repeat customers.
+**Every car gets its own history.** Each car gets its own working SQLite file in `records/`, named by its VIN (or
+by the customer name plus year/make/model when no VIN can be read). It keeps every READ CAR and test-drive reading
+with its time, each value checked against the manual's normal range for that make (in, low or high, worked out in
+Python), every visit with its verdict and maintenance ticks, and the whole chat. Scan the same car again and its
+history comes up on the deck: PAST VISITS opens any earlier visit, and the case the models see gets a line comparing
+today's values with the same values at earlier visits. Open the file in any SQLite tool (DB Browser for SQLite)
+to look back over a car. The files stay on the device that runs the app (`car_records: false` in config turns them
+off). It's handy for your own car, friends and family, or repeat customers.
 
 **diagent** (`python -m diagent gui`), the strict one. It walks the manual's own diagnostic chart step by step. Python
 answers any step it can from the scan, checks every number you type against the cited spec, and watches live data

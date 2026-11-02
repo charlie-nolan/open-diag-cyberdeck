@@ -45,6 +45,7 @@ from llm_backend import (OllamaModel, RKLLMModel, mem_available_gb, mem_total_gb
                          probe_rkllm)
 from retrieval import Retriever as LegacyRetriever  # noqa: E402
 from vehicle_id import MAKES, car_from_rom, decode_vin, kb_path_for, make_from_ssm, nhtsa_decode  # noqa: E402
+import car_records  # one SQLite history file per car (records/<VIN>.db)
 import charm_pics
 import common_issues
 import drive_file
@@ -667,6 +668,8 @@ class Session:
             keys.append(("intake_note", "Intake note (raw, as dictated)"))
         if self.get("mode06"):
             keys.insert(3, ("mode06", "Mode 06 on-board tests that failed"))
+        if self.get("past_readings"):   # the car's record file: the same values at earlier visits
+            keys.insert(3, ("past_readings", "Same readings at this car's earlier visits (deck's records)"))
         out = "\n".join(f"{label}: {(live_data.for_prompt(self.get(k)) if k == 'telemetry' else self.get(k)) or '(none)'}"
                         for k, label in keys)
         meaning = live_data.explain(self.get("telemetry"))
@@ -2596,6 +2599,7 @@ class CyberdeckApp(QMainWindow):
                 self._say(self.txt_intake, f"[!] manual lookup not reloaded: {e}", T.AMBER)
         if not key:
             self.session.set("earlier_visits", "")
+        self._past_readings(key, v)
         case = self.session.case_summary()
         if case != self.last_case:
             self.last_case = case
@@ -2617,6 +2621,76 @@ class CyberdeckApp(QMainWindow):
             return
         vid = self.session.save_visit(self.session.get("visit_id"), vin, self.session.get("vehicle"), case)
         self.session.set("visit_id", str(vid))
+        if CFG.get("car_records", True):
+            try:
+                rec = car_records.CarRecords(vin)
+                rec.update_car(v)
+                rec.save_visit(vid, self.session.get("vehicle"), case, v.get("miles", ""))
+            except Exception as e:
+                self._records_warn(e)
+            self._flush_records()
+
+    # ------------------------------------------------------------------ per-car record file (records/<VIN>.db)
+    # Every reading (READ CAR and test drive), the chat and each visit's case go into the car's own SQLite file.
+    # Until the car has a VIN or customer key they wait in the session (records_pending), then get filed.
+    def _rec_car(self, v):
+        return {"make": v.get("make"), "model": v.get("model"), "year": v.get("year"), "engine": v.get("engine"),
+                "transmission": v.get("trans"), "vin": v.get("vin"), "db": os.path.expanduser(CFG.get("kb_db") or "")}
+
+    def _records_warn(self, e):
+        if not getattr(self, "_rec_warned", False):   # once per run, not every reading
+            self._rec_warned = True
+            self._say(self.txt_intake, f"[!] Car record file not written (kept to try again): {e}", T.AMBER)
+
+    def _record(self, kind, **kw):
+        if not CFG.get("car_records", True):
+            return
+        item = {"kind": kind, "t": time.time(), "visit_ref": self.session.get("visit_id"), **kw}
+        try:
+            pend = json.loads(self.session.get("records_pending") or "[]")
+        except ValueError:
+            pend = []
+        pend.append(item)
+        self.session.set("records_pending", json.dumps(pend[-3000:]))
+        self._flush_records()
+
+    def _flush_records(self):
+        try:
+            v = json.loads(self.session.get("vehicle_info") or "{}")
+            pend = json.loads(self.session.get("records_pending") or "[]")
+        except ValueError:
+            return
+        key = self._file_key(v)
+        if not key or not pend:
+            return
+        try:
+            rec, car, vid = car_records.CarRecords(key), self._rec_car(v), self.session.get("visit_id")
+            for x in pend:
+                if x["kind"] == "chat":
+                    rec.add_chat(x["t"], x.get("sender", ""), x.get("message", ""), x.get("visit_ref") or vid)
+                else:
+                    rec.add_reading(x["t"], x["kind"], x.get("codes", ""), x.get("live", ""), x.get("source", ""),
+                                    x.get("visit_ref") or vid, x.get("drive_id", ""), v.get("miles", ""), car)
+            self.session.set("records_pending", "")
+        except Exception as e:
+            self._records_warn(e)
+
+    def _past_readings(self, key, v):
+        """The values read now next to the same values at the car's earlier visits (Python, from the record file)."""
+        live = self.session.get("telemetry")
+        text = ""
+        if key and live and CFG.get("car_records", True):
+            try:
+                text = car_records.CarRecords(key).compare_text(live, self.session.get("telemetry_source"),
+                                                                self._rec_car(v), self.session.get("visit_id"))
+            except Exception as e:
+                self._records_warn(e)
+        self.session.set("past_readings", text)
+
+    @staticmethod
+    def _live_source(live):
+        read = CFG.get("_live") or ("", "")
+        return read[0] if live and live.strip() == (read[1] or "").strip() else ""
 
     @staticmethod
     def _file_key(v):
@@ -2698,6 +2772,7 @@ class CyberdeckApp(QMainWindow):
         if live:
             self.in_live.setText(live)
         self._say(self.txt_intake, f"[✓] Codes: {codes or 'none stored'} | {live}", T.AQUA)  # live values: aqua
+        self._record("read", codes=codes, live=live, source=self._live_source(live))
 
     # ------------------------------------------------------------------ TEST DRIVE
     def act_test_drive(self):
@@ -2796,6 +2871,7 @@ class CyberdeckApp(QMainWindow):
 
     def _drive_sample(self, t, codes, live):
         self.session.add_drive_sample(self.drive_id, t, codes, live)
+        self._record("drive", t=t, codes=codes, live=live, drive_id=self.drive_id, source=self._live_source(live))
         try:
             if self.drive_path:
                 drive_file.add(self.drive_path, t, codes, live)
@@ -3052,6 +3128,7 @@ class CyberdeckApp(QMainWindow):
             return
 
         self.session.log("user", msg)
+        self._record("chat", sender="user", message=msg)
         self._note_chat(msg)
         if not self.chat_started:  # a new case or CLEAR started the chat over
             self.chat_hist = []
@@ -3092,6 +3169,7 @@ class CyberdeckApp(QMainWindow):
 
             def done(t):
                 self.session.log(role, t)
+                self._record("chat", sender=role, message=t)
                 if "[LLM error" not in t:
                     self.chat_hist.append((msg, t.strip()[:600]))
 
@@ -3262,6 +3340,11 @@ class CyberdeckApp(QMainWindow):
         top.addWidget(self.lbl_maint, 1)
         top.addWidget(self.cmb_maint_kind)
         top.addWidget(b_man)
+        b_align = QPushButton("WHEEL ALIGNMENT")
+        b_align.setToolTip("Camber and toe from camera photos of printed targets, specs from this car's manual, "
+                           "and how far to turn each adjuster (opens its own window)")
+        b_align.clicked.connect(self.act_alignment)
+        top.addWidget(b_align)
         if PS is not None:
             b_parts = QPushButton("PARTS + PRICES FOR THIS")
             b_parts.clicked.connect(self.act_maint_parts)
@@ -3281,6 +3364,21 @@ class CyberdeckApp(QMainWindow):
         lay.addWidget(self.txt_maint, 2)
         self.maint_rows = {}
         self.stack.addWidget(w)
+
+    def act_alignment(self):
+        """WHEEL ALIGNMENT window (app/align_gui.py) for the car on Intake; it reads this make's knowledge DB."""
+        try:
+            import align_gui
+        except Exception as e:      # e.g. OpenCV missing is reported inside the window; this is an import failure
+            self._say(self.txt_maint, f"[!] alignment screen failed to load: {e}", T.AMBER)
+            return
+        try:
+            v = json.loads(self.session.get("vehicle_info") or "{}")
+        except ValueError:
+            v = {}
+        self._align_win = align_gui.AlignmentWindow(v.get("make") or CFG.get("make", ""), v.get("model", ""),
+                                                    str(v.get("year") or ""), CFG.get("kb_db", ""), CFG["cache_dir"])
+        self._align_win.show()
 
     def _maint_status(self):
         try:

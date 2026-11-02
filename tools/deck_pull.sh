@@ -14,12 +14,14 @@ FORCE=0; ALL=0; EXTRA=()
 for x in "$@"; do case $x in --force) FORCE=1;; --all-makes) ALL=1;; *) EXTRA+=("$x");; esac; done
 
 ssh -o ConnectTimeout=10 "$PC" true || { echo "can't reach the PC at $PC (Tailscale up on both?)"; exit 1; }
-busy=$(ssh "$PC" "pgrep -af 'build_subaru_kb.py|build_community.py|bake_cards|make_full.sh|car_full.sh|load_manuals.sh|eval_make.py' | grep -v pgrep")
+busy=$(ssh "$PC" "pgrep -af 'build_subaru_kb.py|build_community.py|bake_cards|make_full.sh|car_full.sh|load_manuals.sh|eval_make.py|add_nhtsa.py|add_investigations.py|add_stackexchange.py' | grep -v pgrep")
 [ $FORCE = 1 ] && busy=""
 being_built() {   # being_built <make>: 0 when a PC job is writing that make's DBs right now
     local m=$1
     [ -z "$busy" ] && return 1
-    echo "$busy" | grep -qE -- "--all|--make $m( |$)|/$m(\.threads)?\.db|kb/$m\.db|(car_full|make_full|bake_cards)\.sh $m( |$)" && return 0
+    # 'make_full.sh --all' itself doesn't count: it works on one make at a time, and that make's own
+    # job (build_subaru_kb.py --db kb/<make>.db, extract_fixes, ...) names the DB it is writing
+    echo "$busy" | grep -qE -- "--make $m( |$)|/$m(\.threads)?\.db|kb/$m\.db|(car_full|make_full|bake_cards)\.sh $m( |$)" && return 0
     # build_subaru_kb.py with no --db (load_manuals.sh) writes subaru.db
     [ "$m" = subaru ] && echo "$busy" | grep -E "load_manuals.sh|build_subaru_kb.py" | grep -qv -- "--db" && return 0
     return 1

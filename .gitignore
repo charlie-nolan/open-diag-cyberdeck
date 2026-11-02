@@ -55,3 +55,6 @@ _archive/
 _xfer/
 parts_sourcing/data/
 parts_sourcing/sample_sheet.html
+
+# per-car record files (your customers' cars stay on your device)
+records/
