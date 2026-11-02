@@ -62,8 +62,13 @@ It has to be built this way for two reasons:
 
 ## Built to stay grounded, not to guess
 
-The usual fear with AI is that it confidently makes things up. This project was designed from top to bottom around
-that problem:
+The usual fear with AI is that it confidently makes things up. There's a meme video of a guy standing in the empty
+engine bay of his car, right where the engine used to be, scratching his head while a chatbot tells him:
+
+> "Yes, I was wrong. You actually don't need to remove the engine to get the battery out! Let's put the engine back
+> in, and I'll show you how to remove the battery!"
+
+This project was designed from top to bottom so that doesn't happen to you:
 
 - **The models answer from the databases, not from memory.** Every question first goes through retrieval over the
   make's knowledge base (manual pages, diagnostic trees, spec tables, cards), and the prompts require the answer to
