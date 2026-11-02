@@ -28,6 +28,11 @@ under load) from a weak fuel pump or a dirty MAF (the opposite), or catches a se
 All of that sits alongside the codes and the manual's own test steps. Python works out what each reading means before
 the model sees it, and every conclusion still has to cite its source.
 
+The Chat screen is also useful as a sounding board, like talking the problem over with a mechanic. Throw out your own
+theory ("could it be the coil pack?") and it checks the idea against the live data, the factory manual and the
+community fixes from Reddit and the forums. It tells you what fits, what doesn't and the quickest test to settle it,
+instead of just agreeing with you.
+
 In the author's use this goes well past what a simple OBD-II scanner shows. It's still a diagnostic aid, though:
 confirm with the manual's tests before you replace parts.
 
