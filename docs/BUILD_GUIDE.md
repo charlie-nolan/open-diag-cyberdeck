@@ -53,7 +53,11 @@ going up or down. Swap freely; the software doesn't care about brands except whe
 | GPU | None (CPU-only works, slowly) | RTX 3070, 8 GB | An NVIDIA card with 8 GB+ makes embedding, card baking and community extraction practical. More VRAM = faster Home mode. |
 | Disk | ~50 GB for a make or two | Main SSD + 458 GB SSD + 5 TB USB HDD | See the PC sizing table below: about 1 TB for all of CHARM with pictures, 2 TB+ with LEMON. |
 
-**How big does it need to be?** Size the build to how much data you want. Sizes are approximate: they come from the original build, rounded.
+**How big does it need to be?** Size the build to how much data you want. The original is being built out for
+*any* car, so it can diagnose whatever pulls into the shop: every make's database, all the models, and a big PC
+for the builds. If you only want it for **your own car**, you need one make's database (or even just the factory
+manual for your model and year) and the fast model. That build is small and light: it fits on a microSD card and runs
+on the minimum hardware, and the database build is a few commands instead of days of PC time. Sizes are approximate: they come from the original build, rounded.
 
 *On the deck*
 | Piece | Size |
