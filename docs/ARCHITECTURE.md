@@ -1,8 +1,8 @@
 # How the databases, the models and live data fit together
 
-Five diagrams: how the databases are built (on the PC, once), what is inside a make's database, what
-happens on the deck every time you ask a question, what each Brainstorm/Chat mode does and saves, and how
-Final Diagnosis builds its work plan. GitHub draws them from the Mermaid text below.
+Six diagrams: how the databases are built (on the PC, once), what is inside a make's database, what
+happens on the deck every time you ask a question, what each Brainstorm/Chat mode does and saves, how
+Final Diagnosis builds its work plan, and how the per-code cards are baked. GitHub draws them from the Mermaid text below.
 
 The short version: **the models never answer from memory.** Python reads the car, judges every reading against
 the manual's ranges and pulls the right pages out of SQLite. The model only gets that evidence to reason over,
@@ -215,6 +215,38 @@ flowchart TB
     PLAN --> SAVE["Verdict saved to the case"]
     SAVE --> PARTSTAB["Parts tab pre-filled with<br/>issue 1's first part → QR codes"]
     SAVE --> REC[("records/&lt;VIN&gt;.db<br/>visit filed with the verdict")]
+```
+
+## 6. Card baking: one sourced card per trouble code
+
+Done once per car model on the PC (about 6 hours per model on an RTX 3070), so the deck only has to look the
+card up. Two jobs: pull confirmed fixes out of forum threads, then write and check one card per code.
+
+```mermaid
+flowchart TB
+    subgraph J1["Job 1: extract confirmed fixes (small model, Qwen3-8B)"]
+        TH["Reddit + forum threads<br/>for this make"] --> F["Keyword filter, no model<br/>(codes, symptoms, 'fixed', 'turned out'...)"]
+        F --> X{{"Model reads each thread → JSON:<br/>car, codes, fix, part, cause bucket,<br/>confirmed? + a quoted sentence as evidence"}}
+        X --> Q{"Is the quote really<br/>in the thread?"}
+        Q -- "no" --> NOPE["Not counted as confirmed"]
+        Q -- "yes" --> C{"Who confirmed it?"}
+        C -- "original poster says it worked<br/>or another owner with the same problem" --> OK[("Confirmed fixes<br/>(work DB)")]
+        C -- "only suggested / unresolved" --> NOPE
+    end
+
+    subgraph J2["Job 2: bake one card per code (Qwen3.6 35B)"]
+        CODES["Every code with a manual procedure<br/>for this model + years<br/>(or 3+ confirmed forum fixes)"] --> GATHER
+        OK --> COUNT["Count confirmed fixes per cause, in SQL<br/>this car's count if 3+ owners of it confirmed,<br/>else every model of the make"]
+        COUNT --> GATHER["Sources for the code, each with an id<br/>· manual definition + diagnostic procedure (+ its 'refer to' pages)<br/>· cause counts + example threads<br/>· TSBs, recalls, complaints for this car"]
+        GATHER --> W{{"Model writes the card as JSON:<br/>summary, causes in count order,<br/>how to check each, test steps.<br/>Every claim cites a source id"}}
+        W --> V{{"Second pass, per cause and step:<br/>does the cited source really support it?<br/>yes / partly / no"}}
+        V -- "no, or cites nothing real" --> DROP["Dropped, kept in dropped_json<br/>for review (wildcard can see them)"]
+        V -- "yes / partly" --> SCRUB["Python scrub: any torque, capacity or<br/>part number the model wrote is replaced<br/>with 'see manual' / 'see parts list'"]
+        SCRUB --> ADD["Python adds specs and book labor<br/>copied from the manual tables"]
+    end
+
+    ADD --> CARD[("dtc_card in kb/&lt;make&gt;.db<br/>+ keyword index + vectors")]
+    CARD --> USE["Shown second, after the manual's own tree,<br/>marked 'secondary to the manual'"]
 ```
 
 ### What Python does vs. what the model does

@@ -47,7 +47,7 @@ How a question flows from the car and the databases to the model's answer:
 
 ![Question flow](docs/images/3_question_flow.png)
 
-More diagrams (how the databases are built, what's inside each one, and what each Brainstorm mode does and saves, and how Final Diagnosis builds its plan)
+More diagrams (how the databases are built, what's inside each one, and what each Brainstorm mode does and saves, how Final Diagnosis builds its plan, and how cards are baked)
 are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), with pictures in [docs/images](docs/images).
 
 It has to be built this way for two reasons:
@@ -160,6 +160,17 @@ with all the codes. `/part <name or number>` does the same from Chat.
    - Causes are ranked by how many owners confirmed them. The card is written with a source id on every claim, then a
      second pass drops any claim its sources don't support (dropped claims are kept for review).
    - Torque values, capacities and part numbers on a card are copied from the manual tables, never written by a model.
+
+   **What card baking is, in plain words:** a manual tells you how to test for a code, but not which cause owners
+   actually find most often. A card adds that. On the PC, a small model reads thousands of forum and Reddit threads
+   and keeps only fixes the owner confirmed, each backed by a quote that's checked against the thread. Python
+   counts those fixes per cause. A bigger model then writes one card per code from the manual's procedure, the
+   counts and the TSBs, citing a source for every claim. A second pass throws out any claim its source doesn't
+   back up, and Python strips any spec or part number the model wrote and puts in the manual's real ones. It runs
+   once per car model (about 6 hours on an RTX 3070), so the deck just looks the card up.
+
+   ![Card baking](docs/images/6_card_baking.png)
+
 3. Other manual pages: specs, connector views, component tests, cross-references.
 4. **Community reports**: what owners tested, ruled out and fixed, extracted from forum and Reddit threads
    and linked back to manual sections (`kb/build_community.py`). They're shown as supporting evidence, never as the answer.
