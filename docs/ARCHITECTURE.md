@@ -1,7 +1,7 @@
 # How the databases, the models and live data fit together
 
-Three diagrams: how the databases are built (on the PC, once), what is inside a make's database, and what
-happens on the deck every time you ask a question. GitHub draws them from the Mermaid text below.
+Four diagrams: how the databases are built (on the PC, once), what is inside a make's database, what
+happens on the deck every time you ask a question, and what each Brainstorm/Chat mode does and saves. GitHub draws them from the Mermaid text below.
 
 The short version: **the models never answer from memory.** Python reads the car, judges every reading against
 the manual's ranges and pulls the right pages out of SQLite. The model only gets that evidence to reason over,
@@ -132,6 +132,55 @@ flowchart TB
 
     Q -. "/fsm /torque /fluids:<br/>no model at all" .-> RAW["Manual text and spec rows<br/>straight from the DB"]
     PICK -.-> RAW
+```
+
+## 4. The Brainstorm / Chat screen: each mode, and what gets saved
+
+Everything you type goes in one box. What happens next depends on how the line starts. Nothing a slash command
+returns is saved on its own. Debate and wildcard results are kept only when you tap SAVE.
+
+```mermaid
+flowchart TB
+    IN(["You type in the Brainstorm box"]) --> WHICH{"How does it start?"}
+
+    %% ---- lookups with no model
+    WHICH -- "/torque · /spec" --> TQ["Spec rows for that part<br/>from the make DB's spec table"]
+    WHICH -- "/fsm · /fluids" --> FS["Best matching manual pages<br/>(keywords + embeddings),<br/>with their pictures"]
+    TQ --> NOSAVE1["Shown on screen.<br/>No model, nothing saved"]
+    FS --> NOSAVE1
+
+    %% ---- normal chat
+    WHICH -- "plain text" --> C1["Logged: the case notes list<br/>+ this car's chat record"]
+    C1 --> C2["Look up evidence for the codes, symptoms,<br/>last questions and this message:<br/>manual tree first, then cards and<br/>owner-confirmed fixes only"]
+    C2 --> C3["Prompt: case summary + live data judged<br/>+ evidence + last few exchanges<br/>+ 'weigh the mechanic's own theory:<br/>what fits, what doesn't, quickest test'"]
+    C3 --> C4{{"Chat model<br/>deck: 1.7B (or 4B)<br/>home: Qwen3.6 35B"}}
+    C4 --> C5["Short conversational answer"]
+    C5 --> C6["Answer logged to this car's chat record<br/>and kept for the next turn's context"]
+
+    %% ---- debate
+    WHICH -- "/debate [question]<br/>or text ending in /debate" --> D1["Look up evidence for the case + question<br/>(manual, cards, TSBs, forum fixes)"]
+    D1 --> D2{{"Fast model"}}
+    D2 --> D3["2-3 explanations, each with FOR,<br/>AGAINST and COST, then<br/>WHAT SETTLES IT. No winner picked"]
+    D3 --> D4{"SAVE DEBATE?"}
+
+    %% ---- wildcard
+    WHICH -- "/wildcard [question]" --> W1["Gather long shots: case + 3 forum fixes<br/>(unverified) + causes the card's<br/>source check rejected, with why"]
+    W1 --> W2{{"Deep model,<br/>high temperature"}}
+    W2 --> W3["5 unlikely but possible causes,<br/>each with its clue in the case<br/>and a cheap test"]
+    W3 --> W4{"SAVE WILDCARD?"}
+
+    %% ---- saving
+    D4 -- "no" --> GONE["Stays on screen only,<br/>never reaches the verdict"]
+    W4 -- "no" --> GONE
+    D4 -- "yes (/save)" --> CASE["This job's case<br/>(the open visit)"]
+    W4 -- "yes (/savewild)<br/>marked as long shots" --> CASE
+    C1 -- "your messages" --> NOTES["YOUR NOTES FROM CHAT<br/>(editable list)"]
+    NOTES --> CASE
+
+    CASE --> FD["Final Diagnosis reads the whole case:<br/>saved debate weighed as unresolved,<br/>saved wildcard weighed only if the<br/>evidence backs it"]
+    CASE -- "filed with the visit<br/>(at intake, maintenance and verdict)" --> REC[("records/&lt;VIN&gt;.db<br/>this car's file:<br/>visit + case, readings, chat")]
+    C6 --> REC
+    REC -. "next time this car is scanned:<br/>past visits + same readings then vs now" .-> C3
 ```
 
 ### What Python does vs. what the model does
