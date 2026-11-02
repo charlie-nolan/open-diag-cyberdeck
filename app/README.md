@@ -1,4 +1,4 @@
-# Subaru cyberdeck: two-model diagnostic app
+# Home app: two-model diagnostic app
 
 No agents. Two local Qwen3 models with fixed jobs, grounded in your FSM databases:
 
@@ -25,7 +25,7 @@ Pick the cable in the Intake tab (the app remembers it). READ CAR only reads; th
 | **OBDLink EX** (`obdlink`, default) | First generic OBD-II: stored DTCs, RPM, coolant, trims, MAP, MAF, timing, load, volts, and the VIN (asked of every car). Then, unless the VIN names another make, Subaru SSM2 through the same EX: the ECU's own DTC table, engine ID, knock correction and more. The EX settings that work are remembered (`ex_ssm_variant`); every byte of the SSM attempt goes to `cache/ex_ssm_last.log` | `pip install obd pyserial`, user in the `dialout` group |
 | **Bare KKL cable** (`kkl`, fallback) | Subaru SSM2 only, straight on the K-line | `pip install pyserial`, user in the `dialout` group |
 
-The SSM code is in `app/ssm/` (copied from the project's `subaru_ssm` folder; see `app/ssm/README.md`). READ CAR only sends 0xBF (identify) and 0xA8 (read). Each SSM read saves the ECU's init reply to `cache/ecu_init_reply_ex.hex` (EX) or `cache/ecu_init_reply.hex` (KKL), which pins down exactly which live values your ECU supports. The cylinder roughness (misfire) counters are left out until that file confirms the 2002 ECU has them. SSM through the EX uses `app/ssm/ex_ssm2_probe.py` (copied from `research/obdlink_ex/`). Tested against a simulated ECU and adapter only, not the car yet.
+The SSM code is in `app/ssm/` (see `app/ssm/README.md`). READ CAR only sends 0xBF (identify) and 0xA8 (read). Each SSM read saves the ECU's init reply to `cache/ecu_init_reply_ex.hex` (EX) or `cache/ecu_init_reply.hex` (KKL), which pins down exactly which live values your ECU supports. The cylinder roughness (misfire) counters are left out until that file confirms the 2002 ECU has them. SSM through the EX uses `app/ssm/ex_ssm2_probe.py`. Tested against a simulated ECU and adapter only, not the car yet.
 
 ## Two-way tests (6. TESTS screen)
 
@@ -41,7 +41,7 @@ TEST MODE is off every time the deck starts. Switching it on asks first, then th
 
 Leaving the TESTS screen, switching TEST MODE off or closing the app stops a running test. The Subaru commands and checks are ported from FreeSSM (GPL-3) in `app/ssm/ssm_tests.py`, which refuses any write that isn't one of this ECU's advertised tests or clear memory. No flashing, adjustments or security access. Tested on simulated ECUs (KKL and EX) only, not on the car yet.
 
-## Voice (offline, your Gemini plan)
+## Voice (offline)
 
 Two engines with separate jobs. Voice runs in its own background process, pinned to the A55 cores (0-3), so the NPU and A76 cores stay free for Qwen and a stuck mic can't freeze the screen.
 
@@ -72,29 +72,7 @@ Mic: use a USB or 3.5 mm headset and pick it in the mic dropdown. Speech output 
 
 If any piece is missing the app still runs, and the top bar says which part is off. Not done yet: Silero VAD (the end-of-speech check is a simple loudness gate for now), and a fluids table in the kb. Tested only with stand-in audio, not a real mic.
 
-## Folder layout (after `reorganize_cyberdeck.sh --apply`)
-
-```
-~/subaru_cyberdeck/
-  app/            cyberdeck_gui.py, llm_backend.py, retrieval.py, ssm_reader.py, voice.py, ssm/, config.json (optional)
-  tools/          export_qwen3_rkllm.py, export_to_rkllm.py (old)
-  ingest/         build_test_db.py and the FSM PDF/torque scripts
-  models/rkllm/   Qwen3 .rkllm files go here
-  models/voice/   Vosk model, whisper.cpp and its ggml model
-  kb/            subaru.db (unified knowledge base) + kb_retriever.py
-  subaru_diag.db, test_subaru_knowledge.db, session_active.db, build_subaru_diag_db.py   (unchanged)
-  _archive/2026-10-16/   everything moved out, with moves.log and undo.sh
-```
-
-## 1. Clean up the folder
-
-```
-cd ~/subaru_cyberdeck
-bash reorganize_cyberdeck.sh            # dry run, read the list
-bash reorganize_cyberdeck.sh --apply    # moves only; undo with: bash _archive/2026-10-16/undo.sh
-```
-
-## 2. Make the models (desktop, x86 Linux)
+## Make the models (desktop, x86 Linux)
 
 In the venv that has `rkllm-toolkit` 1.3.1 (same version as the Pi runtime):
 
@@ -107,7 +85,7 @@ python ~/subaru_cyberdeck/tools/export_qwen3_rkllm.py --only fast
 float32 export of the 4B needs about 32 GB RAM; add `--dtype bfloat16` if it runs out.
 Other models work too, e.g. `--hf Qwen/Qwen3-8B --name Qwen3-8B`, then point `deep_model` in `app/config.json` at it.
 
-## 3. Run on the Orange Pi
+## Run on the Orange Pi
 
 Copy `~/subaru_cyberdeck` (at least `app/`, `models/rkllm/`, `kb/`, `rknn-llm/rkllm-runtime/`, and `session_active.db`) to the Pi, then:
 
@@ -126,4 +104,4 @@ Models: fast is Qwen3-1.7B, deep is Qwen3-4B-Instruct-2507, think is Qwen3-4B-Th
 Without the NPU the app falls back to Ollama: `ollama pull qwen3:1.7b` and
 `ollama pull qwen3:4b-instruct-2507-q4_K_M` (plus `qwen3:4b-thinking-2507-q4_K_M` for Think Harder), then run the same command.
 
-Nothing in the app sends a write or actuator command to the car. Two-way tests stay out on purpose.
+The only writes the app can send are on the TESTS screen (above).
