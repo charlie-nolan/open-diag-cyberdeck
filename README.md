@@ -15,6 +15,22 @@ knowledge database per make (`kb/subaru.db`, `kb/chevrolet.db`, ...), and builde
 > right to use. Want to build one yourself? **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** walks through it
 > from parts list to first scan.
 
+## Why it's more than a code reader
+
+A basic OBD-II scanner tells you a code and maybe a definition. This deck gives the models **the car's live engine
+data and all of the databases at the same time**: the factory diagnostic tree, specs, owner-confirmed fixes, TSBs and
+complaints, plus what you saw, heard and smelled at intake. That combination is where the deep, useful diagnosis comes
+from, especially for faults that are hidden or a bit obscure.
+
+For example, it can read the fuel trims at idle, at cruise and under load and compare them with the O2 sensor
+readings, timing advance, MAF/MAP and coolant temperature. That separates a vacuum leak (trims high at idle, normal
+under load) from a weak fuel pump or a dirty MAF (the opposite), or catches a sensor that's reading plausibly but wrong.
+All of that sits alongside the codes and the manual's own test steps. Python works out what each reading means before
+the model sees it, and every conclusion still has to cite its source.
+
+In the author's use this goes well past what a simple OBD-II scanner shows. It's still a diagnostic aid, though:
+confirm with the manual's tests before you replace parts.
+
 ---
 
 ## What it does
