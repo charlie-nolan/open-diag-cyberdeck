@@ -1,0 +1,57 @@
+{
+  "_comment": "Beta profile for a friend's 2003 Tahoe. Everything car-specific lives here, not in make_pipeline.py. Copy this file for another car or make.",
+  "make": "Chevrolet",
+  "slug": "chevrolet",
+  "label": "Chevrolet Tahoe 2000-2006 (GMT800 generation, beta car is a 2003)",
+  "years": "2000-2006",
+
+  "charm": {
+    "make_candidates": ["Chevy Truck", "Chevrolet Truck", "Chevrolet"],
+    "only": "Tahoe"
+  },
+
+  "nhtsa": {
+    "make": "CHEVROLET",
+    "models": {"TAHOE": "Tahoe"}
+  },
+
+  "vin": {
+    "manufacturers": ["General Motors"],
+    "vins": []
+  },
+
+  "models": {"Tahoe": "(?<!lake )\\btahoe\\b"},
+  "related_models": {
+    "Suburban": "\\bsuburban\\b", "Yukon": "\\byukon\\b", "Silverado": "\\bsilverado\\b",
+    "Sierra": "(?<!sierra )\\bsierra\\b(?! nevada)", "Avalanche": "\\bavalanche\\b", "Escalade": "\\bescalade\\b"
+  },
+  "case_sensitive_models": {},
+  "chassis": "\\b(GMT ?8[0-9]0|GMT ?840|GMT ?800|[CK]1500|[CK]2500)\\b",
+  "engines": "\\b(LM7|LR4|L59|LQ4|LQ9|L33|4L60-?E|4L65-?E|NV ?246|NV ?233|NP ?246|5\\.3L?|4\\.8L?|6\\.0L?)\\b",
+  "keywords": ["check engine", "CEL", "SES", "misfir\\w*", "overheat\\w*", "coolant", "stall(?:s|ed|ing)?", "idl(?:e|es|ing)", "no start", "won'?t start", "doesn'?t start", "crank(?:s|ing)?", "rough", "knock(?:s|ing)?", "tick(?:s|ing)?", "lifters?", "leak(?:s|ing|ed)?", "wheel bearings?", "hub bearings?", "ball joints?", "transmission", "tranny", "slipping", "shift(?:s|ing)? hard", "transfer case", "4wd", "4x4", "auto ?trac", "service 4wd", "intake gasket", "knock sensors?", "fuel pump", "fuel pressure", "evap", "catalytic", "o2 sensors?", "egr", "throttle body", "iac", "maf", "map sensor", "gauges?", "instrument cluster", "stepper motors?", "abs", "ebcm", "brake", "blend door", "hvac", "rust(?:ed|ing|y)?", "diagnos\\w*", "fixed", "solved", "replaced"],
+
+  "reddit": {
+    "db": "raw/reddit/reddit_chevrolet_tahoe.db",
+    "_subs_note": "r/Tahoe is the Lake Tahoe region sub, so only r/chevytahoe is implied Tahoe",
+    "subs": {"chevytahoe": "Tahoe", "GMT800": null, "Silverado": "Silverado",
+             "chevysilverado": "Silverado", "Chevy": null, "chevrolet": null, "gmc": null,
+             "MechanicAdvice": null, "AskAMechanic": null, "Justrolledintotheshop": null},
+    "require_model": ["GMT800", "Silverado", "chevysilverado", "Chevy", "chevrolet", "gmc", "MechanicAdvice", "AskAMechanic", "Justrolledintotheshop"],
+    "topup_subs": ["chevytahoe", "GMT800"],
+    "max_dump_gb": 25
+  },
+
+  "forums": [
+    {"name": "gmtnation", "domain": "gmtnation.com", "cdx_prefix": "gmtnation.com/forums/threads/", "engine": "xenforo", "require_model": false},
+    {"name": "tahoeyukonforum", "domain": "www.tahoeyukonforum.com", "cdx_prefix": "tahoeyukonforum.com/threads/", "engine": "xenforo", "require_model": false},
+    {"name": "gm-trucks", "domain": "www.gm-trucks.com", "cdx_prefix": "gm-trucks.com/forums/topic/", "engine": "invision", "require_model": true}
+  ],
+
+  "gm_live": {
+    "protocol": "J1850 VPW",
+    "stn_protocol": "2",
+    "pcm_header": "6C10F1",
+    "pid_file": "kb/gm_mode22_pids.json",
+    "pid_sheet_url": "https://gmtnation.com/forums/attachments/gmt_pids_rev_5-xlsx.109885/"
+  }
+}

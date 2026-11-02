@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+venv/
+.venv/
+rkllm-env/
+
+# Editors
+*.kate-swp
+*.swp
+*~
+.idea/
+.vscode/
+
+# Local settings (copy app/config.example.json to app/config.json)
+app/config.json
+diagent/config.json
+*.bak*
+*.lock
+
+# Data never goes in this repo: manuals, CHARM, scraped text, built databases, models, logs
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.mdb
+*.rkllm
+*.gguf
+*.safetensors
+*.bin
+*.pdf
+*.xlsx
+*.relink.txt
+kb/.*
+kb/community/
+kb/telemetry/
+kb/images/
+diagent/data/
+diagent/scenarios/*.json
+models/
+raw/
+cache/
+logs/
+manual_pdfs/
+test_batch_out/
+extracted_images/
+cyberdeck_forge/*/
+lmdb-pages~/
+rknn-llm/
+Qwen*/
+_archive/
+_xfer/
+parts_sourcing/data/
+parts_sourcing/sample_sheet.html

@@ -1,0 +1,53 @@
+acura|Acura,Acura Truck
+audi|Audi
+bmw|BMW
+buick|Buick,Buick Truck
+cadillac|Cadillac,Cadillac Truck
+chevrolet|Chevrolet,Chevy Truck
+chrysler|Chrysler,Chrysler Truck
+daewoo|Daewoo
+daihatsu|Daihatsu,Daihatsu Truck
+dodge|Dodge,Dodge or Ram Truck
+eagle|Eagle
+fiat|Fiat
+ford|Ford,Ford Truck
+freightliner|Freightliner Truck
+gmc|GMC Truck
+geo|Geo,Geo Truck
+honda|Honda,Honda Truck
+hummer|Hummer
+hyundai|Hyundai,Hyundai Truck
+infiniti|Infiniti,Infiniti Truck
+isuzu|Isuzu,Isuzu Truck
+jaguar|Jaguar
+jeep|Jeep Truck
+kia|Kia,Kia Truck
+land_rover|Land Rover
+lexus|Lexus,Lexus Truck
+lincoln|Lincoln,Lincoln Truck
+mazda|Mazda,Mazda Truck
+mercedes_benz|Mercedes Benz,Mercedes Benz Truck
+mercury|Mercury,Mercury Truck
+mini|Mini
+mitsubishi|Mitsubishi,Mitsubishi Truck
+mitsubishi_fuso|Mitsubishi Fuso
+nissan|Nissan-Datsun,Nissan-Datsun Truck
+oldsmobile|Oldsmobile,Oldsmobile Truck
+peugeot|Peugeot
+plymouth|Plymouth,Plymouth Truck
+pontiac|Pontiac,Pontiac Truck
+porsche|Porsche
+renault|Renault
+srt|SRT
+saab|Saab
+saturn|Saturn,Saturn Truck
+scion|Scion
+smart|Smart
+subaru|Subaru,Subaru Truck
+suzuki|Suzuki,Suzuki Truck
+toyota|Toyota,Toyota Truck
+ud|UD
+volkswagen|Volkswagen,Volkswagen Truck
+volvo|Volvo
+workhorse|Workhorse
+yugo|Yugo

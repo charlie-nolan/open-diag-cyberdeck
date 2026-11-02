@@ -1,0 +1,25 @@
+{
+  "home_zip": "98101",
+  "yard_radius_miles": 100,
+  "kb_db": "~/subaru_cyberdeck/kb/subaru.db",
+  "yards_db": "~/subaru_cyberdeck/kb/yards.db",
+  "car": {
+    "make": "Subaru",
+    "model": "Forester",
+    "year": 2002,
+    "engine": "F4-2.5L SOHC"
+  },
+  "row52_crawl_allowed": false,
+  "price_chain": "Pick-n-Pull",
+  "labor_rate": 100,
+  "sales_tax": 0.0,
+  "include_admission": true,
+  "admission": null,
+  "price_aliases": {},
+  "alert_mail": {
+    "user": "",
+    "imap_host": "imap.gmail.com",
+    "folder": "INBOX",
+    "from": "row52"
+  }
+}

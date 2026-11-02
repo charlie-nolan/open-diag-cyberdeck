@@ -1,0 +1,10 @@
+{
+  "_comment": "Hand-checked additions to the CHARM fitment. model_aliases: a yard car of make/model in these years is also checked as alias_model (same year), at most at the 'possible' level. extra_fits: a part number (or 9-char Subaru family) also fits these vehicles. Add only fits you have checked; give the source in note.",
+  "model_aliases": [
+    {"make": "Saab", "model": "9-2X", "years": [2005, 2006], "alias_model": "Impreza",
+     "note": "Saab 9-2X is a rebadged GD Impreza wagon built by Subaru; mechanical parts match the Impreza of the same engine, body and lights differ"},
+    {"make": "Subaru", "model": "Legacy", "years": [1995, 1999], "alias_model": "Outback",
+     "note": "1995-99 Outbacks are Legacy wagons and some yards list them as Legacy"}
+  ],
+  "extra_fits": []
+}

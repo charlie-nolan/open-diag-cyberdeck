@@ -1,0 +1,13 @@
+# Deck app (app/), diagent and shopdeck. Python 3.11+.
+PyQt6>=6.5
+pyserial>=3.5
+obd>=0.7.1            # python-OBD, for the OBDLink EX
+numpy>=1.24
+Pillow>=10.0
+sqlite-vec>=0.1.6
+segno>=1.5            # parts sourcing QR codes
+# Voice (optional; the app turns voice off when these are missing)
+vosk>=0.3.45
+sounddevice>=0.4.6
+pyttsx3>=2.90
+# RKLLM runtime: librkllmrt.so from Rockchip's rknn-llm (not on PyPI), see README

@@ -1,0 +1,8838 @@
+{
+ "source": "FreeSSM (Comer352L, GPL-3) src/SSMFlagbyteDefinitions_en.cpp",
+ "notes": "flagbyte/bit are 1-based, as in FreeSSM's tables. cu: 1=engine, 2=transmission, 3=both.",
+ "measuring_blocks": [
+  {
+   "flagbyte": 1,
+   "bit": 1,
+   "cu": 3,
+   "addr_low": 15,
+   "addr_high": 14,
+   "title": "Engine Speed",
+   "unit": "rpm",
+   "formula": "/4",
+   "precision": 0
+  },
+  {
+   "flagbyte": 1,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 13,
+   "addr_high": null,
+   "title": "Manifold Absolute Pressure",
+   "unit": "kPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 1,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 12,
+   "addr_high": null,
+   "title": "Air/Fuel Learning #2",
+   "unit": "%",
+   "formula": "-128/128*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 1,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 11,
+   "addr_high": null,
+   "title": "Air/Fuel Correction #2",
+   "unit": "%",
+   "formula": "-128/128*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 1,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 10,
+   "addr_high": null,
+   "title": "Air/Fuel Learning #1",
+   "unit": "%",
+   "formula": "-128/128*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 1,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 9,
+   "addr_high": null,
+   "title": "Air/Fuel Correction #1",
+   "unit": "%",
+   "formula": "-128/128*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 1,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 8,
+   "addr_high": null,
+   "title": "Coolant Temperature",
+   "unit": "°C",
+   "formula": "-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 1,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 7,
+   "addr_high": null,
+   "title": "Engine Load",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 2,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 27,
+   "addr_high": 26,
+   "title": "Front O2 Sensor #2 Voltage",
+   "unit": "V",
+   "formula": "/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 2,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 25,
+   "addr_high": 24,
+   "title": "Rear O2 Sensor Voltage",
+   "unit": "V",
+   "formula": "/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 2,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 23,
+   "addr_high": 22,
+   "title": "Front O2 Sensor #1 Voltage",
+   "unit": "V",
+   "formula": "/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 2,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 21,
+   "addr_high": null,
+   "title": "Throttle Opening Angle",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 2,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 20,
+   "addr_high": 19,
+   "title": "Mass Air Flow",
+   "unit": "g/s",
+   "formula": "/100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 2,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 18,
+   "addr_high": null,
+   "title": "Intake Air Temperature",
+   "unit": "°C",
+   "formula": "-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 2,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 17,
+   "addr_high": null,
+   "title": "Ignition Timing",
+   "unit": "deg",
+   "formula": "-128/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 2,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 16,
+   "addr_high": null,
+   "title": "Vehicle Speed",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 3,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 35,
+   "addr_high": null,
+   "title": "Atmosphere Pressure",
+   "unit": "kPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 3,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 34,
+   "addr_high": null,
+   "title": "Knocking Correction",
+   "unit": "deg",
+   "formula": "-128/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 3,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 33,
+   "addr_high": null,
+   "title": "Fuel Injection #2 Pulse",
+   "unit": "ms",
+   "formula": "*256/1000",
+   "precision": 2
+  },
+  {
+   "flagbyte": 3,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 32,
+   "addr_high": null,
+   "title": "Fuel Injection #1 Pulse",
+   "unit": "ms",
+   "formula": "*256/1000",
+   "precision": 2
+  },
+  {
+   "flagbyte": 3,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 31,
+   "addr_high": null,
+   "title": "Differential Pressure Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 3,
+   "bit": 6,
+   "cu": 3,
+   "addr_low": 30,
+   "addr_high": null,
+   "title": "Throttle Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 3,
+   "bit": 7,
+   "cu": 3,
+   "addr_low": 29,
+   "addr_high": null,
+   "title": "Air Flow Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 3,
+   "bit": 8,
+   "cu": 3,
+   "addr_low": 28,
+   "addr_high": null,
+   "title": "Battery Voltage",
+   "unit": "V",
+   "formula": "*2/25",
+   "precision": 1
+  },
+  {
+   "flagbyte": 4,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 43,
+   "addr_high": null,
+   "title": "Front O2 Sensor #1 Heater Current",
+   "unit": "A",
+   "formula": "/255*10",
+   "precision": 2
+  },
+  {
+   "flagbyte": 4,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 42,
+   "addr_high": null,
+   "title": "Fuel Temperature",
+   "unit": "°C",
+   "formula": "-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 4,
+   "bit": 3,
+   "cu": 3,
+   "addr_low": 41,
+   "addr_high": null,
+   "title": "Accelerator Pedal Travel",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 4,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 40,
+   "addr_high": null,
+   "title": "Learned Ignition Timing",
+   "unit": "deg",
+   "formula": "-128/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 4,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 39,
+   "addr_high": null,
+   "title": "CO Adjustment Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 4,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 38,
+   "addr_high": null,
+   "title": "Fuel Tank Pressure",
+   "unit": "kPa",
+   "formula": "-128/40",
+   "precision": 2
+  },
+  {
+   "flagbyte": 4,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 37,
+   "addr_high": null,
+   "title": "Pressure Differential Sensor",
+   "unit": "kPa",
+   "formula": "-128",
+   "precision": 0
+  },
+  {
+   "flagbyte": 4,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 36,
+   "addr_high": null,
+   "title": "Manifold Relative Pressure",
+   "unit": "kPa",
+   "formula": "-128",
+   "precision": 0
+  },
+  {
+   "flagbyte": 5,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 51,
+   "addr_high": null,
+   "title": "Tumble Generator Valve (TGV) Position Sensor (Right)",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 5,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 50,
+   "addr_high": null,
+   "title": "Canister Purge Control (CPC) Valve Duty Ratio",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 0
+  },
+  {
+   "flagbyte": 5,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 49,
+   "addr_high": null,
+   "title": "Secondary Wastegate Duty Cycle",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 5,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 48,
+   "addr_high": null,
+   "title": "Primary Wastegate Duty Cycle",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 5,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 47,
+   "addr_high": null,
+   "title": "Radiator Fan Control",
+   "unit": "%",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 5,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 46,
+   "addr_high": null,
+   "title": "Fuel Level Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 5,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 45,
+   "addr_high": null,
+   "title": "Front O2 Sensor #2 Heater Current",
+   "unit": "A",
+   "formula": "/255*10",
+   "precision": 2
+  },
+  {
+   "flagbyte": 5,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 44,
+   "addr_high": null,
+   "title": "Rear O2 Sensor Heater Current",
+   "unit": "A",
+   "formula": "/255*10",
+   "precision": 2
+  },
+  {
+   "flagbyte": 6,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 59,
+   "addr_high": null,
+   "title": "Fuel Pump Duty",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 0
+  },
+  {
+   "flagbyte": 6,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 58,
+   "addr_high": null,
+   "title": "Alternator Duty",
+   "unit": "%",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 6,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 57,
+   "addr_high": null,
+   "title": "Number of Exhaust Gas Recirculation (EGR) Steps",
+   "unit": "steps",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 6,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 56,
+   "addr_high": null,
+   "title": "Idle Speed Control (ISC) Valve Steps",
+   "unit": "steps",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 6,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 55,
+   "addr_high": null,
+   "title": "Air/Fuel Heater Duty",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 6,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 54,
+   "addr_high": null,
+   "title": "Air/Fuel Lean Correction",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 0
+  },
+  {
+   "flagbyte": 6,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 53,
+   "addr_high": null,
+   "title": "Idle Speed Control (ISC) Valve Duty Ratio",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 6,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 52,
+   "addr_high": null,
+   "title": "Tumble Generator Valve (TGV) Position Sensor (Left)",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 7,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 67,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #2 Current",
+   "unit": "mA",
+   "formula": "-128/8",
+   "precision": 2
+  },
+  {
+   "flagbyte": 7,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 66,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #1 Current",
+   "unit": "mA",
+   "formula": "-128/8",
+   "precision": 2
+  },
+  {
+   "flagbyte": 7,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 65,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Current (Left, Intake)",
+   "unit": "mA",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 7,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 64,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Current (Right, Intake)",
+   "unit": "mA",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 7,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 63,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Duty (Left, Intake)",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 7,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 62,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Duty (Right, Intake)",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 7,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 61,
+   "addr_high": null,
+   "title": "Variable Valve Timing (VVT) Advance Angle Amount (Left, Intake)",
+   "unit": "deg",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 7,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 60,
+   "addr_high": null,
+   "title": "Variable Valve Timing (VVT) Advance Angle Amount (Right, Intake)",
+   "unit": "deg",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 8,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 211,
+   "addr_high": null,
+   "title": "Air/Fuel Adjust Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 8,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 210,
+   "addr_high": null,
+   "title": "Rear O2 Sensor Heater Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 8,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 209,
+   "addr_high": null,
+   "title": "Air/Fuel Learning #3",
+   "unit": "%",
+   "formula": "-128/128*100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 8,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 208,
+   "addr_high": null,
+   "title": "Air/Fuel Correction #3",
+   "unit": "%",
+   "formula": "-64/128*10",
+   "precision": 2
+  },
+  {
+   "flagbyte": 8,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 71,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #2 Lambda",
+   "unit": "",
+   "formula": "/128",
+   "precision": 2
+  },
+  {
+   "flagbyte": 8,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 70,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #1 Lambda",
+   "unit": "",
+   "formula": "/128",
+   "precision": 2
+  },
+  {
+   "flagbyte": 8,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 69,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #2 Resistance",
+   "unit": "ohms",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 8,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 68,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #1 Resistance",
+   "unit": "ohms",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 9,
+   "bit": 1,
+   "cu": 2,
+   "addr_low": 79,
+   "addr_high": null,
+   "title": "Turbine Revolution Speed",
+   "unit": "rpm",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 9,
+   "bit": 2,
+   "cu": 2,
+   "addr_low": 78,
+   "addr_high": null,
+   "title": "Throttle Sensor Voltage",
+   "unit": "V",
+   "formula": "/45",
+   "precision": 2
+  },
+  {
+   "flagbyte": 9,
+   "bit": 3,
+   "cu": 2,
+   "addr_low": 77,
+   "addr_high": null,
+   "title": "Transfer Duty Ratio",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 9,
+   "bit": 4,
+   "cu": 2,
+   "addr_low": 76,
+   "addr_high": null,
+   "title": "Lock Up Duty Ratio",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 9,
+   "bit": 5,
+   "cu": 2,
+   "addr_low": 75,
+   "addr_high": null,
+   "title": "Line Pressure Duty Ratio",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 9,
+   "bit": 6,
+   "cu": 3,
+   "addr_low": 74,
+   "addr_high": null,
+   "title": "Gear Position",
+   "unit": "gear",
+   "formula": "+1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 9,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 73,
+   "addr_high": null,
+   "title": "ATF Temperature",
+   "unit": "°C",
+   "formula": "0=-60,1=-60,2=-51,3=-45,4=-40,5=-37,6=-34,7=-31,8=-29,9=-27,10=-25,11=-23,12=-22,13=-20,14=-19,15=-17,16=-16,17=-15,18=-14,19=-13,20=-12,21=-10,22=-9,23=-9,24=-8,25=-7,26=-6,27=-5,28=-4,29=-3,30=-2,31=-2,32=-1,33=0,34=1,35=1,36=2,37=3,38=3,39=4,40=5,41=5,42=6,43=7,44=7,45=8,46=8,47=9,48=10,49=10,50=11,51=11,52=12,53=12,54=13,55=13,56=14,57=15,58=15,59=16,60=16,61=17,62=17,63=18,64=18,65=19,66=19,67=20,68=20,69=21,70=21,71=22,72=22,73=23,74=23,75=23,76=24,77=24,78=25,79=25,80=26,81=26,82=27,83=27,84=28,85=28,86=29,87=29,88=29,89=30,90=30,91=31,92=31,93=32,94=32,95=33,96=33,97=33,98=34,99=34,100=35,101=35,102=36,103=36,104=37,105=37,106=37,107=38,108=38,109=39,110=39,111=40,112=40,113=41,114=41,115=41,116=42,117=42,118=43,119=43,120=44,121=44,122=45,123=45,124=45,125=46,126=46,127=47,128=47,129=48,130=48,131=49,132=49,133=50,134=50,135=50,136=51,137=51,138=52,139=52,140=53,141=53,142=54,143=54,144=55,145=55,146=56,147=56,148=57,149=57,150=58,151=58,152=59,153=59,154=60,155=60,156=61,157=61,158=62,159=62,160=63,161=63,162=64,163=65,164=65,165=66,166=66,167=67,168=67,169=68,170=68,171=69,172=70,173=70,174=71,175=71,176=72,177=73,178=73,179=74,180=75,181=75,182=76,183=77,184=77,185=78,186=79,187=79,188=80,189=81,190=81,191=82,192=83,193=84,194=84,195=85,196=86,197=87,198=88,199=88,200=89,201=90,202=91,203=92,204=93,205=94,206=95,207=96,208=97,209=98,210=99,211=100,212=101,213=102,214=103,215=104,216=105,217=107,218=108,219=109,220=110,221=112,222=113,223=115,224=116,225=118,226=119,227=121,228=123,229=125,230=127,231=129,232=131,233=133,234=135,235=138,236=140,237=143,238=146,239=149,240=152,241=156,242=159,243=164,244=168,245=173,246=179,247=186,248=193,249=202,250=212,251=225,252=241,253=264,254=300,255=373",
+   "precision": 0
+  },
+  {
+   "flagbyte": 9,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 72,
+   "addr_high": null,
+   "title": "Front Wheel Speed",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 10,
+   "bit": 1,
+   "cu": 2,
+   "addr_low": 87,
+   "addr_high": null,
+   "title": "Low Clutch Duty",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 10,
+   "bit": 2,
+   "cu": 2,
+   "addr_low": 86,
+   "addr_high": null,
+   "title": "ATF Temperature",
+   "unit": "°C",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 10,
+   "bit": 3,
+   "cu": 2,
+   "addr_low": 85,
+   "addr_high": null,
+   "title": "Lateral G Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 10,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 84,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #2 Heater Current",
+   "unit": "A",
+   "formula": "/10",
+   "precision": 1
+  },
+  {
+   "flagbyte": 10,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 83,
+   "addr_high": null,
+   "title": "Air/Fuel Sensor #1 Heater Current",
+   "unit": "A",
+   "formula": "/10",
+   "precision": 1
+  },
+  {
+   "flagbyte": 10,
+   "bit": 6,
+   "cu": 2,
+   "addr_low": 82,
+   "addr_high": null,
+   "title": "Manifold Pressure Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 10,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 81,
+   "addr_high": null,
+   "title": "Rear Wheel Speed",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 10,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 80,
+   "addr_high": null,
+   "title": "Brake Clutch Duty Ratio",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 11,
+   "bit": 1,
+   "cu": 2,
+   "addr_low": 95,
+   "addr_high": null,
+   "title": "Center Differential Indicate Current",
+   "unit": "A",
+   "formula": "/32",
+   "precision": 2
+  },
+  {
+   "flagbyte": 11,
+   "bit": 2,
+   "cu": 2,
+   "addr_low": 94,
+   "addr_high": null,
+   "title": "Center Differential Real Current",
+   "unit": "A",
+   "formula": "/32",
+   "precision": 2
+  },
+  {
+   "flagbyte": 11,
+   "bit": 3,
+   "cu": 2,
+   "addr_low": 93,
+   "addr_high": null,
+   "title": "AT Turbine Speed 2",
+   "unit": "rpm",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 11,
+   "bit": 4,
+   "cu": 2,
+   "addr_low": 92,
+   "addr_high": null,
+   "title": "AT Turbine Speed 1",
+   "unit": "rpm",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 11,
+   "bit": 5,
+   "cu": 2,
+   "addr_low": 91,
+   "addr_high": null,
+   "title": "Voltage Center Differential Switch",
+   "unit": "V",
+   "formula": "/51",
+   "precision": 2
+  },
+  {
+   "flagbyte": 11,
+   "bit": 6,
+   "cu": 2,
+   "addr_low": 90,
+   "addr_high": null,
+   "title": "ATF Temperature 2",
+   "unit": "°C",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 11,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 89,
+   "addr_high": null,
+   "title": "Low & Reverse Brake (L&R B) Duty",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 11,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 88,
+   "addr_high": null,
+   "title": "High Clutch Duty",
+   "unit": "%",
+   "formula": "/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 31,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 251,
+   "addr_high": null,
+   "title": "Throttle Motor Voltage",
+   "unit": "V",
+   "formula": "*2/25",
+   "precision": 1
+  },
+  {
+   "flagbyte": 31,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 250,
+   "addr_high": null,
+   "title": "Throttle Motor Duty",
+   "unit": "%",
+   "formula": "-128/128*100",
+   "precision": 0
+  },
+  {
+   "flagbyte": 31,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 363,
+   "addr_high": null,
+   "title": "Throttle Sensor Closed Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 31,
+   "bit": 8,
+   "cu": 3,
+   "addr_low": 362,
+   "addr_high": null,
+   "title": "SI-Drive Mode",
+   "unit": "",
+   "formula": "0=---,1=S,2=S#,3=I,8=S#,16=I",
+   "precision": 1
+  },
+  {
+   "flagbyte": 33,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 263,
+   "addr_high": null,
+   "title": "Exhaust Gas Temperature 2",
+   "unit": "°C",
+   "formula": "*5+200",
+   "precision": 0
+  },
+  {
+   "flagbyte": 33,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 262,
+   "addr_high": null,
+   "title": "Exhaust Gas Temperature",
+   "unit": "°C",
+   "formula": "*5+200",
+   "precision": 0
+  },
+  {
+   "flagbyte": 33,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 261,
+   "addr_high": null,
+   "title": "Fuel Pressure",
+   "unit": "kPa",
+   "formula": "*2",
+   "precision": 0
+  },
+  {
+   "flagbyte": 33,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 1,
+   "addr_high": 260,
+   "title": "",
+   "unit": "Brake Booster Pressure",
+   "formula": "kPa",
+   "precision": 1
+  },
+  {
+   "flagbyte": 33,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 259,
+   "addr_high": null,
+   "title": "Main-Accelerator Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 33,
+   "bit": 6,
+   "cu": 3,
+   "addr_low": 258,
+   "addr_high": null,
+   "title": "Sub-Accelerator Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 33,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 257,
+   "addr_high": null,
+   "title": "Main-Throttle Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 33,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 256,
+   "addr_high": null,
+   "title": "Sub-Throttle Sensor Voltage",
+   "unit": "V",
+   "formula": "/50",
+   "precision": 2
+  },
+  {
+   "flagbyte": 34,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 371,
+   "addr_high": 370,
+   "title": "Fuel Tank Air Presser Pressure",
+   "unit": "MPa",
+   "formula": "/100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 34,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 271,
+   "addr_high": 270,
+   "title": "Odometer",
+   "unit": "km",
+   "formula": "*2",
+   "precision": 0
+  },
+  {
+   "flagbyte": 34,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 269,
+   "addr_high": null,
+   "title": "Fuel Level Sensor Resistance",
+   "unit": "ohms",
+   "formula": "*4/2",
+   "precision": 1
+  },
+  {
+   "flagbyte": 34,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 268,
+   "addr_high": null,
+   "title": "Air/Fuel Learning #4",
+   "unit": "%",
+   "formula": "-128/128*100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 34,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 267,
+   "addr_high": null,
+   "title": "Air/Fuel Correction #4",
+   "unit": "%",
+   "formula": "-64/128*10",
+   "precision": 2
+  },
+  {
+   "flagbyte": 34,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 266,
+   "addr_high": null,
+   "title": "Memorized Cruise Speed",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 34,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 387,
+   "addr_high": 386,
+   "title": "Secondary Air Flow",
+   "unit": "g/s",
+   "formula": "/100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 34,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 264,
+   "addr_high": null,
+   "title": "Secondary Air Piping Pressure",
+   "unit": "kPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 35,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 279,
+   "addr_high": null,
+   "title": "Oil Switching Solenoid Valve (OSV) Current (Left)",
+   "unit": "mA",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 35,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 278,
+   "addr_high": null,
+   "title": "Oil Switching Solenoid Valve (OSV) Current (Right)",
+   "unit": "mA",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 35,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 277,
+   "addr_high": null,
+   "title": "Oil Switching Solenoid Valve (OSV) Duty (Left)",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 35,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 276,
+   "addr_high": null,
+   "title": "Oil Switching Solenoid Valve (OSV) Duty (Right)",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 35,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 275,
+   "addr_high": null,
+   "title": "Oil Temperature",
+   "unit": "°C",
+   "formula": "-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 36,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 286,
+   "addr_high": null,
+   "title": "VVL Lift Mode",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 36,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 285,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Current (Left, Exhaust)",
+   "unit": "mA",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 36,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 284,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Current (Right, Exhaust)",
+   "unit": "mA",
+   "formula": "*32",
+   "precision": 0
+  },
+  {
+   "flagbyte": 36,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 283,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Duty (Left, Exhaust)",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 36,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 282,
+   "addr_high": null,
+   "title": "Oil Flow Control Solenoid Valve (OCV) Duty (Right, Exhaust)",
+   "unit": "%",
+   "formula": "/255*100",
+   "precision": 1
+  },
+  {
+   "flagbyte": 36,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 281,
+   "addr_high": null,
+   "title": "Variable Valve Timing (VVT) Retard Angle (Left, Exhaust)",
+   "unit": "deg",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 36,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 280,
+   "addr_high": null,
+   "title": "Variable Valve Timing (VVT) Retard Angle (Right, Exhaust)",
+   "unit": "deg",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 43,
+   "bit": 1,
+   "cu": 2,
+   "addr_low": 327,
+   "addr_high": null,
+   "title": "Yaw Rate Sensor Voltage",
+   "unit": "V",
+   "formula": "/51",
+   "precision": 2
+  },
+  {
+   "flagbyte": 43,
+   "bit": 2,
+   "cu": 2,
+   "addr_low": 326,
+   "addr_high": null,
+   "title": "AWD Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 43,
+   "bit": 3,
+   "cu": 2,
+   "addr_low": 325,
+   "addr_high": null,
+   "title": "L/U Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 43,
+   "bit": 4,
+   "cu": 2,
+   "addr_low": 324,
+   "addr_high": null,
+   "title": "P/L Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 43,
+   "bit": 5,
+   "cu": 2,
+   "addr_low": 323,
+   "addr_high": null,
+   "title": "I/C Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 43,
+   "bit": 6,
+   "cu": 2,
+   "addr_low": 322,
+   "addr_high": null,
+   "title": "F/B Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 43,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 321,
+   "addr_high": null,
+   "title": "D/C Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 43,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 320,
+   "addr_high": null,
+   "title": "H&LR/C Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 44,
+   "bit": 1,
+   "cu": 2,
+   "addr_low": 335,
+   "addr_high": null,
+   "title": "Yaw Rate & G Sensor Reference Voltage",
+   "unit": "V",
+   "formula": "/51",
+   "precision": 2
+  },
+  {
+   "flagbyte": 44,
+   "bit": 2,
+   "cu": 2,
+   "addr_low": 334,
+   "addr_high": null,
+   "title": "AWD Solenoid Valve Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 44,
+   "bit": 3,
+   "cu": 2,
+   "addr_low": 333,
+   "addr_high": null,
+   "title": "L/U Solenoid Valve Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 44,
+   "bit": 4,
+   "cu": 2,
+   "addr_low": 332,
+   "addr_high": null,
+   "title": "P/L Solenoid Valve Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 44,
+   "bit": 5,
+   "cu": 2,
+   "addr_low": 331,
+   "addr_high": null,
+   "title": "I/C Solenoid Valve Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 44,
+   "bit": 6,
+   "cu": 2,
+   "addr_low": 330,
+   "addr_high": null,
+   "title": "F/B Solenoid Valve Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 44,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 329,
+   "addr_high": null,
+   "title": "D/C Solenoid Valve Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 44,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 328,
+   "addr_high": null,
+   "title": "H&LR/C Solenoid Valve Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 45,
+   "bit": 1,
+   "cu": 2,
+   "addr_low": 390,
+   "addr_high": null,
+   "title": "Fwd/B Solenoid Valve Target Pressure",
+   "unit": "kPa",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 45,
+   "bit": 2,
+   "cu": 2,
+   "addr_low": 389,
+   "addr_high": null,
+   "title": "Fwd/B Solenoid Valve Current",
+   "unit": "A",
+   "formula": "/255",
+   "precision": 2
+  },
+  {
+   "flagbyte": 45,
+   "bit": 4,
+   "cu": 2,
+   "addr_low": 346,
+   "addr_high": 141,
+   "title": "Steering Angle Sensor",
+   "unit": "deg",
+   "formula": "s16*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 45,
+   "bit": 5,
+   "cu": 2,
+   "addr_low": 319,
+   "addr_high": null,
+   "title": "Wheel Speed Rear Left",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 45,
+   "bit": 6,
+   "cu": 2,
+   "addr_low": 318,
+   "addr_high": null,
+   "title": "Wheel Speed Rear Right",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 45,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 317,
+   "addr_high": null,
+   "title": "Wheel Speed Front Left",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 45,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 316,
+   "addr_high": null,
+   "title": "Wheel Speed Front Right",
+   "unit": "km/h",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 48,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 409,
+   "addr_high": null,
+   "title": "Knocking Correction",
+   "unit": "deg",
+   "formula": "-128/4",
+   "precision": 1
+  },
+  {
+   "flagbyte": 48,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 249,
+   "addr_high": null,
+   "title": "Learned Ignition Timing Correction",
+   "unit": "deg",
+   "formula": "/16",
+   "precision": 1
+  },
+  {
+   "flagbyte": 48,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 248,
+   "addr_high": null,
+   "title": "Roughness Monitor Cylinder #6",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 48,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 239,
+   "addr_high": null,
+   "title": "Roughness Monitor Cylinder #5",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 48,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 217,
+   "addr_high": null,
+   "title": "Roughness Monitor Cylinder #4",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 48,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 216,
+   "addr_high": null,
+   "title": "Roughness Monitor Cylinder #3",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 48,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 207,
+   "addr_high": null,
+   "title": "Roughness Monitor Cylinder #2",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 48,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 206,
+   "addr_high": null,
+   "title": "Roughness Monitor Cylinder #1",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 52,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 410,
+   "addr_high": null,
+   "title": "Fuel Tank Pressure",
+   "unit": "kPa",
+   "formula": "-128/20",
+   "precision": 2
+  },
+  {
+   "flagbyte": 53,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 489,
+   "addr_high": null,
+   "title": "Exhaust Gas Recirculation (EGR) Valve Opening Angle",
+   "unit": "deg",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 53,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 488,
+   "addr_high": null,
+   "title": "Exhaust Gas Recirculation (EGR) Target Valve Opening Angle",
+   "unit": "deg",
+   "formula": "-50",
+   "precision": 0
+  },
+  {
+   "flagbyte": 53,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 487,
+   "addr_high": null,
+   "title": "Air Mass",
+   "unit": "mg/cyl",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 53,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 486,
+   "addr_high": null,
+   "title": "Target Intake Air Amount",
+   "unit": "mg/cyl",
+   "formula": "*10",
+   "precision": 0
+  },
+  {
+   "flagbyte": 53,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 485,
+   "addr_high": null,
+   "title": "Target Intake Manifold Pressure",
+   "unit": "kPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 53,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 484,
+   "addr_high": null,
+   "title": "Number of Times Injected",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 53,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 483,
+   "addr_high": 482,
+   "title": "Final Injection Amount",
+   "unit": "mm³",
+   "formula": "/256",
+   "precision": 4
+  },
+  {
+   "flagbyte": 53,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 481,
+   "addr_high": null,
+   "title": "Main Injection Period",
+   "unit": "°CA",
+   "formula": "/5-15",
+   "precision": 1
+  },
+  {
+   "flagbyte": 54,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 503,
+   "addr_high": 502,
+   "title": "Target Fuel Pump Current",
+   "unit": "mA",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 54,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 501,
+   "addr_high": null,
+   "title": "Electric Power Steering Current",
+   "unit": "A",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 54,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 496,
+   "addr_high": null,
+   "title": "Boost Pressure Feedback",
+   "unit": "%",
+   "formula": "-128",
+   "precision": 0
+  },
+  {
+   "flagbyte": 54,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 495,
+   "addr_high": 494,
+   "title": "Target Engine Speed",
+   "unit": "rpm",
+   "formula": "/4",
+   "precision": 0
+  },
+  {
+   "flagbyte": 54,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 493,
+   "addr_high": null,
+   "title": "Intake Air Temperature (combined)",
+   "unit": "°C",
+   "formula": "-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 54,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 492,
+   "addr_high": null,
+   "title": "Common Rail Pressure",
+   "unit": "MPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 54,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 491,
+   "addr_high": null,
+   "title": "Common Rail Target Pressure",
+   "unit": "MPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 54,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 490,
+   "addr_high": null,
+   "title": "Exhaust Gas Recirculation (EGR) Duty",
+   "unit": "%",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 55,
+   "bit": 5,
+   "cu": 2,
+   "addr_low": 500,
+   "addr_high": null,
+   "title": "Drivers Control Center Differential (DCCD) Mode",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 55,
+   "bit": 6,
+   "cu": 2,
+   "addr_low": 499,
+   "addr_high": null,
+   "title": "Drivers Control Center Differential (DCCD) Torque Allocation",
+   "unit": "",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 55,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 498,
+   "addr_high": null,
+   "title": "Lateral G",
+   "unit": "m/s²",
+   "formula": "s8*1.0862",
+   "precision": 2
+  },
+  {
+   "flagbyte": 55,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 497,
+   "addr_high": null,
+   "title": "Yaw Rate",
+   "unit": "deg/s",
+   "formula": "s8*0.19118",
+   "precision": 0
+  },
+  {
+   "flagbyte": 56,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 608,
+   "addr_high": null,
+   "title": "Quantity Correction Cylinder #4",
+   "unit": "ms",
+   "formula": "-100/100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 56,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 607,
+   "addr_high": null,
+   "title": "Quantity Correction Cylinder #3",
+   "unit": "ms",
+   "formula": "-100/100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 56,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 606,
+   "addr_high": null,
+   "title": "Quantity Correction Cylinder #2",
+   "unit": "ms",
+   "formula": "-100/100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 56,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 605,
+   "addr_high": null,
+   "title": "Quantity Correction Cylinder #1",
+   "unit": "ms",
+   "formula": "-100/100",
+   "precision": 2
+  },
+  {
+   "flagbyte": 56,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 624,
+   "addr_high": null,
+   "title": "Interior Heater",
+   "unit": "Steps",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 56,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 517,
+   "addr_high": 516,
+   "title": "Mileage after Injector Replacement",
+   "unit": "km",
+   "formula": "*5",
+   "precision": 0
+  },
+  {
+   "flagbyte": 56,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 507,
+   "addr_high": 506,
+   "title": "Mileage after Injector Learning",
+   "unit": "km",
+   "formula": "*5",
+   "precision": 0
+  },
+  {
+   "flagbyte": 56,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 505,
+   "addr_high": 504,
+   "title": "Actual Fuel Pump Current",
+   "unit": "mA",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 57,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 626,
+   "addr_high": null,
+   "title": "Alternator Control Mode",
+   "unit": "",
+   "formula": "0=High,1=ExHigh,2=Low,3=Mid",
+   "precision": 0
+  },
+  {
+   "flagbyte": 57,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 627,
+   "addr_high": null,
+   "title": "Battery Temperature",
+   "unit": "°C",
+   "formula": "-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 57,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 625,
+   "addr_high": null,
+   "title": "Battery Current",
+   "unit": "A",
+   "formula": "-128",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 636,
+   "addr_high": null,
+   "title": "Oil Dilution Ratio",
+   "unit": "%",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 635,
+   "addr_high": null,
+   "title": "Soot Accumulation Ratio",
+   "unit": "%",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 634,
+   "addr_high": null,
+   "title": "Estimated Temperature of the Diesel Particulate Filter (DPF)",
+   "unit": "°C",
+   "formula": "*5-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 633,
+   "addr_high": null,
+   "title": "Estimated Catalyst Temperature",
+   "unit": "°C",
+   "formula": "*5-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 632,
+   "addr_high": null,
+   "title": "Exhaust Gas Temperature at Diesel Particulate Filter (DPF) Inlet",
+   "unit": "°C",
+   "formula": "*5-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 631,
+   "addr_high": null,
+   "title": "Exhaust Gas Temperature at Catalyst Inlet",
+   "unit": "°C",
+   "formula": "*5-40",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 630,
+   "addr_high": null,
+   "title": "Pressure Difference between Diesel Particulate Filter (DPF) Inlet and Outlet",
+   "unit": "kPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 63,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 629,
+   "addr_high": null,
+   "title": "Cumulative Ash Ratio",
+   "unit": "%",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 64,
+   "bit": 5,
+   "cu": 2,
+   "addr_low": 663,
+   "addr_high": 662,
+   "title": "Automatic Transmission Fluid (ATF) Deterioration Degree",
+   "unit": "%",
+   "formula": "*40/13107",
+   "precision": 0
+  },
+  {
+   "flagbyte": 64,
+   "bit": 6,
+   "cu": 2,
+   "addr_low": 661,
+   "addr_high": null,
+   "title": "ABS/VDC Rear Wheel Mean Wheel Speed",
+   "unit": "km/h",
+   "formula": "*230/255",
+   "precision": 0
+  },
+  {
+   "flagbyte": 64,
+   "bit": 7,
+   "cu": 2,
+   "addr_low": 660,
+   "addr_high": null,
+   "title": "ABS/VDC Front Wheel Mean Wheel Speed",
+   "unit": "km/h",
+   "formula": "*230/255",
+   "precision": 0
+  },
+  {
+   "flagbyte": 64,
+   "bit": 8,
+   "cu": 2,
+   "addr_low": 659,
+   "addr_high": null,
+   "title": "Front-Rear Wheel Rotation Ratio",
+   "unit": "",
+   "formula": "/128",
+   "precision": 3
+  },
+  {
+   "flagbyte": 65,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 574,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 1-2",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 65,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 573,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 1-1",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 65,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 670,
+   "addr_high": 669,
+   "title": "Diesel Particulate Filter (DPF) Regeneration Count",
+   "unit": "Times",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 65,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 668,
+   "addr_high": 667,
+   "title": "Running Distance since last Diesel Particulate Filter (DPF) Regeneration",
+   "unit": "km",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 65,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 666,
+   "addr_high": null,
+   "title": "Estimated Distance to Oil Change",
+   "unit": "km",
+   "formula": "*100",
+   "precision": 0
+  },
+  {
+   "flagbyte": 65,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 543,
+   "addr_high": null,
+   "title": "Actual Common Rail Pressure (Time Syncronized)",
+   "unit": "MPa",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 65,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 665,
+   "addr_high": null,
+   "title": "Accumulated Count of Overspeed Instances (High RPM)",
+   "unit": "Time",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 65,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 664,
+   "addr_high": null,
+   "title": "Accumulated Count of Overspeed Instances (Very High RPM)",
+   "unit": "Time",
+   "formula": "*1",
+   "precision": 0
+  },
+  {
+   "flagbyte": 66,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 582,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 3-2",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 66,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 581,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 3-1",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 66,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 580,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 2-4",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 66,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 579,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 2-3",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 66,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 578,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 2-2",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 66,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 577,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 2-1",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 66,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 576,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 1-4",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 66,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 575,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 1-3",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 1,
+   "cu": 1,
+   "addr_low": 590,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 5-2",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 2,
+   "cu": 1,
+   "addr_low": 589,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 5-1",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 3,
+   "cu": 1,
+   "addr_low": 588,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 4-4",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 4,
+   "cu": 1,
+   "addr_low": 587,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 4-3",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 586,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 4-2",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 585,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 4-1",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 584,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 3-4",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 67,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 583,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 3-3",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 69,
+   "bit": 5,
+   "cu": 1,
+   "addr_low": 600,
+   "addr_high": 599,
+   "title": "Final Main Injection Period",
+   "unit": "ms",
+   "formula": "/1000",
+   "precision": 3
+  },
+  {
+   "flagbyte": 69,
+   "bit": 6,
+   "cu": 1,
+   "addr_low": 569,
+   "addr_high": 568,
+   "title": "Individual Pump Difference Learning Value",
+   "unit": "mA",
+   "formula": "-1000",
+   "precision": 0
+  },
+  {
+   "flagbyte": 69,
+   "bit": 7,
+   "cu": 1,
+   "addr_low": 592,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 5-4",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  },
+  {
+   "flagbyte": 69,
+   "bit": 8,
+   "cu": 1,
+   "addr_low": 591,
+   "addr_high": null,
+   "title": "Micro-Quantity-Injection Final Learning Value 5-3",
+   "unit": "ms",
+   "formula": "-128/200",
+   "precision": 3
+  }
+ ],
+ "switches": [
+  {
+   "flagbyte": 12,
+   "bit": 1,
+   "cu": 1,
+   "addr": 97,
+   "title": "Clear Memory Terminal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 12,
+   "bit": 2,
+   "cu": 1,
+   "addr": 97,
+   "title": "Delivery Mode (Test Mode) Connector",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 12,
+   "bit": 3,
+   "cu": 1,
+   "addr": 97,
+   "title": "D-Check Require Flag",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 12,
+   "bit": 5,
+   "cu": 1,
+   "addr": 97,
+   "title": "Read Memory Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 12,
+   "bit": 6,
+   "cu": 1,
+   "addr": 97,
+   "title": "Test Mode Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 12,
+   "bit": 7,
+   "cu": 1,
+   "addr": 97,
+   "title": "AT Vehicle ID",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 13,
+   "bit": 2,
+   "cu": 1,
+   "addr": 98,
+   "title": "Air Conditioning Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 13,
+   "bit": 3,
+   "cu": 1,
+   "addr": 98,
+   "title": "Power Steering Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 13,
+   "bit": 4,
+   "cu": 3,
+   "addr": 98,
+   "title": "Ignition Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 13,
+   "bit": 5,
+   "cu": 1,
+   "addr": 98,
+   "title": "Intercooler Auto Washer Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 13,
+   "bit": 7,
+   "cu": 1,
+   "addr": 98,
+   "title": "Idle Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 13,
+   "bit": 8,
+   "cu": 3,
+   "addr": 98,
+   "title": "Neutral Position Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 1,
+   "cu": 1,
+   "addr": 99,
+   "title": "Electrical Load Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 2,
+   "cu": 1,
+   "addr": 99,
+   "title": "Knocking Signal #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 3,
+   "cu": 1,
+   "addr": 99,
+   "title": "Knocking Signal #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 4,
+   "cu": 1,
+   "addr": 99,
+   "title": "Front O2 Sensor #2 Rich Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 5,
+   "cu": 1,
+   "addr": 99,
+   "title": "Rear O2 Sensor Rich Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 6,
+   "cu": 1,
+   "addr": 99,
+   "title": "Front O2 Sensor #1 Rich Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 7,
+   "cu": 1,
+   "addr": 99,
+   "title": "Starter Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 14,
+   "bit": 8,
+   "cu": 1,
+   "addr": 99,
+   "title": "Handle Switch",
+   "states": "High Input\\Low Input"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 1,
+   "cu": 1,
+   "addr": 100,
+   "title": "Air Conditioning Mid Pressure Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 2,
+   "cu": 1,
+   "addr": 100,
+   "title": "Air Conditioning Lock Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 3,
+   "cu": 1,
+   "addr": 100,
+   "title": "Wiper Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 4,
+   "cu": 1,
+   "addr": 100,
+   "title": "Light Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 5,
+   "cu": 1,
+   "addr": 100,
+   "title": "Blower Fan Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 6,
+   "cu": 1,
+   "addr": 100,
+   "title": "Rear Defogger Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 7,
+   "cu": 1,
+   "addr": 100,
+   "title": "Camshaft Position Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 15,
+   "bit": 8,
+   "cu": 1,
+   "addr": 100,
+   "title": "Crankshaft Position Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 1,
+   "cu": 1,
+   "addr": 101,
+   "title": "Blow-By Leak Connector",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 2,
+   "cu": 1,
+   "addr": 101,
+   "title": "Canister Purge Control (CPC) Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 3,
+   "cu": 1,
+   "addr": 101,
+   "title": "Intercooler Auto Washer Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 4,
+   "cu": 1,
+   "addr": 101,
+   "title": "Fuel Pump Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 5,
+   "cu": 1,
+   "addr": 101,
+   "title": "Radiator Fan Relay #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 6,
+   "cu": 1,
+   "addr": 101,
+   "title": "Radiator Fan Relay #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 7,
+   "cu": 1,
+   "addr": 101,
+   "title": "Radiator Fan Relay #3",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 16,
+   "bit": 8,
+   "cu": 1,
+   "addr": 101,
+   "title": "Air Conditioning Compressor Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 1,
+   "cu": 1,
+   "addr": 102,
+   "title": "Assist Air Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 2,
+   "cu": 1,
+   "addr": 102,
+   "title": "Power Steering Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 3,
+   "cu": 1,
+   "addr": 102,
+   "title": "Ventilation Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 4,
+   "cu": 1,
+   "addr": 102,
+   "title": "Pressure Sources Change",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 5,
+   "cu": 1,
+   "addr": 102,
+   "title": "Variable Intake Air Solenoid",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 6,
+   "cu": 1,
+   "addr": 102,
+   "title": "Tumble Generator Valve (TGV) Drive",
+   "states": "Close/Open"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 7,
+   "cu": 1,
+   "addr": 102,
+   "title": "Tumble Generator Valve (TGV) Output",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 17,
+   "bit": 8,
+   "cu": 1,
+   "addr": 102,
+   "title": "Positive Crankcase Ventilation (PCV) Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 1,
+   "cu": 1,
+   "addr": 103,
+   "title": "Muffler Control",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 2,
+   "cu": 1,
+   "addr": 103,
+   "title": "Intake Air Solenoid",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 3,
+   "cu": 1,
+   "addr": 103,
+   "title": "Exhaust Gas Negative Pressure",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 4,
+   "cu": 1,
+   "addr": 103,
+   "title": "Exhaust Gas Positive Pressure",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 5,
+   "cu": 1,
+   "addr": 103,
+   "title": "Traction Control System (TCS) Relief Valve Solenoid",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 6,
+   "cu": 1,
+   "addr": 103,
+   "title": "Relief Valve Solenoid #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 7,
+   "cu": 1,
+   "addr": 103,
+   "title": "Relief Valve Solenoid #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 18,
+   "bit": 8,
+   "cu": 1,
+   "addr": 103,
+   "title": "Tank Sensor Control Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 1,
+   "cu": 1,
+   "addr": 104,
+   "title": "Request Torque Down VDC",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 2,
+   "cu": 1,
+   "addr": 104,
+   "title": "Ban of Torque Down",
+   "states": "On\\Off"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 3,
+   "cu": 1,
+   "addr": 104,
+   "title": "Fuel Cut Signal From AT",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 4,
+   "cu": 1,
+   "addr": 104,
+   "title": "Retard Signal From AT",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 5,
+   "cu": 1,
+   "addr": 104,
+   "title": "Canister Purge Control (CPC) Solenoid Valve #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 6,
+   "cu": 1,
+   "addr": 104,
+   "title": "Engine Oil Pressure Switch #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 7,
+   "cu": 1,
+   "addr": 104,
+   "title": "Engine Oil Pressure Switch #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 19,
+   "bit": 8,
+   "cu": 1,
+   "addr": 104,
+   "title": "Exhaust By-Pass Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 1,
+   "cu": 1,
+   "addr": 105,
+   "title": "AT Engine Torque Request (AET) Signal",
+   "states": "High\\Low"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 2,
+   "cu": 1,
+   "addr": 105,
+   "title": "AT Cooperation Rich Spike Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 3,
+   "cu": 1,
+   "addr": 105,
+   "title": "AT Cooperation Lean Burn Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 4,
+   "cu": 1,
+   "addr": 105,
+   "title": "AT Cooperation Lock Up Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 5,
+   "cu": 1,
+   "addr": 105,
+   "title": "Engine AT Masking Flag (EAM) Signal",
+   "states": "High\\Low"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 6,
+   "cu": 1,
+   "addr": 105,
+   "title": "Torque Permission Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 7,
+   "cu": 1,
+   "addr": 105,
+   "title": "Torque Control Signal #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 20,
+   "bit": 8,
+   "cu": 1,
+   "addr": 105,
+   "title": "Torque Control Signal #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 1,
+   "cu": 2,
+   "addr": 106,
+   "title": "Front Wheel Drive (FWD) Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 2,
+   "cu": 3,
+   "addr": 106,
+   "title": "Kick Down Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 3,
+   "cu": 2,
+   "addr": 106,
+   "title": "Upshift Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 4,
+   "cu": 2,
+   "addr": 106,
+   "title": "Stop Light Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 5,
+   "cu": 2,
+   "addr": 106,
+   "title": "Downshift Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 6,
+   "cu": 2,
+   "addr": 106,
+   "title": "ABS Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 7,
+   "cu": 2,
+   "addr": 106,
+   "title": "Cruise Control Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 21,
+   "bit": 8,
+   "cu": 2,
+   "addr": 106,
+   "title": "Tiptronic Mode Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 1,
+   "cu": 2,
+   "addr": 107,
+   "title": "N/P Range Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 2,
+   "cu": 2,
+   "addr": 107,
+   "title": "R Range Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 3,
+   "cu": 2,
+   "addr": 107,
+   "title": "D Range Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 4,
+   "cu": 2,
+   "addr": 107,
+   "title": "3rd Range Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 5,
+   "cu": 2,
+   "addr": 107,
+   "title": "2nd Range Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 6,
+   "cu": 2,
+   "addr": 107,
+   "title": "1st Range Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 7,
+   "cu": 2,
+   "addr": 107,
+   "title": "Hold Mode Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 22,
+   "bit": 8,
+   "cu": 2,
+   "addr": 107,
+   "title": "Power Mode Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 1,
+   "cu": 2,
+   "addr": 108,
+   "title": "Shift Solenoid #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 2,
+   "cu": 2,
+   "addr": 108,
+   "title": "Shift Solenoid #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 3,
+   "cu": 2,
+   "addr": 108,
+   "title": "Low Clutch Timing Solenoid",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 4,
+   "cu": 2,
+   "addr": 108,
+   "title": "2-4 Brake Timing Solenoid",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 5,
+   "cu": 2,
+   "addr": 108,
+   "title": "Torque Control Signal #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 6,
+   "cu": 2,
+   "addr": 108,
+   "title": "Torque Control Signal #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 7,
+   "cu": 2,
+   "addr": 108,
+   "title": "Tiptronic Solenoid",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 23,
+   "bit": 8,
+   "cu": 2,
+   "addr": 108,
+   "title": "4th Range Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 1,
+   "cu": 2,
+   "addr": 109,
+   "title": "Shift Lock Solenoid",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 2,
+   "cu": 2,
+   "addr": 109,
+   "title": "ATF Temperature Lamp",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 3,
+   "cu": 2,
+   "addr": 109,
+   "title": "Rear Differential Oil Temperature Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 4,
+   "cu": 2,
+   "addr": 109,
+   "title": "Diagnosis Lamp",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 5,
+   "cu": 2,
+   "addr": 109,
+   "title": "Shift Output 1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 6,
+   "cu": 2,
+   "addr": 109,
+   "title": "Shift Output 2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 7,
+   "cu": 2,
+   "addr": 109,
+   "title": "Shift Output 3",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 24,
+   "bit": 8,
+   "cu": 2,
+   "addr": 109,
+   "title": "Shift Output 4",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 1,
+   "cu": 2,
+   "addr": 110,
+   "title": "N Range",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 2,
+   "cu": 2,
+   "addr": 110,
+   "title": "Hold Lamp",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 3,
+   "cu": 2,
+   "addr": 110,
+   "title": "Traction Control System (TCS) Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 4,
+   "cu": 2,
+   "addr": 110,
+   "title": "P/N Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 5,
+   "cu": 2,
+   "addr": 110,
+   "title": "Torque Control Cut Signal",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 6,
+   "cu": 2,
+   "addr": 110,
+   "title": "P Range",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 7,
+   "cu": 2,
+   "addr": 110,
+   "title": "Power Mode Lamp",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 25,
+   "bit": 8,
+   "cu": 3,
+   "addr": 110,
+   "title": "Economy Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 1,
+   "cu": 2,
+   "addr": 212,
+   "title": "AT Power Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 2,
+   "cu": 2,
+   "addr": 212,
+   "title": "Back Lamp Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 3,
+   "cu": 2,
+   "addr": 212,
+   "title": "Inhibitor Switch #3 Monitor",
+   "states": "Low/High"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 4,
+   "cu": 2,
+   "addr": 212,
+   "title": "Inhibitor Switch #4",
+   "states": "Low/High"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 5,
+   "cu": 2,
+   "addr": 212,
+   "title": "Inhibitor Switch #3",
+   "states": "Low/High"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 6,
+   "cu": 2,
+   "addr": 212,
+   "title": "Inhibitor Switch #2",
+   "states": "Low/High"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 7,
+   "cu": 2,
+   "addr": 212,
+   "title": "Inhibitor Switch #1",
+   "states": "Low/High"
+  },
+  {
+   "flagbyte": 28,
+   "bit": 8,
+   "cu": 2,
+   "addr": 212,
+   "title": "Judgement of All Wheel Drive (AWD)",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 32,
+   "bit": 1,
+   "cu": 2,
+   "addr": 213,
+   "title": "Signal of Identified Electronic Control Module (ECM)",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 32,
+   "bit": 2,
+   "cu": 2,
+   "addr": 213,
+   "title": "LC/B Fluid Pressure",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 32,
+   "bit": 3,
+   "cu": 2,
+   "addr": 213,
+   "title": "I/C Fluid Pressure",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 32,
+   "bit": 4,
+   "cu": 2,
+   "addr": 213,
+   "title": "F/B Fluid Pressure",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 32,
+   "bit": 5,
+   "cu": 2,
+   "addr": 213,
+   "title": "D/C Fluid Pressure",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 32,
+   "bit": 6,
+   "cu": 2,
+   "addr": 213,
+   "title": "H&LR/C Fluid Pressure",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 37,
+   "bit": 6,
+   "cu": 1,
+   "addr": 288,
+   "title": "Injector Driver Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 37,
+   "bit": 7,
+   "cu": 1,
+   "addr": 288,
+   "title": "Electronic Throttle Control (ETC) Motor Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 37,
+   "bit": 8,
+   "cu": 1,
+   "addr": 288,
+   "title": "Idle Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 1,
+   "cu": 3,
+   "addr": 289,
+   "title": "Cruise Control Status",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 2,
+   "cu": 1,
+   "addr": 289,
+   "title": "Main (Cruise) Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 3,
+   "cu": 1,
+   "addr": 289,
+   "title": "Inhibitor Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 4,
+   "cu": 1,
+   "addr": 289,
+   "title": "Brake Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 5,
+   "cu": 1,
+   "addr": 289,
+   "title": "Resume/Accelerate Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 6,
+   "cu": 1,
+   "addr": 289,
+   "title": "Set/Coast Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 7,
+   "cu": 1,
+   "addr": 289,
+   "title": "Stop Light Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 38,
+   "bit": 8,
+   "cu": 1,
+   "addr": 289,
+   "title": "Clutch Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 1,
+   "cu": 2,
+   "addr": 290,
+   "title": "Center Differential Lamp 6",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 2,
+   "cu": 2,
+   "addr": 290,
+   "title": "Center Differential Lamp 5",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 3,
+   "cu": 2,
+   "addr": 290,
+   "title": "Center Differential Lamp 4",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 4,
+   "cu": 2,
+   "addr": 290,
+   "title": "Center Differential Lamp 3",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 5,
+   "cu": 2,
+   "addr": 290,
+   "title": "Center Differential Lamp 2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 6,
+   "cu": 2,
+   "addr": 290,
+   "title": "Center Differential Lamp 1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 7,
+   "cu": 2,
+   "addr": 290,
+   "title": "LU&FWD/B Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 39,
+   "bit": 8,
+   "cu": 2,
+   "addr": 290,
+   "title": "LC/B Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 46,
+   "bit": 3,
+   "cu": 2,
+   "addr": 214,
+   "title": "Automatic Transmission Learning Process",
+   "states": "Not Completed/Completed"
+  },
+  {
+   "flagbyte": 46,
+   "bit": 4,
+   "cu": 2,
+   "addr": 214,
+   "title": "Fwd/B Hydraulic Pressure Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 46,
+   "bit": 5,
+   "cu": 2,
+   "addr": 214,
+   "title": "AUTO Mode Lamp",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 46,
+   "bit": 6,
+   "cu": 2,
+   "addr": 214,
+   "title": "AUTO/MANUAL Mode Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 46,
+   "bit": 7,
+   "cu": 2,
+   "addr": 214,
+   "title": "Center Differential Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 46,
+   "bit": 8,
+   "cu": 2,
+   "addr": 214,
+   "title": "Parking Position Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 47,
+   "bit": 1,
+   "cu": 1,
+   "addr": 215,
+   "title": "Cruise Control Cancel Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 47,
+   "bit": 2,
+   "cu": 1,
+   "addr": 215,
+   "title": "Distance Change Switch",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 47,
+   "bit": 3,
+   "cu": 1,
+   "addr": 215,
+   "title": "Secondary Air Combi Valve Relay #1",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 47,
+   "bit": 4,
+   "cu": 1,
+   "addr": 215,
+   "title": "Secondary Air Pump Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 47,
+   "bit": 5,
+   "cu": 1,
+   "addr": 215,
+   "title": "Secondary Air Combi Valve Relay #2",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 47,
+   "bit": 7,
+   "cu": 1,
+   "addr": 215,
+   "title": "Body Integrated Unit Count",
+   "states": "On\\Off"
+  },
+  {
+   "flagbyte": 47,
+   "bit": 8,
+   "cu": 1,
+   "addr": 215,
+   "title": "Body Integrated Unit Data",
+   "states": "On\\Off"
+  },
+  {
+   "flagbyte": 49,
+   "bit": 6,
+   "cu": 1,
+   "addr": 406,
+   "title": "Oil Level Switch",
+   "states": "Low Level/High Level"
+  },
+  {
+   "flagbyte": 49,
+   "bit": 7,
+   "cu": 1,
+   "addr": 406,
+   "title": "Fuel Pressure Switching Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 49,
+   "bit": 8,
+   "cu": 1,
+   "addr": 406,
+   "title": "Malfunction Indicator Light (MIL) ON Flag",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 1,
+   "cu": 1,
+   "addr": 407,
+   "title": "Injector Learning",
+   "states": "Not Completed/Completed"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 2,
+   "cu": 1,
+   "addr": 407,
+   "title": "Fuel Pump Learning",
+   "states": "Not Completed/Completed"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 3,
+   "cu": 1,
+   "addr": 407,
+   "title": "Request for ''Compressor ON''",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 4,
+   "cu": 1,
+   "addr": 407,
+   "title": "Sub Fuel Pump Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 5,
+   "cu": 1,
+   "addr": 407,
+   "title": "Swirl Control Valve",
+   "states": "Open\\Close"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 6,
+   "cu": 1,
+   "addr": 407,
+   "title": "Glow Relay",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 7,
+   "cu": 1,
+   "addr": 407,
+   "title": "Exhaust Gas Recirculation (EGR) Control Mode",
+   "states": "Open/Feedback"
+  },
+  {
+   "flagbyte": 50,
+   "bit": 8,
+   "cu": 1,
+   "addr": 407,
+   "title": "Boost Pressure Control Mode",
+   "states": "Open/Feedback"
+  },
+  {
+   "flagbyte": 60,
+   "bit": 7,
+   "cu": 2,
+   "addr": 461,
+   "title": "Lock-Up ON/OFF Solenoid Valve",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 60,
+   "bit": 8,
+   "cu": 2,
+   "addr": 461,
+   "title": "Self-Shut Relay Output",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 62,
+   "bit": 4,
+   "cu": 1,
+   "addr": 462,
+   "title": "Diesel Particulate Filter (DPF) Regeneration",
+   "states": "Not In Progress/In Progress"
+  },
+  {
+   "flagbyte": 62,
+   "bit": 5,
+   "cu": 1,
+   "addr": 462,
+   "title": "Clutch Switch for Smart-System",
+   "states": "Off/On"
+  },
+  {
+   "flagbyte": 62,
+   "bit": 6,
+   "cu": 1,
+   "addr": 462,
+   "title": "Fuel Pump Mode",
+   "states": "Open/Feedback"
+  },
+  {
+   "flagbyte": 62,
+   "bit": 7,
+   "cu": 1,
+   "addr": 462,
+   "title": "Fuel Cut",
+   "states": "Not Requested/Requested"
+  },
+  {
+   "flagbyte": 62,
+   "bit": 8,
+   "cu": 1,
+   "addr": 462,
+   "title": "Exhaust Gas Recirculation (EGR) Learning",
+   "states": "Not Completed/Completed"
+  }
+ ],
+ "dtc_obd": [
+  {
+   "addr_current": 142,
+   "addr_memorized": 174,
+   "bit": 1,
+   "code": "P0335",
+   "title": "Crankshaft Position Sensor A Circuit Malfunction"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 174,
+   "bit": 3,
+   "code": "P0336",
+   "title": "Crankshaft Position Sensor A Range/Performance Problem"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 174,
+   "bit": 4,
+   "code": "P0341",
+   "title": "Camshaft Position Sensor A Circuit Range/Performance"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 174,
+   "bit": 5,
+   "code": "P0340",
+   "title": "Camshaft Position Sensor A Circuit"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 174,
+   "bit": 7,
+   "code": "P0604",
+   "title": "Internal Control Module Random Access Memory Error"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 174,
+   "bit": 8,
+   "code": "P0601",
+   "title": "Internal Control Module Memory Check Sum Error"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 1,
+   "code": "P0102",
+   "title": "Mass or Volume Air Flow Circuit Low"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 2,
+   "code": "P0103",
+   "title": "Mass or Volume Air Flow Circuit High"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 3,
+   "code": "P1141",
+   "title": "Mass or Volume Air Flow Circuit Range/Performance (Low)"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 4,
+   "code": "P0101",
+   "title": "Mass or Volume Air Flow Circuit Range/Performance (High)"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 5,
+   "code": "P0500",
+   "title": "Vehicle Speed Sensor"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 6,
+   "code": "P1540",
+   "title": "Vehicle Speed Sensor Malfunction at Low Speed"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 7,
+   "code": "P0332",
+   "title": "Knock Sensor 2 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 175,
+   "bit": 8,
+   "code": "P0333",
+   "title": "Knock Sensor 2 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 1,
+   "code": "P0325",
+   "title": "Knock Sensor 1 Circuit Malfunction"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 2,
+   "code": "P0330",
+   "title": "Knock Sensor 2 Circuit Malfunction"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 3,
+   "code": "P0327",
+   "title": "Knock Sensor 1 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 4,
+   "code": "P0328",
+   "title": "Knock Sensor 1 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 5,
+   "code": "P0122",
+   "title": "Throttle Position Sensor Low Input"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 6,
+   "code": "P0123",
+   "title": "Throttle Position Sensor High Input"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 7,
+   "code": "P1142",
+   "title": "Throttle Position Sensor Circuit Performance (Low Input)"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 176,
+   "bit": 8,
+   "code": "P0121",
+   "title": "Throttle Position Sensor Circuit Performance (High Input)"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 1,
+   "code": "P0117",
+   "title": "Engine Coolant Temperature Sensor Circuit Low Input"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 2,
+   "code": "P0118",
+   "title": "Engine Coolant Temperature Sensor Circuit High Input"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 3,
+   "code": "P0464",
+   "title": "Fuel Level Sensor Circuit Intermittent"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 4,
+   "code": "P0125",
+   "title": "Insufficient Coolant Temperature for Closed Loop Fuel Control"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 5,
+   "code": "P0462",
+   "title": "Fuel Level Sensor Circuit Low Input"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 6,
+   "code": "P0463",
+   "title": "Fuel Level Sensor Circuit High Input"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 7,
+   "code": "P0461",
+   "title": "Fuel Level Sensor Performance Problem"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 177,
+   "bit": 8,
+   "code": "P1442",
+   "title": "Fuel Level Sensor Performance Problem (Travel Distance)"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 1,
+   "code": "P0107",
+   "title": "Pressure Sensor Circuit Low Input"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 2,
+   "code": "P0108",
+   "title": "Pressure Sensor Circuit High Input"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 3,
+   "code": "P1143",
+   "title": "Pressure Sensor Circuit Range/Performance (Low)"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 4,
+   "code": "P1144",
+   "title": "Pressure Sensor Circuit Range/Performance (High)"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 5,
+   "code": "P0106",
+   "title": "Pressure Sensor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 6,
+   "code": "P0350",
+   "title": "Ignition Coil Primary/Secondary Circuit"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 7,
+   "code": "P1518",
+   "title": "Starter Switch Circuit Low Input"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 178,
+   "bit": 8,
+   "code": "P0512",
+   "title": "Starter Switch Circuit High Input"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 179,
+   "bit": 1,
+   "code": "P0452",
+   "title": "Fuel Tank Pressure Sensor Circuit Low Input"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 179,
+   "bit": 2,
+   "code": "P0453",
+   "title": "Fuel Tank Pressure Sensor Circuit High Input"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 179,
+   "bit": 4,
+   "code": "P0451",
+   "title": "Fuel Tank Pressure Sensor Performance Problem"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 179,
+   "bit": 5,
+   "code": "P1237",
+   "title": "Exhaust Control Valve Solenoid Circuit Low (Positive Pressure)"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 179,
+   "bit": 6,
+   "code": "P1238",
+   "title": "Exhaust Control Valve Solenoid Circuit High (Positive Pressure)"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 179,
+   "bit": 7,
+   "code": "P1239",
+   "title": "Exhaust Control Valve Solenoid Circuit Low (Negative Pressure)"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 179,
+   "bit": 8,
+   "code": "P1240",
+   "title": "Exhaust Control Valve Solenoid Circuit High (Negative Pressure)"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 1,
+   "code": "P1590",
+   "title": "Neutral Position Switch Circuit High Input for AT"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 2,
+   "code": "P1591",
+   "title": "Neutral Position Switch Circuit Low Input for AT"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 3,
+   "code": "P1592",
+   "title": "Neutral Position Switch Circuit Malfunction for MT"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 4,
+   "code": "P0851",
+   "title": "Neutral Switch Input Circuit Low"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 5,
+   "code": "P0182",
+   "title": "Fuel Temperature Sensor A Circuit Low Input"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 6,
+   "code": "P0183",
+   "title": "Fuel Temperature Sensor A Circuit High Input"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 7,
+   "code": "P0181",
+   "title": "Fuel Temperature Sensor A Performance Problem"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 180,
+   "bit": 8,
+   "code": "P0852",
+   "title": "Neutral Switch Input Circuit High"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 1,
+   "code": "P1510",
+   "title": "ISC Solenoid Valve Signal #1 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 2,
+   "code": "P1511",
+   "title": "ISC Solenoid Valve Signal #1 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 3,
+   "code": "P1512",
+   "title": "ISC Solenoid Valve Signal #2 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 4,
+   "code": "P1513",
+   "title": "ISC Solenoid Valve Signal #2 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 5,
+   "code": "P1514",
+   "title": "ISC Solenoid Valve Signal #3 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 6,
+   "code": "P1515",
+   "title": "ISC Solenoid Valve Signal #3 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 7,
+   "code": "P1516",
+   "title": "ISC Solenoid Valve Signal #4 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 181,
+   "bit": 8,
+   "code": "P1517",
+   "title": "ISC Solenoid Valve Signal #4 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 1,
+   "code": "P1492",
+   "title": "EGR Solenoid Valve Signal #1 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 2,
+   "code": "P1493",
+   "title": "EGR Solenoid Valve Signal #1 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 3,
+   "code": "P1494",
+   "title": "EGR Solenoid Valve Signal #2 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 4,
+   "code": "P1495",
+   "title": "EGR Solenoid Valve Signal #2 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 5,
+   "code": "P1496",
+   "title": "EGR Solenoid Valve Signal #3 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 6,
+   "code": "P1497",
+   "title": "EGR Solenoid Valve Signal #3 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 7,
+   "code": "P1498",
+   "title": "EGR Solenoid Valve Signal #4 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 182,
+   "bit": 8,
+   "code": "P1499",
+   "title": "EGR Solenoid Valve Signal #4 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 1,
+   "code": "P1102",
+   "title": "Pressure Sources Switching Solenoid Valve Circuit Low"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 2,
+   "code": "P1122",
+   "title": "Pressure Sources Switching Solenoid Valve Circuit High"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 3,
+   "code": "P1446",
+   "title": "Fuel Tank Sensor Control Valve Circuit Low"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 4,
+   "code": "P1447",
+   "title": "Fuel Tank Sensor Control Valve Circuit High"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 5,
+   "code": "P1090",
+   "title": "Tumble Generator Valve (TGV) System 1 (Valve Open)"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 6,
+   "code": "P1091",
+   "title": "Tumble Generator Valve (TGV) System 1 (Valve Close)"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 7,
+   "code": "P1092",
+   "title": "Tumble Generator Valve (TGV) System 2 (Valve Open)"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 183,
+   "bit": 8,
+   "code": "P1093",
+   "title": "Tumble Generator Valve (TGV) System 2 (Valve Close)"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 1,
+   "code": "P0508",
+   "title": "Idle Control System Circuit Low"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 2,
+   "code": "P0509",
+   "title": "Idle Control System Circuit High"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 3,
+   "code": "P1507",
+   "title": "Idle Control System Malfunction (Fail-safe)"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 4,
+   "code": "P0506",
+   "title": "Idle Control System RPM Lower Than Expected"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 5,
+   "code": "P0507",
+   "title": "Idle Control System RPM Higher Than Expected"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 6,
+   "code": "P1698",
+   "title": "Engine Torque Control Cut Signal Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 7,
+   "code": "P1699",
+   "title": "Engine Torque Control Cut Signal Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 152,
+   "addr_memorized": 184,
+   "bit": 8,
+   "code": "P1448",
+   "title": "Fuel Tank Sensor Control Valve Range/Performance"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 1,
+   "code": "P0444",
+   "title": "Canister Purge Control (CPC) Solenoid Valve Circuit Low"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 2,
+   "code": "P0445",
+   "title": "Canister Purge Control (CPC) Solenoid Valve Circuit High"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 3,
+   "code": "P0691",
+   "title": "Cooling Fan Relay 1 Circuit Low"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 4,
+   "code": "P0692",
+   "title": "Cooling Fan Relay 1 Circuit High"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 5,
+   "code": "P0480",
+   "title": "Cooling Fan Relay 1 Circuit Low"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 6,
+   "code": "P1480",
+   "title": "Cooling Fan Relay 1 Circuit High"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 7,
+   "code": "P0483",
+   "title": "Cooling Fan Rationality Check Malfunction"
+  },
+  {
+   "addr_current": 153,
+   "addr_memorized": 185,
+   "bit": 8,
+   "code": "P0864",
+   "title": "Transmission Control Module (TCM) Communication Circuit Range/Performance"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 1,
+   "code": "P0365",
+   "title": "Camshaft Position Sensor B Circuit (Bank 1)"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 2,
+   "code": "P0390",
+   "title": "Camshaft Position Sensor B Circuit (Bank 2)"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 3,
+   "code": "P0011",
+   "title": "A Camshaft Position System Performance (Bank 1)"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 4,
+   "code": "P0021",
+   "title": "A Camshaft Position System Performance (Bank 2)"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 5,
+   "code": "P1400",
+   "title": "Fuel Tank Pressure Control Solenoid Valve Circuit Low"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 6,
+   "code": "P1420",
+   "title": "Fuel Tank Pressure Control Solenoid Valve Circuit High"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 7,
+   "code": "P0458",
+   "title": "Canister Purge Control (CPC) Solenoid Valve Circuit Low"
+  },
+  {
+   "addr_current": 154,
+   "addr_memorized": 186,
+   "bit": 8,
+   "code": "P0459",
+   "title": "Canister Purge Control (CPC) Solenoid Valve Circuit High"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 1,
+   "code": "P0865",
+   "title": "Transmission Control Module (TCM) Communication Circuit Low"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 2,
+   "code": "P0866",
+   "title": "Transmission Control Module (TCM) Communication Circuit High"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 3,
+   "code": "P1443",
+   "title": "Ventilation Control Solenoid Valve Function Problem"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 4,
+   "code": "P1559",
+   "title": "Air Intake System"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 5,
+   "code": "P0661",
+   "title": "Intake Manifold Tuning Valve Circuit Low"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 6,
+   "code": "P0662",
+   "title": "Intake Manifold Tuning Valve Circuit High"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 7,
+   "code": "P0447",
+   "title": "Evaporative Emission Control System Ventilation Control Circuit Open"
+  },
+  {
+   "addr_current": 155,
+   "addr_memorized": 187,
+   "bit": 8,
+   "code": "P0448",
+   "title": "Evaporative Emission Control System Ventilation Control Circuit Short"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 1,
+   "code": "P0720",
+   "title": "AT Vehicle Speed Sensor Circuit Malfunction"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 2,
+   "code": "P0725",
+   "title": "Engine Speed Input Circuit Malfunction"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 3,
+   "code": "P1700",
+   "title": "Throttle Position Sensor Circuit Malfunction for AT"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 4,
+   "code": "P0710",
+   "title": "Automatic Transmission Fluid (ATF) Temperature Sensor Circuit Malfunction"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 5,
+   "code": "P0705",
+   "title": "AT Range Switch Circuit Malfunction"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 6,
+   "code": "P1701",
+   "title": "Cruise Control Set Signal Circuit Malfunction for AT"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 7,
+   "code": "P0703",
+   "title": "Brake Switch Circuit Malfunction for AT"
+  },
+  {
+   "addr_current": 156,
+   "addr_memorized": 188,
+   "bit": 8,
+   "code": "P0741",
+   "title": "Torque Converter Clutch Circuit Malfunction"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 1,
+   "code": "P0753",
+   "title": "Shift Solenoid A Electrical"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 2,
+   "code": "P0758",
+   "title": "Shift Solenoid B Electrical"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 3,
+   "code": "P1706",
+   "title": "AT Vehicle Speed Sensor Circuit Malfunction (Rear Wheel)"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 4,
+   "code": "P0748",
+   "title": "Pressure Control Solenoid Electrical (Duty Solenoid A)"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 5,
+   "code": "P0743",
+   "title": "Torque Converter Clutch Circuit Electrical (Duty Solenoid B)"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 6,
+   "code": "P0731",
+   "title": "Gear 1 Incorrect Ratio"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 7,
+   "code": "P0732",
+   "title": "Gear 2 Incorrect Ratio"
+  },
+  {
+   "addr_current": 157,
+   "addr_memorized": 189,
+   "bit": 8,
+   "code": "P0733",
+   "title": "Gear 3 Incorrect Ratio"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 1,
+   "code": "P0734",
+   "title": "Gear 4 Incorrect Ratio"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 2,
+   "code": "P1707",
+   "title": "AT AWD Solenoid Valve Circuit Malfunction"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 3,
+   "code": "P1595",
+   "title": "AT Diagnosis Input Signal Circuit Low Input"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 4,
+   "code": "P1596",
+   "title": "AT Diagnosis Input Signal Circuit High Input"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 5,
+   "code": "P0135",
+   "title": "O2 Sensor Heater Circuit (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 6,
+   "code": "P0141",
+   "title": "O2 Sensor Heater Circuit (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 7,
+   "code": "P1593",
+   "title": "Transmission Control Module (TCM) Communication Circuit Malfunction"
+  },
+  {
+   "addr_current": 158,
+   "addr_memorized": 190,
+   "bit": 8,
+   "code": "P1594",
+   "title": "AT Diagnosis Input Signal Circuit Malfunction"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 1,
+   "code": "P0133",
+   "title": "O2 Sensor Circuit Slow Response (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 2,
+   "code": "P0130",
+   "title": "O2 Sensor Circuit (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 3,
+   "code": "P0139",
+   "title": "O2 Sensor Circuit Slow Response (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 4,
+   "code": "P0136",
+   "title": "O2 Sensor Circuit (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 5,
+   "code": "P1152",
+   "title": "O2 Sensor Circuit Range/Performance (Low) (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 6,
+   "code": "P1153",
+   "title": "O2 Sensor Circuit Range/Performance (High) (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 7,
+   "code": "P0174",
+   "title": "System Too Lean (Bank 2)"
+  },
+  {
+   "addr_current": 159,
+   "addr_memorized": 191,
+   "bit": 8,
+   "code": "P0175",
+   "title": "System Too Rich (Bank 2)"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 1,
+   "code": "P0420",
+   "title": "Catalyst System Efficiency Below Threshold"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 2,
+   "code": "P0442",
+   "title": "Evaporative Emission Control System Leak Detected (Small Leak)"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 3,
+   "code": "P0170",
+   "title": "Fuel Trim (Bank 1)"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 4,
+   "code": "P0456",
+   "title": "Evaporative Emission Control System Leak Detected (Very Small Leak)"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 5,
+   "code": "P0400",
+   "title": "Exhaust Gas Recirculation (EGR) System Malfunction"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 6,
+   "code": "P1230",
+   "title": "Fuel Pump Controller"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 7,
+   "code": "P0171",
+   "title": "System Too Lean (Bank 1)"
+  },
+  {
+   "addr_current": 160,
+   "addr_memorized": 192,
+   "bit": 8,
+   "code": "P0172",
+   "title": "System Too Rich (Bank 1)"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 1,
+   "code": "P0301",
+   "title": "Cylinder 1 Misfire Detected"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 2,
+   "code": "P0302",
+   "title": "Cylinder 2 Misfire Detected"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 3,
+   "code": "P0303",
+   "title": "Cylinder 3 Misfire Detected"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 4,
+   "code": "P0304",
+   "title": "Cylinder 4 Misfire Detected"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 5,
+   "code": "P0305",
+   "title": "Cylinder 5 Misfire Detected"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 6,
+   "code": "P0306",
+   "title": "Cylinder 6 Misfire Detected"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 7,
+   "code": "P1301",
+   "title": "Misfire Detected (High Temperature Exhaust Gas)"
+  },
+  {
+   "addr_current": 161,
+   "addr_memorized": 193,
+   "bit": 8,
+   "code": "P0457",
+   "title": "Evaporative Emission Control System Leak Detected (Fuel Cap Loose/Off)"
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 1,
+   "code": "",
+   "title": ""
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 2,
+   "code": "",
+   "title": ""
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 3,
+   "code": "P1235",
+   "title": "Intake Control Valve Solenoid Circuit Low"
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 4,
+   "code": "P1236",
+   "title": "Intake Control Valve Solenoid Circuit High"
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 5,
+   "code": "P1597",
+   "title": "Traction Control System (TCS) Signal Circuit Low Input"
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 6,
+   "code": "P1598",
+   "title": "Traction Control System (TCS) Signal Circuit High Input"
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 7,
+   "code": "P0034",
+   "title": "Turbo Charger Bypass Valve Control Circuit Low"
+  },
+  {
+   "addr_current": 162,
+   "addr_memorized": 194,
+   "bit": 8,
+   "code": "P0035",
+   "title": "Turbo Charger Bypass Valve Control Circuit High"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 1,
+   "code": "P0137",
+   "title": "O2 Sensor Circuit Low Voltage (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 2,
+   "code": "P1134",
+   "title": "Air/Fuel Sensor Micro-Computer Problem"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 3,
+   "code": "P0131",
+   "title": "O2 Sensor Circuit Low Voltage (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 4,
+   "code": "P0151",
+   "title": "O2 Sensor Circuit Low Voltage (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 5,
+   "code": "P0132",
+   "title": "O2 Sensor Circuit High Voltage (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 6,
+   "code": "P0152",
+   "title": "O2 Sensor Circuit High Voltage (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 7,
+   "code": "P0138",
+   "title": "O2 Sensor Circuit High Voltage (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 163,
+   "addr_memorized": 195,
+   "bit": 8,
+   "code": "P0153",
+   "title": "O2 Sensor Circuit Slow Response (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 1,
+   "code": "P0112",
+   "title": "Intake Air Temperature Sensor Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 2,
+   "code": "P0113",
+   "title": "Intake Air Temperature Sensor Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 3,
+   "code": "P0111",
+   "title": "Intake Air Temperature Sensor Range/Performance Problem"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 4,
+   "code": "P1546",
+   "title": "Exhaust Gas Temperature Sensor 2 Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 5,
+   "code": "P0038",
+   "title": "HO2S Heater Control Circuit High (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 6,
+   "code": "P0032",
+   "title": "HO2S Heater Control Circuit High (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 7,
+   "code": "P0037",
+   "title": "HO2S Heater Control Circuit Low (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 164,
+   "addr_memorized": 196,
+   "bit": 8,
+   "code": "P0031",
+   "title": "HO2S Heater Control Circuit Low (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 1,
+   "code": "P1110",
+   "title": "Atmospheric Pressure Sensor Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 2,
+   "code": "P1111",
+   "title": "Atmospheric Pressure Sensor Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 3,
+   "code": "P1112",
+   "title": "Atmospheric Pressure Sensor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 4,
+   "code": "P0106",
+   "title": "Manifold Pressure Sensor Circuit Range/Performance Problem (Low)"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 5,
+   "code": "P0107",
+   "title": "Manifold Pressure Sensor Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 6,
+   "code": "P0108",
+   "title": "Manifold Pressure Sensor Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 7,
+   "code": "P1545",
+   "title": "Exhaust Gas Temperature Sensor 2 Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 165,
+   "addr_memorized": 197,
+   "bit": 8,
+   "code": "P1146",
+   "title": "Manifold Pressure Sensor Circuit Range/Performance Problem (High)"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 1,
+   "code": "P1139",
+   "title": "O2 Sensor Heater Circuit Range/Performance (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 2,
+   "code": "P1140",
+   "title": "O2 Sensor Heater Circuit Range/Performance (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 3,
+   "code": "P1711",
+   "title": "Engine Torque Control Signal #1 Circuit Malfunction"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 4,
+   "code": "P1712",
+   "title": "Engine Torque Control Signal #2 Circuit Malfunction"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 5,
+   "code": "P0715",
+   "title": "Torque Converter Turbine Speed Signal Circuit Malfunction"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 6,
+   "code": "P1703",
+   "title": "AT Low Clutch Timing Solenoid Valve Circuit Malfunction"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 7,
+   "code": "P0785",
+   "title": "AT 2-4 Brake Timing Solenoid Valve Circuit Malfunction"
+  },
+  {
+   "addr_current": 166,
+   "addr_memorized": 198,
+   "bit": 8,
+   "code": "P0778",
+   "title": "AT 2-4 Brake Pressure Solenoid Valve Circuit Malfunction"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 1,
+   "code": "P1130",
+   "title": "O2 Sensor Circuit (Open) (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 2,
+   "code": "P1135",
+   "title": "O2 Sensor Circuit (Open) (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 3,
+   "code": "P1131",
+   "title": "O2 Sensor Circuit (Short) (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 4,
+   "code": "P1136",
+   "title": "O2 Sensor Circuit (Short) (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 5,
+   "code": "P1154",
+   "title": "O2 Sensor Circuit Range/Performance (Low) (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 6,
+   "code": "P1155",
+   "title": "O2 Sensor Circuit Range/Performance (High) (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 7,
+   "code": "P0052",
+   "title": "HO2S Heater Control Circuit High (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 167,
+   "addr_memorized": 199,
+   "bit": 8,
+   "code": "P0051",
+   "title": "HO2S Heater Control Circuit Low  (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 1,
+   "code": "P0128",
+   "title": "Coolant Thermostat"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 2,
+   "code": "P1491",
+   "title": "Positive Crankcase Ventilation (PCV) Function Problem (Blow-by)"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 3,
+   "code": "P0066",
+   "title": "Air Assisted Injector (AAI) Control Circuit or Circuit Low"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 4,
+   "code": "P0067",
+   "title": "Air Assisted Injector (AAI) Control Circuit High"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 5,
+   "code": "P0065",
+   "title": "Air Assisted Injector (AAI) Control Range/Performance"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 6,
+   "code": "P0130",
+   "title": "O2 Sensor Circuit (Lean) (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 7,
+   "code": "P1137",
+   "title": "O2 Sensor Circuit (Lambda=1) (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 168,
+   "addr_memorized": 200,
+   "bit": 8,
+   "code": "P1137",
+   "title": "O2 Sensor Circuit (Mid) (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 1,
+   "code": "P1248",
+   "title": "Relief Valve Control Solenoid 1 Circuit High"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 2,
+   "code": "P1249",
+   "title": "Relief Valve Control Solenoid 2 Circuit Low"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 3,
+   "code": "P1250",
+   "title": "Relief Valve Control Solenoid 2 Circuit High"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 4,
+   "code": "P1560",
+   "title": "Back-up Voltage Circuit Malfunction"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 5,
+   "code": "P0192",
+   "title": "Fuel Rail Pressure Sensor Circuit Low"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 6,
+   "code": "P0193",
+   "title": "Fuel Rail Pressure Sensor Circuit High"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 7,
+   "code": "P0562",
+   "title": "System Voltage Low"
+  },
+  {
+   "addr_current": 169,
+   "addr_memorized": 201,
+   "bit": 8,
+   "code": "P0563",
+   "title": "System Voltage High"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 1,
+   "code": "P0245",
+   "title": "Turbocharger Wastegate Solenoid A Low"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 2,
+   "code": "P0246",
+   "title": "Turbocharger Wastegate Solenoid A High"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 3,
+   "code": "P1244",
+   "title": "Turbocharger Wastegate Solenoid A Range/Performance (Low Input)"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 4,
+   "code": "P0244",
+   "title": "Turbocharger Wastegate Solenoid A Range/Performance (High Input)"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 5,
+   "code": "P1245",
+   "title": "Turbocharger Wastegate Solenoid A Range/Performance (Fail-safe)"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 6,
+   "code": "P0249",
+   "title": "Turbocharger Wastegate Solenoid B Low"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 7,
+   "code": "P0250",
+   "title": "Turbocharger Wastegate Solenoid B High"
+  },
+  {
+   "addr_current": 170,
+   "addr_memorized": 202,
+   "bit": 8,
+   "code": "P1247",
+   "title": "Relief Valve Control Solenoid 1 Circuit Low"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 1,
+   "code": "P1577",
+   "title": "Immobilizer Control Module EEPROM Error"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 2,
+   "code": "P1576",
+   "title": "Electronic Gasoline Injection (EGI) Control Module EEPROM Error"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 3,
+   "code": "P0513",
+   "title": "Incorrect Immobilizer Key"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 4,
+   "code": "P1574",
+   "title": "Key Communication Failure"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 5,
+   "code": "P1578",
+   "title": "Meter Failure"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 6,
+   "code": "P1572",
+   "title": "Immobilzer Circuit Failure (Except Antenna Circuit)"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 7,
+   "code": "P1571",
+   "title": "Reference Code Incompatibility"
+  },
+  {
+   "addr_current": 171,
+   "addr_memorized": 203,
+   "bit": 8,
+   "code": "P1570",
+   "title": "Antenna"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 1,
+   "code": "P1095",
+   "title": "Tumble Generator Valve (TGV) 1 Signal Circuit Malfunction (Short)"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 2,
+   "code": "P1097",
+   "title": "Tumble Generator Valve (TGV) 2 Signal Circuit Malfunction (Short)"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 3,
+   "code": "P1094",
+   "title": "Tumble Generator Valve (TGV) 1 Signal Circuit Malfunction (Open)"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 4,
+   "code": "P1096",
+   "title": "Tumble Generator Valve (TGV) 2 Signal Circuit Malfunction (Open)"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 5,
+   "code": "P0261",
+   "title": "Fuel Injector Cylinder #1 Circuit Low"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 6,
+   "code": "P0264",
+   "title": "Fuel Injector Cylinder #2 Circuit Low"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 7,
+   "code": "P0267",
+   "title": "Fuel Injector Cylinder #3 Circuit Low"
+  },
+  {
+   "addr_current": 172,
+   "addr_memorized": 204,
+   "bit": 8,
+   "code": "P0270",
+   "title": "Fuel Injector Cylinder #4 Circuit Low"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 1,
+   "code": "P0545",
+   "title": "Exhaust Gas Temperature Sensor Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 2,
+   "code": "P0546",
+   "title": "Exhaust Gas Temperature Sensor Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 3,
+   "code": "P1312",
+   "title": "Exhaust Gas Temperature Sensor Malfunction"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 4,
+   "code": "P1544",
+   "title": "Exhaust Gas Temperature Too High"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 5,
+   "code": "P1306",
+   "title": "Oil Flow Control Solenoid Valve (OCV) 1 Signal Circuit Malfunction (Open)"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 6,
+   "code": "P1308",
+   "title": "Oil Flow Control Solenoid Valve (OCV) 2 Signal Circuit Malfunction (Open)"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 7,
+   "code": "P1307",
+   "title": "Oil Flow Control Solenoid Valve (OCV) 1 Signal Circuit Malfunction (Short)"
+  },
+  {
+   "addr_current": 173,
+   "addr_memorized": 205,
+   "bit": 8,
+   "code": "P1309",
+   "title": "Oil Flow Control Solenoid Valve (OCV) 2 Signal Circuit Malfunction (Short)"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 1,
+   "code": "P1719",
+   "title": "ECU Communication Circuit"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 2,
+   "code": "P1242",
+   "title": "2-Stage Twin Turbo System (Twin)"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 3,
+   "code": "P1241",
+   "title": "2-Stage Twin Turbo System (Single)"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 4,
+   "code": "P1199",
+   "title": "Differential Pressure Sensor"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 5,
+   "code": "P1086",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 2 Circuit Low"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 6,
+   "code": "P1087",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 2 Circuit High"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 7,
+   "code": "P1088",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 1 Circuit Low"
+  },
+  {
+   "addr_current": 240,
+   "addr_memorized": 244,
+   "bit": 8,
+   "code": "P1089",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 1 Circuit High"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 1,
+   "code": "P0801",
+   "title": "Reverse Inhibit Control Circuit"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 2,
+   "code": "P0768",
+   "title": "Shift Solenoid D Electrical"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 3,
+   "code": "P0763",
+   "title": "Shift Solenoid C Electrical"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 4,
+   "code": "P0736",
+   "title": "Reverse Incorrect Ratio"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 5,
+   "code": "P0724",
+   "title": "Brake Switch Circuit High"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 6,
+   "code": "P0719",
+   "title": "Brake Switch Circuit Low"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 7,
+   "code": "P0713",
+   "title": "ATF Temperature Sensor Circuit High"
+  },
+  {
+   "addr_current": 241,
+   "addr_memorized": 245,
+   "bit": 8,
+   "code": "P0712",
+   "title": "ATF Temperature Sensor Circuit Low"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 1,
+   "code": "P1817",
+   "title": "Sports Mode Switch Circuit (Manual Switch)"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 2,
+   "code": "P1762",
+   "title": "Lateral Acceleration Sensor Circuit High"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 3,
+   "code": "P1761",
+   "title": "Lateral Acceleration Sensor Circuit Low"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 4,
+   "code": "P1760",
+   "title": "Lateral Acceleration Sensor Performance Problem"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 5,
+   "code": "P1718",
+   "title": "AT CAN Communication Circuit"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 6,
+   "code": "P1714",
+   "title": "Throttle Position Sensor Power Supply Circuit"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 7,
+   "code": "P1709",
+   "title": "Throttle Position Sensor Circuit High Input"
+  },
+  {
+   "addr_current": 242,
+   "addr_memorized": 246,
+   "bit": 8,
+   "code": "P1708",
+   "title": "Throttle Position Sensor Circuit Low Input"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 1,
+   "code": "P1600",
+   "title": "Improper CAN Communication"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 2,
+   "code": "P2709",
+   "title": "Shift Solenoid F Electrical"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 3,
+   "code": "P0773",
+   "title": "Shift Solenoid E Electrical"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 4,
+   "code": "P0735",
+   "title": "Gear 5 Incorrect Ratio"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 5,
+   "code": "P1799",
+   "title": "Interlock"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 6,
+   "code": "P1798",
+   "title": "Gear 1 Engine Breaks"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 7,
+   "code": "P1314",
+   "title": "Misfire Detected Signal Circuit Low Input"
+  },
+  {
+   "addr_current": 243,
+   "addr_memorized": 247,
+   "bit": 8,
+   "code": "P1313",
+   "title": "Misfire Detected Signal Circuit High Input"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 1,
+   "code": "P1710",
+   "title": "Torque Converter Turbine 2 Speed Signal Circuit Malfunction"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 2,
+   "code": "P1717",
+   "title": "Automatic Transmission Fluid (ATF) Temperature Sensor 2 Circuit High"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 3,
+   "code": "P1716",
+   "title": "Automatic Transmission Fluid (ATF) Temperature Sensor 2 Circuit Low"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 4,
+   "code": "P0771",
+   "title": "AT Low Clutch Timing Solenoid Valve Circuit Malfunction"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 5,
+   "code": "P0716",
+   "title": "Torque Converter Turbine Speed Signal Circuit Malfunction"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 6,
+   "code": "P0726",
+   "title": "Engine Speed Input Circuit Malfunction"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 7,
+   "code": "P0720",
+   "title": "AT Vehicle Speed Sensor Circuit High"
+  },
+  {
+   "addr_current": 291,
+   "addr_memorized": 299,
+   "bit": 8,
+   "code": "P0722",
+   "title": "AT Vehicle Speed Sensor Circuit Low"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 1,
+   "code": "P2707",
+   "title": "Shift Solenoid F Malfunction"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 2,
+   "code": "P0771",
+   "title": "Shift Solenoid E Malfunction"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 3,
+   "code": "P0766",
+   "title": "Shift Solenoid D Malfunction"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 4,
+   "code": "P0761",
+   "title": "Shift Solenoid C Malfunction"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 5,
+   "code": "P0756",
+   "title": "Shift Solenoid B Malfunction"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 6,
+   "code": "P0751",
+   "title": "Shift Solenoid A Malfunction"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 7,
+   "code": "P1769",
+   "title": "Yaw Rate and Lateral G Sensor Error"
+  },
+  {
+   "addr_current": 292,
+   "addr_memorized": 300,
+   "bit": 8,
+   "code": "P1282",
+   "title": "Positive Crankcase Ventilation (PCV) System Circuit (Open)"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 1,
+   "code": "P1844",
+   "title": "Transmission Fluid Pressure Sensor Switch E Circuit"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 2,
+   "code": "P1843",
+   "title": "Transmission Fluid Pressure Sensor Switch D Circuit"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 3,
+   "code": "P1842",
+   "title": "Transmission Fluid Pressure Sensor Switch C Circuit"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 4,
+   "code": "P1841",
+   "title": "Transmission Fluid Pressure Sensor Switch B Circuit"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 5,
+   "code": "P1840",
+   "title": "Transmission Fluid Pressure Sensor Switch A Circuit"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 6,
+   "code": "P1875",
+   "title": "Circuit of Center Differential"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 7,
+   "code": "P0558",
+   "title": "Alternator Circuit Low"
+  },
+  {
+   "addr_current": 293,
+   "addr_memorized": 301,
+   "bit": 8,
+   "code": "P0559",
+   "title": "Alternator Circuit High"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 1,
+   "code": "P0502",
+   "title": "Vehicle Speed Sensor Low Input"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 2,
+   "code": "P0230",
+   "title": "Fuel Pump Controller"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 3,
+   "code": "P0565",
+   "title": "Cruise Control System Set Signal"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 4,
+   "code": "P0068",
+   "title": "Manifold Pressure Sensor Range/Performance"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 5,
+   "code": "P0129",
+   "title": "Atmospheric Pressure Sensor Range/Performance"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 6,
+   "code": "P0519",
+   "title": "Idle Control System Malfunction (Fail-safe)"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 7,
+   "code": "P0345",
+   "title": "Camshaft Position Sensor A Circuit (Bank 2)"
+  },
+  {
+   "addr_current": 294,
+   "addr_memorized": 302,
+   "bit": 8,
+   "code": "P0101",
+   "title": "Mass or Volume Air Flow Circuit Range/Performance"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 1,
+   "code": "P0154",
+   "title": "O2 Sensor Circuit Open (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 2,
+   "code": "P0134",
+   "title": "O2 Sensor Circuit Open (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 3,
+   "code": "P0150",
+   "title": "O2 Sensor Circuit (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 4,
+   "code": "P0130",
+   "title": "O2 Sensor Circuit (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 5,
+   "code": "P0050",
+   "title": "O2 Sensor Heater Circuit Range/Performance (Bank 2 Sensor 1)"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 6,
+   "code": "P0030",
+   "title": "O2 Sensor Heater Circuit Range/Performance (Bank 1 Sensor 1)"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 7,
+   "code": "P0501",
+   "title": "Vehicle Speed Sensor Malfunction at Low Speed"
+  },
+  {
+   "addr_current": 295,
+   "addr_memorized": 303,
+   "bit": 8,
+   "code": "P0503",
+   "title": "Vehicle Speed Sensor High Speed"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 1,
+   "code": "P0142",
+   "title": "O2 Sensor Circuit (Bank 1 Sensor 3)"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 2,
+   "code": "P0145",
+   "title": "O2 Sensor Circuit Slow Response (Bank 1 Sensor 3)"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 3,
+   "code": "P0156",
+   "title": "O2 Sensor Circuit (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 4,
+   "code": "P0159",
+   "title": "O2 Sensor Circuit Slow Response (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 5,
+   "code": "P0162",
+   "title": "O2 Sensor Circuit (Bank 2 Sensor 3)"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 6,
+   "code": "P0165",
+   "title": "O2 Sensor Circuit Slow Response (Bank 2 Sensor 3)"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 7,
+   "code": "P0043",
+   "title": "HO2S Heater Control Circuit Low (Bank 1 Sensor 3)"
+  },
+  {
+   "addr_current": 296,
+   "addr_memorized": 304,
+   "bit": 8,
+   "code": "P0044",
+   "title": "H02S Heater Control Circuit High (Bank 1 Sensor 3)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 1,
+   "code": "P0057",
+   "title": "HO2S Heater Control Circuit Low (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 2,
+   "code": "P0058",
+   "title": "HO2S Heater Control Circuit High (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 3,
+   "code": "P0063",
+   "title": "HO2S Heater Control Circuit Low (Bank 2 Sensor 3)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 4,
+   "code": "P0064",
+   "title": "HO2S Heater Control Circuit High (Bank 2 Sensor 3)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 5,
+   "code": "P0157",
+   "title": "O2 Sensor Circuit Low Voltage (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 6,
+   "code": "P0158",
+   "title": "O2 Sensor Circuit High Voltage (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 7,
+   "code": "P0143",
+   "title": "O2 Sensor Circuit Low Voltage (Bank 1 Sensor 3)"
+  },
+  {
+   "addr_current": 297,
+   "addr_memorized": 305,
+   "bit": 8,
+   "code": "P0144",
+   "title": "O2 Sensor Circuit High Voltage (Bank 1 Sensor 3)"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 1,
+   "code": "P2109",
+   "title": "Throttle Angle Sensor Closed Position Error"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 2,
+   "code": "P1759",
+   "title": "Lateral G Sensor System Circuit"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 3,
+   "code": "P1873",
+   "title": "Rear Right ABS Sensor Signal"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 4,
+   "code": "P1872",
+   "title": "Rear Left ABS Sensor Signal"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 5,
+   "code": "P1871",
+   "title": "Front Right ABS Sensor Signal"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 6,
+   "code": "P1870",
+   "title": "Front Left ABS Sensor Signal"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 7,
+   "code": "P2125",
+   "title": "Accelerator Position Sensor E"
+  },
+  {
+   "addr_current": 298,
+   "addr_memorized": 306,
+   "bit": 8,
+   "code": "P1700",
+   "title": "Throttle Position Sensor Circuit Malfunction"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 1,
+   "code": "P0222",
+   "title": "Throttle Position Sensor B Low Input"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 2,
+   "code": "P0223",
+   "title": "Throttle Position Sensor B High Input"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 3,
+   "code": "P1160",
+   "title": "Return Spring Failure"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 4,
+   "code": "P2102",
+   "title": "Throttle Control Motor Circuit Low Input"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 5,
+   "code": "P2103",
+   "title": "Throttle Control Motor Circuit High Input"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 6,
+   "code": "P2101",
+   "title": "Throttle Control Motor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 7,
+   "code": "P2096",
+   "title": "Post Catalyst Fuel Trim System Too Lean (Bank 1)"
+  },
+  {
+   "addr_current": 336,
+   "addr_memorized": 341,
+   "bit": 8,
+   "code": "P0638",
+   "title": "Throttle Control Circuit Range/Performance Problem"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 1,
+   "code": "P0607",
+   "title": "Throttle Control System Circuit Range/Performance"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 2,
+   "code": "P2138",
+   "title": "Accelerator Position Sensor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 3,
+   "code": "P2127",
+   "title": "Accelerator Position Sensor E Low Input"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 4,
+   "code": "P2128",
+   "title": "Accelerator Position Sensor E High Input"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 5,
+   "code": "P2122",
+   "title": "Accelerator Position Sensor D Low Input"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 6,
+   "code": "P2123",
+   "title": "Accelerator Position Sensor D High Input"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 7,
+   "code": "P2135",
+   "title": "Throttle Position Sensor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 337,
+   "addr_memorized": 342,
+   "bit": 8,
+   "code": "P2097",
+   "title": "Post Catalyst Fuel Trim System Too Rich (Bank 1)"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 1,
+   "code": "P0600",
+   "title": "Improper CAN Communication"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 2,
+   "code": "P0390",
+   "title": "Camshaft Position Sensor B Circuit (Bank 2)"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 3,
+   "code": "P0365",
+   "title": "Camshaft Position Sensor B Circuit (Bank 1)"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 4,
+   "code": "P0345",
+   "title": "Camshaft Position Sensor A Circuit (Bank 2)"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 5,
+   "code": "P0340",
+   "title": "Camshaft Position Sensor A Circuit (Bank 1)"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 6,
+   "code": "P0605",
+   "title": "Internal Control Module Read Only Memory Error"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 7,
+   "code": "P1521",
+   "title": "Brake Switch Circuit Range Performance Problem (High Input)"
+  },
+  {
+   "addr_current": 338,
+   "addr_memorized": 343,
+   "bit": 8,
+   "code": "P0579",
+   "title": "Cruise Control Switch Circuit Range Performance Problem (High Input)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 1,
+   "code": "P2095",
+   "title": "OCV Solenoid Valve Signal B Circuit Short (Bank 2)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 2,
+   "code": "P2094",
+   "title": "OCV Solenoid Valve Signal B Circuit Open (Bank 2)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 3,
+   "code": "P2091",
+   "title": "OCV Solenoid Valve Signal B Circuit Short (Bank 1)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 4,
+   "code": "P2090",
+   "title": "OCV Solenoid Valve Signal B Circuit Open (Bank 1)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 5,
+   "code": "P2093",
+   "title": "OCV Solenoid Valve Signal A Circuit Short (Bank 2)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 6,
+   "code": "P2092",
+   "title": "OCV Solenoid Valve Signal A Circuit Open (Bank 2)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 7,
+   "code": "P2089",
+   "title": "OCV Solenoid Valve Signal A Circuit Short (Bank 1)"
+  },
+  {
+   "addr_current": 339,
+   "addr_memorized": 344,
+   "bit": 8,
+   "code": "P2088",
+   "title": "OCV Solenoid Valve Signal A Circuit Open (Bank 1)"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 1,
+   "code": "P0197",
+   "title": "Oil Temperature Sensor Circuit Malfunction (Low)"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 2,
+   "code": "P1547",
+   "title": "Exhaust Gas Temperature Sensor Malfunction"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 3,
+   "code": "P1476",
+   "title": "Exhaust By-pass Valve Solenoid Malfunction (High)"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 4,
+   "code": "P1475",
+   "title": "Exhaust By-pass Valve Solenoid Malfunction (Low)"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 5,
+   "code": "P1477",
+   "title": "Exhaust By-pass Valve Function"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 6,
+   "code": "P2099",
+   "title": "Post Catalyst Fuel Trim System Too Rich (Bank 2)"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 7,
+   "code": "P2098",
+   "title": "Post Catalyst Fuel Trim System Too Lean (Bank 2)"
+  },
+  {
+   "addr_current": 340,
+   "addr_memorized": 345,
+   "bit": 8,
+   "code": "P0700",
+   "title": "Request AT Malfunction Indicator Light (MIL) On"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 1,
+   "code": "P0028",
+   "title": "OSV Solenoid Valve (Left) Malfunction"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 2,
+   "code": "P0083",
+   "title": "OSV Solenoid Valve (Left) Circuit Malfunction (High)"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 3,
+   "code": "P0082",
+   "title": "OSV Solenoid Valve (Left) Circuit Malfunction (Low)"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 4,
+   "code": "P0026",
+   "title": "OSV Solenoid Valve (Right) Malfunction"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 5,
+   "code": "P0077",
+   "title": "OSV Solenoid Valve (Right) Circuit Malfunction (High)"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 6,
+   "code": "P0076",
+   "title": "OSV Solenoid Valve (Right) Circuit Malfunction (Low)"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 7,
+   "code": "P0196",
+   "title": "Oil Temperature Sensor Circuit Range/Performance Problem"
+  },
+  {
+   "addr_current": 352,
+   "addr_memorized": 357,
+   "bit": 8,
+   "code": "P0198",
+   "title": "Oil Temperature Sensor Circuit Malfunction (High)"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 1,
+   "code": "P2100",
+   "title": "Throttle Control Motor Circuit Open"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 2,
+   "code": "P2111",
+   "title": "Throttle Valve Open Stick"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 3,
+   "code": "P2504",
+   "title": "Alternator Circuit High"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 4,
+   "code": "P2503",
+   "title": "Alternator Circuit Low"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 5,
+   "code": "P1462",
+   "title": "Intercylinder Fuel Pressure Sensor System Circuit (Low)"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 6,
+   "code": "P1463",
+   "title": "Intercylinder Fuel Pressure Sensor System Circuit (High)"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 7,
+   "code": "P1028",
+   "title": "Variable Valve Lift (VVL) Systems 2 Performance"
+  },
+  {
+   "addr_current": 353,
+   "addr_memorized": 358,
+   "bit": 8,
+   "code": "P1026",
+   "title": "Variable Valve Lift (VVL) Systems 1 Performance"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 1,
+   "code": "P0958",
+   "title": "Backup Lamp Relay Output (High)"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 2,
+   "code": "P0957",
+   "title": "Backup Lamp Relay Output (Low)"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 3,
+   "code": "P0955",
+   "title": "Backup Lamp Relay Output (Open)"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 4,
+   "code": "P0883",
+   "title": "PIVGN Power Supply (High)"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 5,
+   "code": "P0882",
+   "title": "PIVGN Power Supply (Low)"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 6,
+   "code": "P0880",
+   "title": "PIVGN Power Supply Circuit"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 7,
+   "code": "P0817",
+   "title": "PN Signal Output Circuit"
+  },
+  {
+   "addr_current": 354,
+   "addr_memorized": 359,
+   "bit": 8,
+   "code": "P1601",
+   "title": "Transmission Control Unit (TCU) Communication Malfunction"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 1,
+   "code": "P2004",
+   "title": "Tumble Generator Valve (TGV) System 1 (Valve Open)"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 2,
+   "code": "P2006",
+   "title": "Tumble Generator Valve (TGV) System 1 (Valve Close)"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 3,
+   "code": "P2005",
+   "title": "Tumble Generator Valve (TGV) System 2 (Valve Open)"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 4,
+   "code": "P2007",
+   "title": "Tumble Generator Valve (TGV) System 2 (Valve Close)"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 5,
+   "code": "P2227",
+   "title": "Atmospheric Pressure Sensor Range/Performance"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 6,
+   "code": "P0126",
+   "title": "Water Temperature"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 7,
+   "code": "P2229",
+   "title": "Atmospheric Pressure Sensor Circuit Malfunction (High Input)"
+  },
+  {
+   "addr_current": 355,
+   "addr_memorized": 360,
+   "bit": 8,
+   "code": "P2228",
+   "title": "Atmospheric Pressure Sensor Circuit Malfunction (Low Input)"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 1,
+   "code": "P2016",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 1 Circuit Low"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 2,
+   "code": "P2017",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 1 Circuit High"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 3,
+   "code": "P2021",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 2 Circuit Low"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 4,
+   "code": "P2022",
+   "title": "Tumble Generator Valve (TGV) Position Sensor 2 Circuit High"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 5,
+   "code": "P2009",
+   "title": "Tumble Generator Valve (TGV) Signal 1 Circuit Malfunction (Short)"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 6,
+   "code": "P2012",
+   "title": "Tumble Generator Valve (TGV) Signal 2 Circuit Malfunction (Short)"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 7,
+   "code": "P2008",
+   "title": "Tumble Generator Valve (TGV) Signal 1 Circuit Malfunction (Open)"
+  },
+  {
+   "addr_current": 356,
+   "addr_memorized": 361,
+   "bit": 8,
+   "code": "P2011",
+   "title": "Tumble Generator Valve (TGV) Signal 2 Circuit Malfunction (Open)"
+  },
+  {
+   "addr_current": 372,
+   "addr_memorized": 379,
+   "bit": 1,
+   "code": "P1579",
+   "title": "Remote Control Starter Abnormal"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 1,
+   "code": "P0850",
+   "title": "Neutral Position Switch Circuit"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 2,
+   "code": "P1721",
+   "title": "DCCD Engine RPM Signal System Circuit"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 3,
+   "code": "P1720",
+   "title": "DCCD CAN System Circuit"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 4,
+   "code": "P1765",
+   "title": "Yaw Rate & Side G Sensor Reference System Circuit"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 5,
+   "code": "P1764",
+   "title": "Yaw Rate Sensor System Circuit"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 6,
+   "code": "P1767",
+   "title": "DCCD Steering Angle Sensor Circuit"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 7,
+   "code": "P1723",
+   "title": "Automatic Transmission Fluid (ATF) Temperature Sensor 2 Circuit Range/Performance"
+  },
+  {
+   "addr_current": 373,
+   "addr_memorized": 380,
+   "bit": 8,
+   "code": "P0711",
+   "title": "Automatic Transmission Fluid (ATF) Temperature Sensor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 1,
+   "code": "P2444",
+   "title": "Secondary Air Pump ON Malfunction"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 2,
+   "code": "P0411",
+   "title": "Secondary Air Flow Abnormal"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 3,
+   "code": "P0410",
+   "title": "Secondary Air System Function"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 4,
+   "code": "P2431",
+   "title": "Secondary Air Pressure Sensor Property"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 5,
+   "code": "P2433",
+   "title": "Secondary Air Pressure Sensor (High)"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 6,
+   "code": "P2432",
+   "title": "Secondary Air Pressure Sensor (Low)"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 7,
+   "code": "P0413",
+   "title": "Secondary Air Combi Valve Relay Circuit 1 (Low)"
+  },
+  {
+   "addr_current": 374,
+   "addr_memorized": 381,
+   "bit": 8,
+   "code": "P0418",
+   "title": "Secondary Air Pump Relay (Low)"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 1,
+   "code": "P0140",
+   "title": "O2 Sensor Circuit Range/Performance (Bank 1 Sensor 2)"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 2,
+   "code": "P0160",
+   "title": "O2 Sensor Circuit Range/Performance (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 3,
+   "code": "P0146",
+   "title": "O2 Sensor Circuit Range/Performance (Bank 1 Sensor 3)"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 4,
+   "code": "P1602",
+   "title": "Control Module Programming Error"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 5,
+   "code": "P0414",
+   "title": "Secondary Air Combi Valve Relay Circuit 1 (High)"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 6,
+   "code": "P1418",
+   "title": "Secondary Air Pump Relay (High)"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 7,
+   "code": "P0018",
+   "title": "Crank and Cam Timing A Failure (Bank 2)"
+  },
+  {
+   "addr_current": 375,
+   "addr_memorized": 382,
+   "bit": 8,
+   "code": "P0016",
+   "title": "Crank and Cam Timing A Failure (Bank 1)"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 1,
+   "code": "P0602",
+   "title": "Control Module Programming Error"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 2,
+   "code": "P1410",
+   "title": "Secondary Air Combi Valve Open Seized"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 3,
+   "code": "P2443",
+   "title": "Secondary Air System Close Seized (Bank 2)"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 4,
+   "code": "P2442",
+   "title": "Secondary Air System Open Seized (Bank 2)"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 5,
+   "code": "P2441",
+   "title": "Secondary Air System Close Seized (Bank 1)"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 6,
+   "code": "P2440",
+   "title": "Secondary Air System Open Seized (Bank 1)"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 7,
+   "code": "P0417",
+   "title": "Secondary Air Combi Valve Relay Circuit 2 (High)"
+  },
+  {
+   "addr_current": 376,
+   "addr_memorized": 383,
+   "bit": 8,
+   "code": "P0416",
+   "title": "Secondary Air Combi Valve Relay Circuit 2 (Low)"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 1,
+   "code": "P0024",
+   "title": "Exhaust Active Valve Control System (AVCS) System 2 (Range/Performance)"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 2,
+   "code": "P0014",
+   "title": "Exhaust Active Valve Control System (AVCS) System 1 (Range/Performance)"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 3,
+   "code": "P1616",
+   "title": "Starter Cut Relay System Circuit (Low)"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 4,
+   "code": "P1520",
+   "title": "Starter Switch 2 System Circuit (ON)"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 5,
+   "code": "P1519",
+   "title": "Starter Switch 2 System Circuit (OFF)"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 6,
+   "code": "P0441",
+   "title": "Evaporative Emission Control System Incorrect Purge Flow"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 7,
+   "code": "P2419",
+   "title": "Canister Purge Control (CPC) Solenoid Valve Circuit Low"
+  },
+  {
+   "addr_current": 377,
+   "addr_memorized": 384,
+   "bit": 8,
+   "code": "P2420",
+   "title": "Canister Purge Control (CPC) Solenoid Valve Circuit High"
+  },
+  {
+   "addr_current": 378,
+   "addr_memorized": 385,
+   "bit": 1,
+   "code": "P2634",
+   "title": "Sub Fuel Pump Relay (High)"
+  },
+  {
+   "addr_current": 378,
+   "addr_memorized": 385,
+   "bit": 2,
+   "code": "P2633",
+   "title": "Sub Fuel Pump Relay (Low)"
+  },
+  {
+   "addr_current": 378,
+   "addr_memorized": 385,
+   "bit": 5,
+   "code": "P0091",
+   "title": "Fuel Pressure Switching Solenoid (Circuit Low)"
+  },
+  {
+   "addr_current": 378,
+   "addr_memorized": 385,
+   "bit": 6,
+   "code": "P0092",
+   "title": "Fuel Pressure Switching Solenoid (Circuit High)"
+  },
+  {
+   "addr_current": 378,
+   "addr_memorized": 385,
+   "bit": 7,
+   "code": "P0019",
+   "title": "Crank and Cam Timing B System Failure (Bank 2)"
+  },
+  {
+   "addr_current": 378,
+   "addr_memorized": 385,
+   "bit": 8,
+   "code": "P0017",
+   "title": "Crank and Cam Timing B System Failure (Bank 1)"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 1,
+   "code": "P0201",
+   "title": "Injector #1 Circuit Malfunction"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 2,
+   "code": "P1213",
+   "title": "Injector Driver (Low Charge)"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 3,
+   "code": "P2148",
+   "title": "Injector Driver (Short-Circuit to Positive)"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 4,
+   "code": "P0704",
+   "title": "Clutch Switch Circuit Malfunction"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 5,
+   "code": "P0096",
+   "title": "Intake Air Temperature Sensor #2 Range/Performance Problem"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 6,
+   "code": "P0097",
+   "title": "Intake Air Temperature Sensor #2 Circuit (Low)"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 7,
+   "code": "P0098",
+   "title": "Intake Air Temperature Sensor #2 Circuit (High)"
+  },
+  {
+   "addr_current": 453,
+   "addr_memorized": 459,
+   "bit": 8,
+   "code": "P0116",
+   "title": "Engine Coolant Temperature Sensor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 1,
+   "code": "P0088",
+   "title": "Fuel Rail Pressure Abnormal (Too High)"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 2,
+   "code": "P0191",
+   "title": "Fuel Rail Pressure Sensor Circuit Range/Performance"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 3,
+   "code": "P1214",
+   "title": "Injector Driver (Over Charge)"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 4,
+   "code": "P2149",
+   "title": "Fuel Injector Power Supply B - Open Circuit"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 5,
+   "code": "P2146",
+   "title": "Fuel Injector Power Supply A - Open Circuit"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 6,
+   "code": "P0204",
+   "title": "Injector #4 Circuit Malfunction"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 7,
+   "code": "P0203",
+   "title": "Injector #3 Circuit Malfunction"
+  },
+  {
+   "addr_current": 454,
+   "addr_memorized": 460,
+   "bit": 8,
+   "code": "P0202",
+   "title": "Injector #2 Circuit Malfunction"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 1,
+   "code": "P0093",
+   "title": "Fuel System Leak Detected (Large Leak)"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 2,
+   "code": "P1234",
+   "title": "Fuel Pressure Abnormal (Fuel Pump Failure 2)"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 3,
+   "code": "P1233",
+   "title": "Fuel Pressure Abnormal (Fuel Pump Failure 1)"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 4,
+   "code": "P1232",
+   "title": "Fuel Pump Malfunction"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 5,
+   "code": "P2635",
+   "title": "Fuel Pump Suction Control Valve Sticks"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 6,
+   "code": "P0628",
+   "title": "Fuel Pump Suction Control Valve Circuit (Short-Circuit to Ground)"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 7,
+   "code": "P0629",
+   "title": "Fuel Pump Suction Control Valve Circuit (Short-Circuit to Positive)"
+  },
+  {
+   "addr_current": 522,
+   "addr_memorized": 526,
+   "bit": 8,
+   "code": "P0089",
+   "title": "Fuel Pressure Regulator Performance (Limiter Valve Opening Problem)"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 1,
+   "code": "P0401",
+   "title": "Exhaust Gas Recirculation (EGR) Flow Insufficient Detected"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 2,
+   "code": "P0402",
+   "title": "Exhaust Gas Recirculation (EGR) Flow Excessive Detected"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 3,
+   "code": "P0299",
+   "title": "Boost Pressure Abnormal (Under-Boost)"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 4,
+   "code": "P0234",
+   "title": "Boost Pressure Abnormal (Over-Boost)"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 5,
+   "code": "P0606",
+   "title": "Control Unit Processor (CPU) Failure"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 6,
+   "code": "P1203",
+   "title": "Injector Code Input Failure"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 7,
+   "code": "P1202",
+   "title": "Injector Code Data Abnormal"
+  },
+  {
+   "addr_current": 523,
+   "addr_memorized": 527,
+   "bit": 8,
+   "code": "P1201",
+   "title": "Injector Code Failure (Not Written)"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 1,
+   "code": "P1382",
+   "title": "Glow Relay Circuit (High)"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 2,
+   "code": "P0219",
+   "title": "Engine Overspeed Condition"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 3,
+   "code": "P0046",
+   "title": "Turbocharger Boost Control Solenoid Valve Circuit Range/Performance"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 4,
+   "code": "P0404",
+   "title": "Exhaust Gas Recirculation (EGR) Operation Circuit Abnormal"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 5,
+   "code": "P0403",
+   "title": "Exhaust Gas Recirculation (EGR) System Failure (Circuit Duty)"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 6,
+   "code": "P0409",
+   "title": "Exhaust Gas Recirculation (EGR) Position Sensor Performance"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 7,
+   "code": "P0405",
+   "title": "Exhaust Gas Recirculation (EGR) Position Sensor Circuit (Low)"
+  },
+  {
+   "addr_current": 524,
+   "addr_memorized": 528,
+   "bit": 8,
+   "code": "P0406",
+   "title": "Exhaust Gas Recirculation (EGR) Position Sensor Circuit (High)"
+  },
+  {
+   "addr_current": 525,
+   "addr_memorized": 529,
+   "bit": 2,
+   "code": "P2413",
+   "title": "Exhaust Gas Recirculation (EGR) Valve Sticking"
+  },
+  {
+   "addr_current": 525,
+   "addr_memorized": 529,
+   "bit": 3,
+   "code": "P1009",
+   "title": "Swirl Control Valve Circuit (Low)"
+  },
+  {
+   "addr_current": 525,
+   "addr_memorized": 529,
+   "bit": 4,
+   "code": "P1607",
+   "title": "Monitoring Circuit Abnormal"
+  },
+  {
+   "addr_current": 525,
+   "addr_memorized": 529,
+   "bit": 5,
+   "code": "P2147",
+   "title": "Injector Driver (Short-Circuit to Ground)"
+  },
+  {
+   "addr_current": 525,
+   "addr_memorized": 529,
+   "bit": 6,
+   "code": "P2010",
+   "title": "Swirl Control Valve Circuit (High)"
+  },
+  {
+   "addr_current": 525,
+   "addr_memorized": 529,
+   "bit": 7,
+   "code": "P0687",
+   "title": "Engine/Powertrain Control Module (ECM/PCM) Self-Shut Relay Failure"
+  },
+  {
+   "addr_current": 525,
+   "addr_memorized": 529,
+   "bit": 8,
+   "code": "P1380",
+   "title": "Glow Relay Circuit (Low)"
+  },
+  {
+   "addr_current": 611,
+   "addr_memorized": 616,
+   "bit": 4,
+   "code": "P1532",
+   "title": "Charge Control System Abnormal"
+  },
+  {
+   "addr_current": 611,
+   "addr_memorized": 616,
+   "bit": 5,
+   "code": "P1531",
+   "title": "Battery Current Sensor Circuit (High)"
+  },
+  {
+   "addr_current": 611,
+   "addr_memorized": 616,
+   "bit": 6,
+   "code": "P1530",
+   "title": "Battery Current Sensor Circuit (Low)"
+  },
+  {
+   "addr_current": 611,
+   "addr_memorized": 616,
+   "bit": 7,
+   "code": "P0517",
+   "title": "Battery Temperature Sensor Circuit (High)"
+  },
+  {
+   "addr_current": 611,
+   "addr_memorized": 616,
+   "bit": 8,
+   "code": "P0516",
+   "title": "Battery Temperature Sensor Circuit (Low)"
+  },
+  {
+   "addr_current": 612,
+   "addr_memorized": 617,
+   "bit": 8,
+   "code": "P0161",
+   "title": "Oxygen O2 Sensor Heater Circuit (Bank 2 Sensor 2)"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 1,
+   "code": "P1468",
+   "title": "Oil Dilution"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 2,
+   "code": "P1467",
+   "title": "Diesel Particulate Filter (DPF) Ash Overfill"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 3,
+   "code": "P1466",
+   "title": "Diesel Particulate Filter (DPF) Substrate Damaged"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 4,
+   "code": "P1465",
+   "title": "Diesel Particulate Filter (DPF) Particulate Overfill"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 5,
+   "code": "P1473",
+   "title": "Diesel Particulate Filter (DPF) Inlet/Outlet Pressure Deviation Sensor (High)"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 6,
+   "code": "P1472",
+   "title": "Diesel Particulate Filter (DPF) Inlet/Outlet Pressure Deviation Sensor (Low)"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 7,
+   "code": "P2033",
+   "title": "Exhaust Temperature Sensor 2 (high)"
+  },
+  {
+   "addr_current": 613,
+   "addr_memorized": 618,
+   "bit": 8,
+   "code": "P2032",
+   "title": "Exhaust Temperature Sensor 2 (low)"
+  },
+  {
+   "addr_current": 614,
+   "addr_memorized": 619,
+   "bit": 7,
+   "code": "P1471",
+   "title": "Diesel Particulate Filter (DPF) Differential Pressure Sensor Upstream Piping Trouble"
+  },
+  {
+   "addr_current": 614,
+   "addr_memorized": 619,
+   "bit": 8,
+   "code": "P1469",
+   "title": "Diesel Particulate Filter (DPF) Limp-Home Mode"
+  }
+ ],
+ "dtc_subaru": [
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 1,
+   "code": "24",
+   "title": "Idle Control System Malfunction"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 2,
+   "code": "23",
+   "title": "Mass Air Flow Sensor"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 3,
+   "code": "22",
+   "title": "Knock Sensor"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 4,
+   "code": "21",
+   "title": "Engine Coolant Temperature Sensor"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 5,
+   "code": "18",
+   "title": "Electric Load Signal"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 6,
+   "code": "13",
+   "title": "Camshaft Position Sensor"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 7,
+   "code": "12",
+   "title": "Starter Signal"
+  },
+  {
+   "addr_current": 142,
+   "addr_memorized": 164,
+   "bit": 8,
+   "code": "11",
+   "title": "Crankshaft Position Sensor"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 1,
+   "code": "37",
+   "title": "Rear O2 Sensor Circuit / Air/Fuel Sensor Circuit Malfunction"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 2,
+   "code": "35",
+   "title": "Canister Purge Control (CPC) System"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 3,
+   "code": "33",
+   "title": "Vehicle Speed Sensor (front)"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 4,
+   "code": "32",
+   "title": "Oxygen Sensor"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 5,
+   "code": "31",
+   "title": "Throttle Position Sensor"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 6,
+   "code": "29",
+   "title": "Crankshaft Position Sensor 2"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 7,
+   "code": "28",
+   "title": "Knock Sensor #2"
+  },
+  {
+   "addr_current": 143,
+   "addr_memorized": 165,
+   "bit": 8,
+   "code": "26",
+   "title": "Intake Air Temperature Sensor"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 1,
+   "code": "45",
+   "title": "Pressure Sensor"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 2,
+   "code": "44",
+   "title": "Turbocharging Pressure Control Output Signal"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 3,
+   "code": "43",
+   "title": "Accelerator Pedal Switch"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 4,
+   "code": "42",
+   "title": "Idle Switch"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 5,
+   "code": "39",
+   "title": "Traction Control System (TCS)"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 6,
+   "code": "38",
+   "title": "Torque Permission Signal"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 7,
+   "code": "38",
+   "title": "Torque Control Signal #2"
+  },
+  {
+   "addr_current": 144,
+   "addr_memorized": 166,
+   "bit": 8,
+   "code": "38",
+   "title": "Torque Control Signal #1"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 1,
+   "code": "62",
+   "title": "Exhaust Manifold Negative Pressure Control Solenoid Valve"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 2,
+   "code": "61",
+   "title": "Air Suction Control Solenoid Valve"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 3,
+   "code": "56",
+   "title": "Exhaust Gas Recirculation (EGR) System"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 4,
+   "code": "55",
+   "title": "EGR Valve Lift Sensor"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 5,
+   "code": "54",
+   "title": "Air Intake System"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 6,
+   "code": "51",
+   "title": "Neutral Position Switch"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 7,
+   "code": "49",
+   "title": "CO Resistor"
+  },
+  {
+   "addr_current": 145,
+   "addr_memorized": 167,
+   "bit": 8,
+   "code": "48",
+   "title": "Lean Burn System"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 1,
+   "code": "53",
+   "title": "Anti-Quick Operation Mode"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 2,
+   "code": "66",
+   "title": "Twin Turbocharger System (T)"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 3,
+   "code": "66",
+   "title": "Twin Turbocharger System (S)"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 4,
+   "code": "66",
+   "title": "Twin Turbocharger System (H)"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 5,
+   "code": "66",
+   "title": "Two Stage Twin Turbocharger System"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 6,
+   "code": "65",
+   "title": "Differential Pressure Sensor"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 7,
+   "code": "64",
+   "title": "Relief Valve Control Solenoid Valve 1"
+  },
+  {
+   "addr_current": 146,
+   "addr_memorized": 168,
+   "bit": 8,
+   "code": "63",
+   "title": "Relief Valve Control Solenoid Valve 2"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 1,
+   "code": "53",
+   "title": "Immobilizer Control Module EEPROM"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 2,
+   "code": "53",
+   "title": "Electronic Gasoline Injection (EGI) Control Module EEPROM"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 3,
+   "code": "53",
+   "title": "Incorrect/Unregistered Immobilizer Key"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 4,
+   "code": "53",
+   "title": "Key Communication Failure"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 5,
+   "code": "53",
+   "title": "Communication Error (Time Over)"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 6,
+   "code": "53",
+   "title": "Immobilizer Circuit Failure (Except Antenna Circuit)"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 7,
+   "code": "53",
+   "title": "Reference Code Incompatibility"
+  },
+  {
+   "addr_current": 147,
+   "addr_memorized": 169,
+   "bit": 8,
+   "code": "53",
+   "title": "Antenna"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 1,
+   "code": "89",
+   "title": "Variable Valve Timing (VVT) Systems (right)"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 2,
+   "code": "88",
+   "title": "Fuel Pump Circuit Malfunction"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 3,
+   "code": "87",
+   "title": "Variable Induction Solenoid Valve Circuit Malfunction"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 4,
+   "code": "86",
+   "title": "CAN Communication System"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 5,
+   "code": "85",
+   "title": "Charger System Circuit Malfunction"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 6,
+   "code": "81",
+   "title": "Torque Up Control Valve"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 7,
+   "code": "68",
+   "title": "Turbocharging Pressure Control Output Signal #2"
+  },
+  {
+   "addr_current": 148,
+   "addr_memorized": 170,
+   "bit": 8,
+   "code": "67",
+   "title": "Exhaust Manifold Positive Pressure Control Solenoid Valve"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 171,
+   "bit": 1,
+   "code": "89",
+   "title": "Variable Valve Timing (VVT) Systems (left)"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 171,
+   "bit": 3,
+   "code": "24",
+   "title": "Idle Speed Control (ISC) Valve Stuck"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 171,
+   "bit": 4,
+   "code": "24",
+   "title": "Idle Speed Control (ISC) Valve Circuit Open/Short"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 171,
+   "bit": 5,
+   "code": "32",
+   "title": "Air/Fuel Sensor #2 System"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 171,
+   "bit": 6,
+   "code": "32",
+   "title": "Air/Fuel Sensor #1 System"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 171,
+   "bit": 7,
+   "code": "92",
+   "title": "Electrical Generation Control Signal Circuit Malfunction"
+  },
+  {
+   "addr_current": 149,
+   "addr_memorized": 171,
+   "bit": 8,
+   "code": "91",
+   "title": "Traction Control System (TCS) Relief Valve"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 1,
+   "code": "71",
+   "title": "Shift Solenoid Valve #1"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 2,
+   "code": "72",
+   "title": "Shift Solenoid Valve #2"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 3,
+   "code": "73",
+   "title": "Low Clutch Timing Solenoid Valve"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 4,
+   "code": "74",
+   "title": "Brake Clutch Timing Solenoid Valve"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 5,
+   "code": "77",
+   "title": "Lock-Up Duty Solenoid Valve"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 6,
+   "code": "75",
+   "title": "Line Pressure Duty Solenoid Valve"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 7,
+   "code": "76",
+   "title": "Brake Clutch Pressure Duty Solenoid Valve"
+  },
+  {
+   "addr_current": 150,
+   "addr_memorized": 172,
+   "bit": 8,
+   "code": "79",
+   "title": "Transfer Clutch Duty Solenoid Valve"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 1,
+   "code": "93",
+   "title": "Vehicle Speed Sensor #1 (rear)"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 2,
+   "code": "27",
+   "title": "ATF Temperature Sensor"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 3,
+   "code": "94",
+   "title": "Lateral G Sensor Signal Circuit Malfunction"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 4,
+   "code": "11",
+   "title": "Engine Speed Signal"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 5,
+   "code": "5-11",
+   "title": "Coordination Signal Line"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 6,
+   "code": "38",
+   "title": "Torque Control Signal System"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 7,
+   "code": "36",
+   "title": "Torque Converter Turbine Speed Signal"
+  },
+  {
+   "addr_current": 151,
+   "addr_memorized": 173,
+   "bit": 8,
+   "code": "78",
+   "title": "Tiptronic Solenoid Valve System"
+  }
+ ],
+ "cruise_cancel_codes": [
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 1,
+   "code": "22",
+   "title": "Abnormality of Change in Vehicle Speed"
+  },
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 2,
+   "code": "21",
+   "title": "Abnormality of Switches when Ignition Switch ON"
+  },
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 3,
+   "code": "16",
+   "title": "Ignition Switch"
+  },
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 4,
+   "code": "15",
+   "title": "Cancel Switch"
+  },
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 5,
+   "code": "14",
+   "title": "Neutral Switch"
+  },
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 6,
+   "code": "13",
+   "title": "Clutch Switch"
+  },
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 7,
+   "code": "12",
+   "title": "Stop & Brake Switch"
+  },
+  {
+   "addr_current": 307,
+   "addr_memorized": 311,
+   "bit": 8,
+   "code": "11",
+   "title": "Main Switch"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 1,
+   "code": "35",
+   "title": "Prohibition of Cruise Control at Vehicle Speed F/B Malfunction"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 2,
+   "code": "34",
+   "title": "Prohibition of Cruise Control at continuing big Accelerator Angle"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 3,
+   "code": "33",
+   "title": "Prohibition of WAIT state after Accelerator Operation"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 4,
+   "code": "32",
+   "title": "Cruise Control out of Range"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 5,
+   "code": "31",
+   "title": "Abnormal Engine Speed Signal"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 6,
+   "code": "25",
+   "title": "Abnormality of Input Circuit for Brake Switch"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 7,
+   "code": "24",
+   "title": "Abnormality of Switches related to Cruise Control"
+  },
+  {
+   "addr_current": 308,
+   "addr_memorized": 312,
+   "bit": 8,
+   "code": "23",
+   "title": "Abnormality of Sensors releated to Engine"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 1,
+   "code": "52",
+   "title": "Active Driving Assist (ADA) Target Vehicle Speed Failure"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 2,
+   "code": "51",
+   "title": "Active Driving Assist (ADA) Forced Cancel"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 3,
+   "code": "46",
+   "title": "Powertrain Control Unit (PCU) Failure"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 4,
+   "code": "45",
+   "title": "Meter Failure"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 5,
+   "code": "44",
+   "title": "Body Integrated Unit Failure"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 6,
+   "code": "43",
+   "title": "ABS/VDC Failure"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 7,
+   "code": "42",
+   "title": "Improper High Speed CAN Communication"
+  },
+  {
+   "addr_current": 309,
+   "addr_memorized": 313,
+   "bit": 8,
+   "code": "41",
+   "title": "VDC/TCS Operating"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 1,
+   "code": "66",
+   "title": "Cruise Control Calculation Error"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 2,
+   "code": "25",
+   "title": "Abnormality of Input Circuit for Brake Switch"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 3,
+   "code": "65",
+   "title": "Abnormality 1 of Switches related to Cruise Control"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 4,
+   "code": "64",
+   "title": "Engine Sensor Failure 1"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 5,
+   "code": "63",
+   "title": "Abnormality 1 of Change in Vehicle Speed"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 6,
+   "code": "21",
+   "title": "Abnormality of Switches when Ignition Switch ON"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 7,
+   "code": "62",
+   "title": "Neutral Switch Failure"
+  },
+  {
+   "addr_current": 310,
+   "addr_memorized": 314,
+   "bit": 8,
+   "code": "61",
+   "title": "Brake Switch Failure"
+  }
+ ],
+ "actuator_tests_REFERENCE_ONLY": [
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 8,
+   "title": "Fuel Pump Relay",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 7,
+   "title": "Canister Purge Control (CPC) Solenoid Valve",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 6,
+   "title": "Radiator Fan Relay",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 5,
+   "title": "A/C Compressor Relay",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 4,
+   "title": "Exhaust Gas Recirculation (EGR) Solenoid Valve",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 3,
+   "title": "Air Suction Solenoid Valve (ASV)",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 2,
+   "title": "Positive Crankcase Ventilation (PCV) Solenoid Valve",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 137,
+   "addr_bit": 1,
+   "title": "Ventilation Control Solenoid Valve",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 8,
+   "title": "Fast Idle Control Device (FICD) Solenoid",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 7,
+   "title": "Pressure Switching Solenoid 1",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 6,
+   "title": "Pressure Switching Solenoid 2",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 5,
+   "title": "Air Assist Injector (AAI) Solenoid Valve",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 4,
+   "title": "Fuel Tank Sensor Control Valve",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 3,
+   "title": "Turbocharger Wastegate Solenoid Valve",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 2,
+   "title": "Exhaust Bypass Control Permit Flag",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 29,
+   "bit": 7,
+   "addr": 138,
+   "addr_bit": 1,
+   "title": "Secondary Air Combi Valve 1",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 42,
+   "bit": 2,
+   "addr": 397,
+   "addr_bit": 8,
+   "title": "Secondary Air Combi Valve 2",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 42,
+   "bit": 2,
+   "addr": 397,
+   "addr_bit": 7,
+   "title": "Secondary Air Pump Relay",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 42,
+   "bit": 2,
+   "addr": 397,
+   "addr_bit": 6,
+   "title": "Canister Purge Control (CPC) Solenoid Valve 2",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 42,
+   "bit": 2,
+   "addr": 397,
+   "addr_bit": 5,
+   "title": "Sub Fuel Pump Relay",
+   "reference_only": true
+  },
+  {
+   "flagbyte": 42,
+   "bit": 2,
+   "addr": 397,
+   "addr_bit": 4,
+   "title": "Fuel Pressure Switching Solenoid",
+   "reference_only": true
+  }
+ ],
+ "adjustments_REFERENCE_ONLY": [
+  {
+   "gate": "26-5",
+   "cu": "engine",
+   "addr_low": 111,
+   "addr_high": null,
+   "title": "Ignition Timing Correction",
+   "unit": "deg",
+   "raw_min": 0,
+   "raw_max": 5,
+   "raw_default": 0,
+   "formula": "*-1",
+   "reference_only": true
+  },
+  {
+   "gate": "26-4",
+   "cu": "engine",
+   "addr_low": 112,
+   "addr_high": null,
+   "title": "Idle Speed Correction (AC off)",
+   "unit": "rpm",
+   "raw_min": 124,
+   "raw_max": 140,
+   "raw_default": 128,
+   "formula": "-128*25",
+   "reference_only": true
+  },
+  {
+   "gate": "26-3",
+   "cu": "engine",
+   "addr_low": 113,
+   "addr_high": null,
+   "title": "Idle Speed Correction (AC on)",
+   "unit": "rpm",
+   "raw_min": 124,
+   "raw_max": 140,
+   "raw_default": 128,
+   "formula": "-128*25",
+   "reference_only": true
+  },
+  {
+   "gate": "26-1",
+   "cu": "transmission",
+   "addr_low": 114,
+   "addr_high": null,
+   "title": "Line Pressure Correction",
+   "unit": "%",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100",
+   "reference_only": true
+  },
+  {
+   "gate": "A11020",
+   "cu": "transmission",
+   "addr_low": 115,
+   "addr_high": null,
+   "title": "Gear Shift Line Pressure Correction - 1st to 2nd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "A11020",
+   "cu": "transmission",
+   "addr_low": 116,
+   "addr_high": null,
+   "title": "Gear Shift Line Pressure Correction - 2nd to 3rd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "A11020",
+   "cu": "transmission",
+   "addr_low": 117,
+   "addr_high": null,
+   "title": "Gear Shift Line Pressure Correction - 3rd to 4th",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "A11020",
+   "cu": "transmission",
+   "addr_low": 118,
+   "addr_high": null,
+   "title": "Gear Shift Line Pressure Correction - 4th to 3rd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "A11020",
+   "cu": "transmission",
+   "addr_low": 119,
+   "addr_high": null,
+   "title": "Gear Shift Line Pressure Correction - 4th to 2nd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "A11020",
+   "cu": "transmission",
+   "addr_low": 120,
+   "addr_high": null,
+   "title": "Gear Shift Line Pressure Correction - 3rd to 2nd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "27-8",
+   "cu": "transmission",
+   "addr_low": 121,
+   "addr_high": null,
+   "title": "2-4-Brake Pressure 1 Correction",
+   "unit": "%",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100",
+   "reference_only": true
+  },
+  {
+   "gate": "27-7",
+   "cu": "transmission",
+   "addr_low": 122,
+   "addr_high": null,
+   "title": "2-4-Brake Pressure 2 Correction - 1st to 2nd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "27-7",
+   "cu": "transmission",
+   "addr_low": 123,
+   "addr_high": null,
+   "title": "2-4-Brake Pressure 2 Correction - 2nd to 3rd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "27-7",
+   "cu": "transmission",
+   "addr_low": 124,
+   "addr_high": null,
+   "title": "2-4-Brake Pressure 2 Correction - 3rd to 4th",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "27-7",
+   "cu": "transmission",
+   "addr_low": 125,
+   "addr_high": null,
+   "title": "2-4-Brake Pressure 2 Correction - 4th to 3rd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "27-7",
+   "cu": "transmission",
+   "addr_low": 126,
+   "addr_high": null,
+   "title": "2-4-Brake Pressure 2 Correction - 4th to 2nd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "27-7",
+   "cu": "transmission",
+   "addr_low": 127,
+   "addr_high": null,
+   "title": "2-4-Brake Pressure 2 Correction - 3rd to 2nd",
+   "unit": "kgf",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100/50",
+   "reference_only": true
+  },
+  {
+   "gate": "27-6",
+   "cu": "transmission",
+   "addr_low": 128,
+   "addr_high": null,
+   "title": "Correction of Transfer Duty Ratio",
+   "unit": "%",
+   "raw_min": 90,
+   "raw_max": 110,
+   "raw_default": 100,
+   "formula": "-100",
+   "reference_only": true
+  },
+  {
+   "gate": "27-5",
+   "cu": "transmission",
+   "addr_low": 129,
+   "addr_high": null,
+   "title": "Slope Control",
+   "unit": "",
+   "raw_min": 0,
+   "raw_max": 1,
+   "raw_default": 0,
+   "formula": "0=Allowance,1=No Access",
+   "reference_only": true
+  },
+  {
+   "gate": "27-4",
+   "cu": "transmission",
+   "addr_low": 130,
+   "addr_high": null,
+   "title": "Center Differential",
+   "unit": "%",
+   "raw_min": 50,
+   "raw_max": 150,
+   "raw_default": 100,
+   "formula": "*1",
+   "reference_only": true
+  },
+  {
+   "gate": "27-3",
+   "cu": "transmission",
+   "addr_low": 369,
+   "addr_high": 368,
+   "title": "Correction of AWD Clutch Torque",
+   "unit": "Nm",
+   "raw_min": 63535,
+   "raw_max": 2000,
+   "raw_default": 0,
+   "formula": "s16/50",
+   "reference_only": true
+  }
+ ]
+}

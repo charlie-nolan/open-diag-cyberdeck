@@ -1,0 +1,16 @@
+# systemd --user unit for tools/charm_pic_server.py (copy to ~/.config/systemd/user/ and edit the two
+# addresses). CYBERDECK_ARCHIVE is the drive/folder that holds charm/operation-charm/lmdb-images.
+[Unit]
+Description=CHARM picture server for the cyberdeck (read-only on the LMDB)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/subaru_cyberdeck
+Environment=CYBERDECK_ARCHIVE=%h/cyberdeck_archive
+Environment=CYBERDECK_PIC_HOST=127.0.0.1
+ExecStart=%h/subaru_cyberdeck/venv/bin/python %h/subaru_cyberdeck/tools/charm_pic_server.py serve --host ${CYBERDECK_PIC_HOST} --port 8765 --lmdb "${CYBERDECK_ARCHIVE}/charm/operation-charm/lmdb-images" --model qwen3.6:35b-a3b-q4_K_M --busy-cmd "bash -c '. %h/subaru_cyberdeck/tools/gpu_guard.sh; ! gpu_free >/dev/null 2>&1'"
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=default.target

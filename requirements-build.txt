@@ -1,0 +1,11 @@
+# PC-side knowledge-base builders (kb/, card_baking/, chevrolet/, tools/). Not needed on the deck.
+-r requirements.txt
+beautifulsoup4>=4.12
+lmdb>=1.4
+pymupdf>=1.23
+py7zr>=0.20
+sentence-transformers>=3.0
+torch>=2.2
+huggingface_hub>=0.23
+pytest>=8.0
+# tools/export_qwen3_rkllm.py also needs Rockchip's rkllm-toolkit wheel (separate venv, see README)
