@@ -93,12 +93,19 @@ Two apps share the same databases and can be used independently:
 | Screen | What it does |
 |---|---|
 | Intake & Scan | Car, codes, symptoms and notes (typed or dictated), READ CAR, TEST DRIVE, LOAD DRIVE FILE |
-| Maintenance | Service-schedule items from the manual for this car and mileage; approved items go on the case |
+| Maintenance | A checklist of the routine maintenance the factory schedule calls for over the past 25,000 miles at this car's mileage, read straight from the manual's service-interval pages (no model involved). Tick off what's been done and what you're doing today; the ticks are remembered on the car's next visit |
 | Chat | A brief, conversational back-and-forth that already knows the case and is grounded in the factory manual. If you propose a cause, it weighs it on the evidence (what fits, what doesn't, the quickest test) instead of just agreeing. Slash commands: `/torque`, `/fluids`, `/fsm`, `/part`, `/common`, `/chart`, `/debate`, `/wildcard`, `/save` and more |
 | Final Diagnosis | Most likely cause, what rules out the rest, and the next test. Multi-tab, with owner-reported ideas listed last and labelled "ideas only". **THINK HARDER** reruns it on a reasoning model that also reviews the first plan |
 | Repair Guide | Numbered procedure assembled from manual excerpts, with the manual's pictures shown beside the steps so you can look at the diagram while you read: figures from the factory PDFs are stored on the deck, and CHARM pictures are streamed from the PC's picture server when it's reachable. Specs are always looked up, never generated |
 | Parts | OEM part numbers from the make DB, which other models share the part, QR codes for parts-store and junkyard searches, and a junkyard quote (yard price list plus book labor hours) |
 | Tests | Two-way tests, locked down (see Safety) |
+
+**Every car gets its own history.** Each case is filed under the car's VIN (or the customer name plus year/make/model
+when no VIN can be read). That includes codes, live readings, test-drive logs, notes, the verdict and maintenance
+ticks. Scan the same car again and the deck says it's been seen before. PAST VISITS opens any earlier visit, so you
+can put last time's readings next to what the car is doing live, and the models are told what was found and decided
+on recent visits ("it came back" is part of the case). The deck also remembers which live readings each car actually
+supports on each cable. It's handy for your own car, friends and family, or repeat customers.
 
 **diagent** (`python -m diagent gui`), the strict one. It walks the manual's own diagnostic chart step by step. Python
 answers any step it can from the scan, checks every number you type against the cited spec, and watches live data
