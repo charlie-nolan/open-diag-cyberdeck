@@ -27,13 +27,49 @@ Contents
 **Deck**
 | Part | Notes |
 |---|---|
-| Orange Pi 5 (RK3588S), 16 GB RAM | 8 GB works, but the two models swap instead of both staying loaded. The original is a v1.2 board. |
-| M.2 NVMe SSD, 256 GB or more | Databases live here. One make's DB is roughly 0.5 to 6 GB; all of them come to about 70 GB. |
+| Orange Pi 5 (RK3588S) | 8 GB RAM is the minimum; 16 GB keeps the fast and deep models loaded together (see the sizing table below). The original is a 16 GB v1.2 board. |
+| Storage | A 64 GB microSD card is enough for one or two makes. Use an M.2 NVMe SSD if you want many makes, or just for speed. See the sizing table below. |
 | Display | The UI is tuned for 1920x1280 at 150% scaling and works in landscape or portrait. Touch is optional: everything is keyboard-driven. |
 | Keyboard + pointing device | The original uses a keyboard and trackball. |
 | Wi-Fi | The OS image's Wi-Fi may not suit you. The original uses a USB RTL8821CU adapter (driver in step 3). Ethernet works out of the box. |
 | Powered USB hub | Recommended once you have cables, a mic and a keyboard plugged in. |
 | Microphone / headset | Optional, for voice. The board's onboard mic works; Bluetooth earbuds need the headset profile. |
+
+**How big does it need to be?** Size the build to how much data you want. Sizes are approximate: they come from the original build, rounded.
+
+*On the deck*
+| Piece | Size |
+|---|---|
+| OS + Python environment | ~10 GB |
+| Fast model (Qwen3-1.7B) | ~2 GB on disk, ~4.5 GB RAM loaded |
+| Deep model (Qwen3-4B), optional think model | ~5 GB each on disk, ~8 GB RAM each loaded |
+| Embedding model (optional, for vector search) | ~1.2 GB |
+| Voice models (optional) | ~0.3 GB |
+| One make's knowledge DB | 10 MB to 6 GB (Subaru ~0.8 GB, plus ~0.5 GB of forum threads) |
+| Every make's DB | ~70 GB |
+| Shared tables (VIN, ECU ID, general) | under 0.1 GB |
+
+| Deck setup | RAM | Storage |
+|---|---|---|
+| **Minimum**: fast model only, one or two makes, keyword search | 8 GB | 32-64 GB microSD |
+| **Recommended**: fast + deep models, embeddings, a handful of makes | 16 GB | 128 GB+ (NVMe preferred) |
+| **Everything**: all makes, all models, voice | 16 GB | 256 GB NVMe (what the original uses) |
+
+Using Home mode, where the big models run on your PC, adds nothing on the deck.
+
+*On the PC* (only if you build databases yourself)
+| What you build | Disk needed |
+|---|---|
+| One or two makes from your own factory PDFs | ~10-50 GB (PDFs, converted markdown with figures, the DB) |
+| NHTSA data for every make | ~5 GB |
+| Reddit/forum archives for every make | ~15-30 GB, plus the per-make thread DBs |
+| **All of CHARM, text only** | ~60 GB archive, plus ~70-100 GB of built DBs and work files |
+| **All of CHARM with pictures** | add ~700 GB for the picture archive, so about **1 TB** in total |
+| LEMON Manuals, the whole torrent | ~1.1 TB more, so **2 TB+** with everything (usually you only take the cars you need) |
+
+The raw archives can sit on a cheap external USB hard drive (`CYBERDECK_ARCHIVE`). Put the DBs you're actively building
+on an SSD. For RAM, 16 GB is enough to build a make from PDFs; 32 GB+ is needed to export the 4B models and to run the
+community extraction. Card baking and embedding need an NVIDIA GPU (8 GB VRAM works); everything else runs on the CPU, just slower.
 
 **Car cables** (at least one)
 | Cable | Use |
@@ -41,11 +77,9 @@ Contents
 | OBDLink EX (USB) | Any OBD-II car (1996+): codes, all live PIDs, VIN, mode 06, plus Subaru SSM2 and GM mode 22 through it. Start with this one. |
 | KKL USB cable (FTDI-based "VAG-COM" style) | Subaru SSM2 on the K-line, which is the most reliable way to read 1999-2005-ish Subarus. Cheap. |
 
-**PC** (for building databases and Home mode)
-- Linux, 32 GB+ RAM (62 GB used on the original), and an NVIDIA GPU with 8 GB+ (an RTX 3070 on the original).
-  Exporting the 4B models in float32 needs about 32 GB of RAM.
-- Lots of disk. The raw sources (manual images, forum dumps) can run to hundreds of GB, so put them on a big
-  external drive and point `CYBERDECK_ARCHIVE` at it.
+**PC** (for building databases and Home mode; optional if someone gives you finished DBs and models)
+- Linux. See the PC sizing table above for disk and RAM. The original has 62 GB RAM, an RTX 3070 (8 GB) and a 5 TB
+  external drive for the raw archives.
 - Home mode needs [Ollama](https://ollama.com) and enough RAM/VRAM for the big models (the 80B MoE models run
   on 62 GB RAM + 8 GB VRAM at about 30 tok/s).
 
