@@ -99,7 +99,7 @@ nothing rather than guessing. Broken chart steps are shown as the page text with
 | Deck (RKLLM on NPU) | Qwen3-1.7B | Qwen3-4B-Instruct-2507 | Qwen3-4B-Thinking-2507 | Qwen3-Embedding-0.6B |
 | Home PC (Ollama, `--home`) | Qwen3.6 35B-A3B | Qwen3-Next 80B-A3B Instruct | Qwen3-Next 80B-A3B Thinking | same |
 
-Home mode falls back to the deck's own models whenever the PC can't be reached. There's no agent framework:
+Home mode falls back to the deck's own models whenever the PC can't be reached. (Speeds quoted anywhere in these docs were measured on an RTX 3070 PC and a 16 GB Orange Pi 5; yours will vary with your hardware.) There's no agent framework:
 each model has a fixed job, and Python does the bookkeeping.
 
 ### 6. Voice (offline)

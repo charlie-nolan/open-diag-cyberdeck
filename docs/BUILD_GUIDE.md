@@ -4,6 +4,11 @@ How to build an Open Diagnostic Cyberdeck from scratch: the hardware, the Pi's O
 databases, and your first scan. It follows the order the original deck was built in. Expect a weekend for the
 hardware and software, and days of unattended PC time for the full databases. Each step says which machine it runs on.
 
+> **About the times and speeds in this guide:** they were all measured on the original hardware: a Ryzen 9 5900X,
+> 62 GB RAM and an RTX 3070 (8 GB) on the PC, and a 16 GB Orange Pi 5 on the deck. Yours will vary with your CPU,
+> GPU, VRAM, RAM and disks. A bigger GPU can be several times faster, and CPU-only builds can take many times longer.
+> Use the numbers to judge relative cost, not as promises.
+
 Contents
 1. [What you need](#1-what-you-need)
 2. [Power and enclosure](#2-power-and-enclosure)
