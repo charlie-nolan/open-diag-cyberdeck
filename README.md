@@ -65,7 +65,7 @@ It has to be built this way for two reasons:
   databases means a small, fast model is enough, and adding a car or a make means loading data, not retraining.
 
 **How well the search works, measured.** On a fixed set of 34 real diagnostic questions, the hybrid keyword +
-embedding search puts the right page in the top 3 for 31 of them (up from 25 with keywords alone), and its mean
+embedding search puts the right page in the top 3 for 31 of them (up from 25 with the original keyword search), and its mean
 reciprocal rank went from 0.63 to 0.85. Across 47 makes, typing a trouble code finds that code's own diagnostic
 procedure in the top 3 every time (380 of 380), and spec questions find the right spec about 93% of the time
 (`kb/eval_make.py`). That measures the search, not the final diagnosis, but every answer starts from it.
