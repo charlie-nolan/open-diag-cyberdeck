@@ -263,6 +263,14 @@ Piper). Diagnoses and prices stay on screen. See `app/README.md`.
 - **One database per make.** The deck only has to hold the makes it will actually see, and each make can be
   rebuilt on its own without touching the others. Adding a make is one command (`tools/make_full.sh <make>`), not a
   project. The builds are resumable, and a lock makes sure only one GPU job runs at a time.
+- **Models and databases are modular.** No model is trained or fine-tuned for this project: all the car knowledge
+  lives in the databases, and the models only read it. So you can swap any model for a bigger, smaller or newer one
+  to suit your hardware, and drop in better ones as they come out. On the PC that means changing a model name in
+  `app/config.json` (`home_fast`, `home_deep`, `home_think`, any Ollama model). On the deck it means converting the
+  new model to RKLLM format (`tools/export_qwen3_rkllm.py`, a one-time conversion, not training) and pointing
+  `fast_model` / `deep_model` / `think_model` at it. Databases work the same way: copy in only the makes you need,
+  or rebuild one when new data arrives, and the app picks it up. The one exception is the embedding model, which
+  is tied to the stored search vectors: change it and you re-run the builder's `embed` step.
 - **No per-ECU tables for Subaru live data.** The ECU's own SSM2 init reply carries capability bits that say which
   live values, switches and tests it supports, so the deck reads them straight from the car instead of needing a
   definition file for every ROM. As a cross-check, the trouble-code maps from FreeSSM and RomRaider (the two
