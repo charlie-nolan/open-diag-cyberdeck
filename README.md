@@ -259,9 +259,21 @@ Piper). Diagnoses and prices stay on screen. See `app/README.md`.
   live values, switches and tests it supports, so the deck reads them straight from the car instead of needing a
   definition file for every ROM. As a cross-check, the trouble-code maps from FreeSSM and RomRaider (the two
   open-source Subaru tools) were compared and agree on 537 of 539 codes.
-- **By the numbers** (as built on the author's PC): CHARM service information for 53 makes, about 650 GB of manual
-  pictures, 1.06 million Reddit and forum threads prefiltered down to 803,000 useful ones, 80,036 Subaru threads
-  embedded for search, 176 baked cards for the 1998-2002 Forester and 1,686 for the 2003 Tahoe.
+- **By the numbers** (as built on the author's PC). The raw material is huge:
+  - **Manuals:** CHARM service information for 53 makes (decades of cars), about 650 GB of manual pictures, plus
+    ten converted factory service manuals for Subarus.
+  - **Community:** over a million Reddit and forum threads across 37 makes, with millions of comments (Subaru alone
+    is about 88,000 Reddit posts and 767,000 comments). A cheap keyword pass kept 803,000 useful threads, a local
+    model read the repair threads for confirmed fixes, and 80,036 Subaru threads are embedded for search.
+  - **Government data:** NHTSA TSBs, complaints, recalls and defect investigations for every make (a 2 GB source
+    database), plus the NHTSA VIN decoder.
+  - **Cards:** 176 baked for the 1998-2002 Forester and 1,686 for the 2003 Tahoe.
+
+  All of that is boiled down into one plain SQLite file per make that a 16 GB Orange Pi can search offline in a
+  moment. The Subaru database, for example, is about 750 MB and holds roughly 160,000 manual sections, 6,500 torque
+  specs, 46,000 labor and part-number rows, about 18,000 TSBs and 13,500 complaints, with keyword indexes and 8-bit
+  search vectors built in. Pictures stay on the PC and are streamed when it's reachable, or shipped as small WebP
+  files for the manuals that matter.
 - **Playing fair with data sources.** The Row52 junkyard crawler is switched off because Row52's terms forbid
   scrapers, so yard inventory comes from lists you paste or alert emails. Forums whose robots.txt blocks AI
   crawlers, or that sit behind Cloudflare, are skipped, never bypassed. Closed tools' internals are never extracted.
