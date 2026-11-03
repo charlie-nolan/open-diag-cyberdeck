@@ -157,6 +157,13 @@ today's values with the same values at earlier visits. Open the file in any SQLi
 to look back over a car. The files stay on the device that runs the app (`car_records: false` in config turns them
 off). It's handy for your own car, friends and family, or repeat customers.
 
+**Common issues, for buying a used car.** The COMMON ISSUES button in Chat (`/common`) shows what this model and
+year is known for, and at what mileage. It's useful when you're inspecting a car before you buy it, so you know
+exactly what to give a good once-over. The counts are worked out in Python from the make's database before any
+model writes a word: NHTSA owner complaints grouped by system and by the mileage the owner reported, recalls, TSBs
+and confirmed forum fixes. The model only puts those numbers into words and never adds a problem of its own
+(`app/common_issues.py`).
+
 **diagent** (`python -m diagent gui`), the strict one. It walks the manual's own diagnostic chart step by step. Python
 answers any step it can from the scan, checks every number you type against the cited spec, and watches live data
 for "until X reaches N" steps. The model can only cite sources it was handed; uncited values and invented steps are
