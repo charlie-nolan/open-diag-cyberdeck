@@ -93,6 +93,11 @@ that problem:
   trim" turned out to be the atmospheric pressure reading. All of it was thrown out, and it's the reason every fact
   in this project now has to cite where it came from. The deck refuses any ECU write except the documented,
   reversible tests.
+- **Empty beats wrong.** When no source gives a spec, a range or a part number, the deck says so instead of filling
+  the gap. A spec search never falls back to a loose match, because the wrong part's torque value is worse than none.
+- **Chat rebuilds its prompt from scratch every turn**: the case, fresh manual text for the codes, symptoms and the
+  question, and only the last few exchanges. Nothing depends on the model's own memory, so a long chat never fills
+  up and resets, and a vague follow-up like "explain deeper" can't drag in unrelated manual pages.
 - **You can always skip the AI and read the manual yourself.** Typing `/fsm <words>`, `/torque <part>` or
   `/fluids <system>` in Chat returns the manual's own text and spec rows straight from the database, with no model
   involved. `shopdeck` walks the factory diagnostic charts with no LLM at all.
@@ -122,6 +127,9 @@ and doesn't quietly turn into a repair step.
 - Live readings are put into plain words in Python before any model sees them (`app/live_data.py`,
   `app/telemetry_ref.py`), for example "engine still cold" or "trims adding fuel". They're also judged against the
   manual's own specified ranges where the manual has them, and each range quotes the row it came from.
+- **Same reading, whichever cable.** The two cables report values in different forms and units. The telemetry
+  layer converts both into the same named readings, so the ranges, comparisons and history work the same either way.
+  Which cable to use is picked from the car's detected protocol, not from a list of makes.
 - Closed manufacturer tools (FORScan and others) get an **OPEN <tool>** launcher button that hands over the
   cable. The deck never extracts or copies their internals.
 
@@ -166,7 +174,10 @@ with all the codes. `/part <name or number>` does the same from Chat.
 
 ### 4. Where answers come from, in priority order
 1. **The factory diagnostic tree** for the code (DTC procedure), with steps that ask "which codes are set?"
-   answered from the scan.
+   answered from the scan. The trees are parsed, not pasted: a manual procedure is a big step table (median about
+   3,400 characters, up to 18,000), and early on they were cut to fit the prompt, so the models never saw a single
+   step. `app/procedures.py` now splits them into whole numbered steps, follows the manual's own "refer to" links
+   to other procedures, and fits the steps that matter for this scan into the budget.
 2. **Baked DTC cards** (`card_baking/`): one card per trouble code, combining the manual's procedure with real-world
    fixes **scraped from Reddit and owner forums and checked for credibility** before they count:
    - Threads are filtered to likely repair threads. A model then pulls out the car, the code, what fixed it, and
@@ -238,6 +249,27 @@ each model has a fixed job, and Python does the bookkeeping.
 Piper). Diagnoses and prices stay on screen. See `app/README.md`.
 
 ---
+
+## Engineering notes
+
+- **One database per make.** The deck only has to hold the makes it will actually see, and each make can be
+  rebuilt on its own without touching the others. Adding a make is one command (`tools/make_full.sh <make>`), not a
+  project. The builds are resumable, and a lock makes sure only one GPU job runs at a time.
+- **No per-ECU tables for Subaru live data.** The ECU's own SSM2 init reply carries capability bits that say which
+  live values, switches and tests it supports, so the deck reads them straight from the car instead of needing a
+  definition file for every ROM. As a cross-check, the trouble-code maps from FreeSSM and RomRaider (the two
+  open-source Subaru tools) were compared and agree on 537 of 539 codes.
+- **By the numbers** (as built on the author's PC): CHARM service information for 53 makes, about 650 GB of manual
+  pictures, 1.06 million Reddit and forum threads prefiltered down to 803,000 useful ones, 80,036 Subaru threads
+  embedded for search, 176 baked cards for the 1998-2002 Forester and 1,686 for the 2003 Tahoe.
+- **Playing fair with data sources.** The Row52 junkyard crawler is switched off because Row52's terms forbid
+  scrapers, so yard inventory comes from lists you paste or alert emails. Forums whose robots.txt blocks AI
+  crawlers, or that sit behind Cloudflare, are skipped, never bypassed. Closed tools' internals are never extracted.
+- **Built for the field.** The finished deck has no touchscreen: everything works from the keyboard, and the
+  trackball is a bonus. It runs from a Milwaukee M12 tool battery through a low-voltage cutoff and two buck
+  converters, and the screen layout works in landscape or portrait. The dark theme's colours always mean the same
+  thing: forest green is your turn, teal is only ever live data, purple is a source or citation, and amber is out
+  of spec, always with a word next to it, never colour alone.
 
 ## Safety
 
