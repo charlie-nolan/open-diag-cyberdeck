@@ -64,6 +64,12 @@ It has to be built this way for two reasons:
   Even the 35B and 80B home-PC models don't know spec-level detail reliably. Keeping the knowledge in SQLite
   databases means a small, fast model is enough, and adding a car or a make means loading data, not retraining.
 
+**How well the search works, measured.** On a fixed set of 34 real diagnostic questions, the hybrid keyword +
+embedding search puts the right page in the top 3 for 31 of them (up from 25 with keywords alone), and its mean
+reciprocal rank went from 0.63 to 0.85. Across 47 makes, typing a trouble code finds that code's own diagnostic
+procedure in the top 3 every time (380 of 380), and spec questions find the right spec about 93% of the time
+(`kb/eval_make.py`). That measures the search, not the final diagnosis, but every answer starts from it.
+
 ## Built to stay grounded, not to guess
 
 The usual fear with AI is that it confidently makes things up. This project was designed from top to bottom around
@@ -76,11 +82,17 @@ that problem:
   manual pages. Community fixes are used only when owners confirmed them, and forum ideas are labelled "ideas only".
 - **Every step, spec and price cites its source**, so you can open the page and check it yourself.
 - **Python does the exact work.** Diagnostic-tree questions about the codes you scanned, and the meaning of each
-  live reading, are worked out in code before the model sees them, so the model doesn't do the arithmetic.
+  live reading, are worked out in code before the model sees them, so the model doesn't do the arithmetic. This
+  came from experience: early on, a model read a perfectly normal 12 °C coolant temperature on a cold engine as
+  overheating. Now every reading reaches the model already labelled in range, low or high by Python.
 - **Embeddings find the right page** even when your wording doesn't match the manual's. That means the model isn't
   left to fill gaps on its own.
-- **Known-bad data is kept out.** Fabricated command tables and unverified torque values were found and removed.
-  The deck refuses any ECU write except the documented, reversible tests.
+- **Known-bad data is kept out.** This project started from scripts and databases an earlier AI assistant had
+  generated, and an audit found a lot of it was invented: "hand-verified" torque rows with no source, an ECU command
+  table with bad checksums and made-up addresses, and wrong live-data addresses. One alarming "-22% long-term fuel
+  trim" turned out to be the atmospheric pressure reading. All of it was thrown out, and it's the reason every fact
+  in this project now has to cite where it came from. The deck refuses any ECU write except the documented,
+  reversible tests.
 - **You can always skip the AI and read the manual yourself.** Typing `/fsm <words>`, `/torque <part>` or
   `/fluids <system>` in Chat returns the manual's own text and spec rows straight from the database, with no model
   involved. `shopdeck` walks the factory diagnostic charts with no LLM at all.
@@ -183,6 +195,13 @@ with all the codes. `/part <name or number>` does the same from Chat.
    it couldn't build itself, without spending its budget on raw forum text. It also gives the models some room to
    look past the service manual without slipping into made-up answers: every cause on a card is one that real owners
    confirmed, with its source.
+
+   **Where the idea came from:** a question about how the original Pokémon games fit a whole world onto a Game
+   Boy, and whether that kind of squeezing could work on the Orange Pi. Writing assembly wouldn't help here: the
+   NPU library and SQLite are already native code, and the car's own link is capped at 4800 baud. But the mindset
+   carries over: do the heavy work ahead of time on the big machine, compress everything (8-bit models, 8-bit
+   search vectors that are 4x smaller), and keep what the small device has to read short. Card baking is that idea
+   applied: the RTX 3070 spends hours so the deck can answer in a moment.
 
    ![Card baking](docs/images/6_card_baking.png)
 
