@@ -27,6 +27,7 @@ Steps (each takes --make <db name> or --all; state lives in kb/community/work/<m
 Runtime lookup: app/community_ref.py. Community data suggests; the manual confirms.
 """
 import argparse
+import concurrent.futures as cf
 import fcntl
 import glob
 import itertools
@@ -35,9 +36,11 @@ import math
 import os
 import random
 import re
+import signal
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -52,6 +55,7 @@ GROUPS = os.path.join(KB, "charm_make_groups.txt")
 sys.path.insert(0, os.path.join(ROOT, "card_baking"))
 sys.path.insert(0, KB)
 from extract_fixes import prefilter_score  # noqa: E402  (the card filter, for the side-by-side count)
+from bake_cards import PART_NO_RE  # noqa: E402  (OEM part-number shapes, formats only)
 
 # Forum dumps -> the make DB their threads go to (the record's own vehicle field says the exact model)
 FORUM_MAKE = {"ultimatesubaru": "subaru", "gmtnation": "chevrolet"}
@@ -61,6 +65,26 @@ OLLAMA = "http://127.0.0.1:11434"
 SEG_CHARS, MAX_CHARS, MAX_REPLIES = 1500, 9000, 14
 
 LOG = None
+HALT = threading.Event()     # set by SIGTERM/SIGINT: finish the requests in flight, save them, start no new ones
+
+
+def _stop(signum, frame):
+    HALT.set()
+
+
+def thread_filter(a):
+    """SQL over thread t for this run's set: pilot only, --min-replies, --any-of rule flags from pass 0."""
+    where, args = ["t.pilot=1" if a.pilot else "1"], []
+    if a.min_replies:
+        where.append("t.n_replies >= ?")
+        args.append(a.min_replies)
+    if a.any_of:
+        flags = [f.strip() for f in a.any_of.split(",") if f.strip()]
+        bad = [f for f in flags if f not in ("code", "symptom", "part", "test", "outcome")]
+        if bad:
+            sys.exit(f"--any-of: unknown flag(s) {bad}")
+        where.append("(" + " OR ".join(f"json_extract(t.rules, '$.{f}')" for f in flags) + ")")
+    return " AND ".join(where), args
 
 
 def log(msg):
@@ -109,6 +133,8 @@ CREATE TABLE IF NOT EXISTS thread (
   PRIMARY KEY (src, tid)) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS prefilter_stat (src TEXT, sub TEXT, metric TEXT, n INTEGER, PRIMARY KEY (src, sub, metric));
 CREATE TABLE IF NOT EXISTS sub_score (src TEXT, sub TEXT, p90 INTEGER, PRIMARY KEY (src, sub));
+CREATE TABLE IF NOT EXISTS run (   -- one row per extract run: wall-clock throughput for the reports
+  make TEXT, model TEXT, backend TEXT, parallel INTEGER, lite INTEGER, n INTEGER, seconds REAL, started TEXT);
 CREATE TABLE IF NOT EXISTS extract (
   src TEXT NOT NULL, tid TEXT NOT NULL, status TEXT NOT NULL, raw TEXT, rec TEXT, checks TEXT,
   llm_model TEXT, ms INTEGER, prompt_tokens INTEGER, eval_tokens INTEGER, tries INTEGER DEFAULT 1, at TEXT,
@@ -194,12 +220,15 @@ def segments(title, op_body, cs):
     return segs
 
 
-def thread_text(segs):
+def thread_text(segs, texts=None):
+    """texts: {seg index: trimmed text} (lite mode); segments left out keep their numbers out of the prompt."""
     lab = {"op": "OP", "op_reply": "OP reply"}
     out = []
     for i, s in enumerate(segs):
+        if texts is not None and i not in texts:
+            continue
         tag = lab.get(s["k"]) or (f"reply, score {s['s']}" if s["s"] is not None else "reply")
-        out.append(f"[S{i} {tag}]\n{s['t']}")
+        out.append(f"[S{i} {tag}]\n{s['t'] if texts is None else texts[i]}")
     return "\n\n".join(out)
 
 
@@ -396,7 +425,8 @@ SCHEMA = {
             "required": ["fix", "component", "status", "came_back", "seg", "quote"]},
         "chains": {"type": "array", "items": {"type": "object", "properties": {
             "steps": {"type": "array", "items": {"type": "object", "properties": {
-                "step": {"type": "string"}, **QS}, "required": ["step", "seg", "quote"]}}},
+                "role": {"type": "string", "enum": ["observation", "conclusion", "test", "result"]}, **QS},
+                "required": ["role", "seg", "quote"]}}},
             "required": ["steps"]}},
         "refs": {"type": "array", "items": {"type": "object", "properties": {
             "kind": {"type": "string", "enum": ["tsb", "recall", "part_number", "cost", "labor_time"]},
@@ -420,7 +450,7 @@ Rules:
 - ruled_out: causes the thread eliminated, with the evidence that eliminated them.
 - suggestions: causes that replies proposed, with the reason they gave.
 - outcome: the final fix if one is stated. status "confirmed" only when the original poster says it fixed the problem; "claimed" when someone else states it; "none" when no fix is stated. came_back: did the problem return.
-- chains: at most 3 short chains of reasoning that the thread actually shows (observation, then conclusion, then test, then result), one quoted step per link. Skip when the thread shows none.
+- chains: at most 3 chains of reasoning that the thread actually shows, as 2 to 5 steps in order. Each step has a role (observation, conclusion, test or result) and the quote that is that step. Skip when the thread shows no such chain.
 - refs: TSB or recall numbers, part numbers, costs and labor times exactly as written.
 - Keep text fields short (under 15 words)."""
 
@@ -429,8 +459,8 @@ class Ollama:
     def __init__(self, model, url=OLLAMA, num_ctx=8192, timeout=900):
         self.model, self.url, self.num_ctx, self.timeout = model, url.rstrip("/"), num_ctx, timeout
 
-    def chat(self, system, user):
-        body = {"model": self.model, "stream": False, "think": False, "format": SCHEMA, "keep_alive": "30m",
+    def chat(self, system, user, schema=None):
+        body = {"model": self.model, "stream": False, "think": False, "format": schema or SCHEMA, "keep_alive": "30m",
                 "options": {"temperature": 0, "num_ctx": self.num_ctx, "num_predict": 2048},
                 "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
         req = urllib.request.Request(self.url + "/api/chat", data=json.dumps(body).encode(),
@@ -438,6 +468,200 @@ class Ollama:
         with urllib.request.urlopen(req, timeout=self.timeout) as r:
             d = json.loads(r.read())
         return d["message"]["content"], d.get("prompt_eval_count") or 0, d.get("eval_count") or 0
+
+
+class LlamaServer:
+    """llama.cpp llama-server, OpenAI-compatible; several requests at once share its -np slots."""
+    def __init__(self, model, url="http://127.0.0.1:8080", timeout=900):
+        self.model, self.url, self.timeout = model, url.rstrip("/"), timeout
+
+    def chat(self, system, user, schema=None):
+        body = {"temperature": 0, "max_tokens": 2048, "chat_template_kwargs": {"enable_thinking": False},
+                "response_format": {"type": "json_schema",
+                                    "json_schema": {"name": "thread", "strict": True, "schema": schema or SCHEMA}},
+                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        req = urllib.request.Request(self.url + "/v1/chat/completions", data=json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=self.timeout) as r:
+            d = json.loads(r.read())
+        u = d.get("usage") or {}
+        return d["choices"][0]["message"]["content"], u.get("prompt_tokens") or 0, u.get("completion_tokens") or 0
+
+
+# ---------------------------------------------------------------- lite mode: Python fills the easy fields
+LITE_FIELDS = ("vehicle", "codes", "refs")
+SCHEMA_LITE = {"type": "object", "properties": {k: v for k, v in SCHEMA["properties"].items() if k not in LITE_FIELDS},
+               "required": [k for k in SCHEMA["required"] if k not in LITE_FIELDS]}
+SYSTEM_LITE = "\n".join(ln for ln in SYSTEM.splitlines()
+                         if not ln.startswith(("- vehicle:", "- codes:", "- refs:")))
+TSB_RE = re.compile(r"\b(?:TSB|service bulletin|bulletin)\s*(?:no\.?|number|#)?\s*:?\s*([0-9]{2}-[0-9A-Z-]{2,}|[0-9A-Z]{2,}-[0-9A-Z-]{2,})", re.I)
+RECALL_RE = re.compile(r"\b(\d{2}V\d{3}(?:000)?)\b|\b(?:recall|campaign)\s*(?:no\.?|number|#)?\s*:?\s*([A-Z0-9]{2,}[0-9][A-Z0-9-]*)\b", re.I)
+COST_RE = re.compile(r"(?<![\d$])\$\d[\d,]*(?:\.\d{2})?(?:\s?k\b)?(?!\s*(?:years?|yrs?|months?|days?)\b)")
+LABOR_RE = re.compile(r"\b\d+(?:\.\d+)?\s?(?:-\s?\d+(?:\.\d+)?\s?)?(?:hours?|hrs?)\b(?!\s*(?:later|ago|away|drive))", re.I)
+TRANS_RE = re.compile(r"\b(manual|automatic|auto(?:matic)? trans(?:mission)?|cvt|\d[- ]speed)\b", re.I)
+MILES_RE = re.compile(r"(?<![$\d.,])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s?(k(?:\s?miles)?|miles|mi|km)\b(?!\s*(?:rpm|/h|per))", re.I)
+YEAR4 = r"(?<![\d$.,])(19[89]\d|20[0-3]\d)(?![\d,])"
+_VOCAB = {}
+
+
+def _model_name(s):
+    return " ".join(w.upper() if len(w) <= 3 else w.capitalize() for w in s.split())
+
+
+def make_vocab(make):
+    """Model names (kb/<make>.db vehicle table, NHTSA complaint models with 5+ complaints, romid.db), engine codes and
+    displacements (vehicle table) of this make. All read from the databases, nothing typed in by hand."""
+    if make in _VOCAB:
+        return _VOCAB[make]
+    names, codes, disp = {}, set(), set()
+    mk = make.replace("_", " ").upper()
+    for path, sql, args in ((os.path.join(KB, "romid.db"), "SELECT DISTINCT model FROM rom WHERE upper(make) LIKE ?",
+                             (mk + "%",)),
+                            (os.path.join(KB, "nhtsa_all.db"), "SELECT model FROM complaint WHERE make=? GROUP BY model "
+                             "HAVING count(*) >= 5", (mk,))):
+        if os.path.isfile(path):
+            try:
+                for (m,) in ro(path).execute(sql, args):
+                    m = re.sub(r"\(.*?\)", "", m or "").strip()
+                    if m and m.upper() != mk:
+                        names.setdefault(m.lower(), _model_name(m))
+            except sqlite3.Error:
+                pass
+    p = os.path.join(KB, f"{make}.db")
+    if os.path.isfile(p):
+        c = ro(p)
+        for (m,) in c.execute("SELECT DISTINCT model FROM vehicle WHERE model != ''"):
+            names[m.lower()] = m                            # the manual's own spelling wins
+        for (e,) in c.execute("SELECT DISTINCT engine FROM vehicle WHERE engine != ''"):
+            for tok in re.split(r"[\s/-]+", e):
+                if re.fullmatch(r"[A-Z]{1,3}\d{2,3}[A-Z]{0,2}", tok):
+                    codes.add(tok)
+                m = re.fullmatch(r"(\d\.\d)L", tok)
+                if m:
+                    disp.add(m.group(1))
+    # a name needs 2+ letters: "C" or "1500" alone would match ordinary text
+    models = sorted((m for m in names.values() if len(re.findall(r"[A-Za-z]", m)) >= 2), key=len, reverse=True)
+    alt = "|".join(re.escape(m) for m in models)
+    v = {"model": re.compile(rf"(?<![A-Za-z0-9])({alt})(?![A-Za-z0-9])", re.I) if models else None,
+         "names": {m.lower(): m for m in models},
+         "make": re.compile(rf"(?<![A-Za-z0-9]){re.escape(make.replace('_', ' '))}(?![A-Za-z0-9])", re.I),
+         "disp": re.compile(r"(?<![\d.$])(" + "|".join(re.escape(d) for d in sorted(disp)) + r")(?![\d.%])") if disp else None,
+         "engine": re.compile(r"(?<![A-Za-z0-9.])(" + "|".join(
+             [re.escape(x) for x in sorted(codes, key=len, reverse=True)] +
+             [re.escape(d) + r"\s?(?:l\b|liter|litre)" for d in sorted(disp)]) + r")(?![A-Za-z0-9])", re.I)
+         if (codes or disp) else None}
+    _VOCAB[make] = v
+    return v
+
+
+def window(text, start, end, before=6, after=6):
+    """The words around [start, end) as an exact piece of the text (3 to 30 words)."""
+    toks = [m.span() for m in re.finditer(r"\S+", text)]
+    idx = [i for i, (a, b) in enumerate(toks) if b > start and a < end]
+    if not idx:
+        return ""
+    i0, i1 = max(0, idx[0] - before), min(len(toks), idx[-1] + 1 + after)
+    if i1 - i0 > 30:
+        i1 = i0 + 30
+    return text[toks[i0][0]:toks[i1 - 1][1]]
+
+
+def code_fill(segs, make):
+    """Codes, refs (raw item format, checked by validate like the model's items) and the vehicle (checked here),
+    all from regexes and the make DB's own lists. Nothing is guessed: a field nobody wrote stays empty."""
+    codes, refs, seen = [], [], set()
+    for i, sg in enumerate(segs):
+        t = sg["t"]
+        for m in DTC_RE.finditer(t):
+            c = m.group(0).upper()
+            if c not in seen:
+                seen.add(c)
+                codes.append({"code": c, "seg": i, "quote": window(t, *m.span()), "source": "code"})
+        for kind, rx in (("part_number", PART_NO_RE), ("tsb", TSB_RE), ("recall", RECALL_RE), ("cost", COST_RE),
+                         ("labor_time", LABOR_RE)):
+            for m in rx.finditer(t):
+                val = next((g for g in m.groups() if g), None) if m.groups() else None
+                val = (val or m.group(0)).strip()
+                if (kind, val.lower()) not in seen:
+                    seen.add((kind, val.lower()))
+                    refs.append({"kind": kind, "value": val, "seg": i, "quote": window(t, *m.span()), "source": "code"})
+    v = make_vocab(make)
+    veh, quotes = {}, {}
+    ops = [(i, sg["t"]) for i, sg in enumerate(segs) if sg["k"] != "reply"]
+
+    def put(field, value, i, t, span):
+        q = window(t, *span)
+        if field not in veh and value and quote_in(q, t):
+            veh[field] = value
+            quotes[field] = (i, q)
+
+    for i, t in ops:
+        anchors = []
+        if v["model"]:
+            for m in v["model"].finditer(t):
+                put("model", v["names"][m.group(1).lower()], i, t, m.span())
+                anchors.append(m)
+                if v["disp"]:            # "5.3 <Model>" / "<Model> 5.3": a displacement the make DB lists, next to the name
+                    d = re.search(r"(?:^|\s)(" + v["disp"].pattern + r")\s+$", t[max(0, m.start() - 8):m.start()]) or \
+                        re.match(r"\s+" + v["disp"].pattern, t[m.end():m.end() + 8])
+                    if d:
+                        put("engine", d.group(1), i, t, (max(0, m.start() - 8), m.end() + 8))
+        anchors += list(v["make"].finditer(t))
+        for m in anchors:
+            # a year written right before the model ("2004 Model", "'04 <make> Model") or right after it
+            pre = t[max(0, m.start() - 30):m.start()]
+            y = re.search(YEAR4 + r"\D{0,25}$", pre) or re.search(r"(?<![\d$])'?(\d{2})\s+(?:[A-Za-z-]+\s+)?$", pre)
+            if y:
+                yy = int(y.group(1))
+                yv = yy if yy > 100 else (2000 + yy if yy <= 30 else 1900 + yy)
+                if 1980 <= yv <= 2030:
+                    a = m.start() - len(pre) + y.start(1)
+                    put("year", str(yv), i, t, (a, m.end()))
+            else:
+                y = re.match(r"\s{1,3}\(?" + YEAR4, t[m.end():m.end() + 12])
+                if y:
+                    put("year", y.group(1), i, t, (m.start(), m.end() + y.end()))
+        if v["engine"]:
+            for m in v["engine"].finditer(t):
+                put("engine", m.group(1), i, t, m.span())
+        for m in TRANS_RE.finditer(t):
+            put("transmission", m.group(1), i, t, m.span())
+        for m in MILES_RE.finditer(t):
+            put("mileage", m.group(0).strip(), i, t, m.span())
+    if veh:
+        first = quotes.get("model") or next(iter(quotes.values()))
+        veh.update(seg=first[0], quote=first[1], who="op", source="code",
+                   quotes={k: {"seg": a, "quote": b} for k, (a, b) in quotes.items()})
+    return codes, refs, veh
+
+
+QUOTED_RE = re.compile(r"^\s*(>|&gt;)|\bwrote:\s*$|^\s*quote:?\s*$", re.I)
+URL_ONLY_RE = re.compile(r"^\s*(\[[^\]]*\]\()?(https?://|www\.)\S+\)?\s*$", re.I)
+SIG_RE = re.compile(r"^\s*(--|_{3,}|-{3,})\s*$")
+
+
+def trim(segs):
+    """{seg index: text} without quoted earlier posts, URL-only lines and signatures; replies left with one word
+    or less are dropped. S0 always stays. Segment numbers don't change."""
+    out = {}
+    for i, sg in enumerate(segs):
+        keep = []
+        for ln in sg["t"].splitlines():
+            if SIG_RE.match(ln):
+                break
+            if QUOTED_RE.search(ln) or URL_ONLY_RE.match(ln):
+                continue
+            keep.append(ln)
+        t = re.sub(r"\n{3,}", "\n\n", "\n".join(keep)).strip()
+        if i == 0 or len(t.split()) > 1:
+            out[i] = t
+    return out
+
+
+def priority(segs, rules):
+    """First group for --order priority: the OP reports an outcome, and the thread has a code or a test."""
+    op_out = any(OUTCOME_RE.search(sg["t"]) for sg in segs if sg["k"] != "reply")
+    return int(op_out and bool(rules.get("code") or rules.get("test")))
 
 
 # ---------------------------------------------------------------- quote checks (all Python)
@@ -494,6 +718,9 @@ def numbers_in(value, quote):
     return all(re.search(rf"(?<![0-9.]){re.escape(n)}(?![0-9])", qn) for n in nums)
 
 
+BLANK = {"", "unknown", "n/a", "na", "none", "not stated", "not specified", "unspecified", "not mentioned"}
+
+
 def year_ok(year, quote):
     y = re.findall(r"\d{4}|\d{2}", year or "")
     if not y:
@@ -530,7 +757,7 @@ def validate(raw, segs, p90):
         return out
 
     rec = {"relevant": bool(raw.get("relevant"))}
-    v = raw.get("vehicle") or {}
+    v = {k: ("" if norm(x) in BLANK else x) if isinstance(x, str) else x for k, x in (raw.get("vehicle") or {}).items()}
     veh = {}
     if any((v.get(k) or "").strip() for k in ("model", "year", "engine", "transmission", "mileage")):
         t = take(v)
@@ -538,20 +765,22 @@ def validate(raw, segs, p90):
             q = t["quote"]
             for k in ("model", "engine", "transmission"):
                 if (v.get(k) or "").strip():
-                    if supported(v[k], q) and content_tokens(v[k]):
+                    ck["items"] += 1
+                    # in the vehicle quote, or written exactly like that somewhere in the thread
+                    if (supported(v[k], q) and content_tokens(v[k])) or \
+                            re.search(rf"(?<![a-z0-9]){re.escape(norm(v[k]))}(?![a-z0-9])", " ".join(nsegs)):
                         veh[k] = v[k].strip()
+                        ck["kept"] += 1
                     else:
                         ck["unsupported"] += 1
-            if (v.get("year") or "").strip():
-                if year_ok(v["year"], q):
-                    veh["year"] = v["year"].strip()
-                else:
-                    ck["num_fail"] += 1
-            if (v.get("mileage") or "").strip():
-                if numbers_in(v["mileage"], q):
-                    veh["mileage"] = v["mileage"].strip()
-                else:
-                    ck["num_fail"] += 1
+            for k, good in (("year", year_ok), ("mileage", numbers_in)):
+                if (v.get(k) or "").strip():
+                    ck["items"] += 1
+                    if good(v[k], q):
+                        veh[k] = v[k].strip()
+                        ck["kept"] += 1
+                    else:
+                        ck["num_fail"] += 1
             if veh:
                 veh.update(seg=t["seg"], quote=q, who=t["who"])
     rec["vehicle"] = veh
@@ -598,8 +827,8 @@ def validate(raw, segs, p90):
             rec["outcome"] = t
     chains = []
     for ch in (raw.get("chains") or [])[:3]:
-        steps = [take(s, s.get("step")) for s in ch.get("steps") or [] if (s.get("step") or "").strip()]
-        if len(steps) >= 2 and all(steps):
+        steps = [take(s) for s in ch.get("steps") or [] if s.get("role")]
+        if len(steps) >= 2 and all(steps) and len({s["role"] for s in steps}) >= 2:
             chains.append({"steps": steps})
     rec["chains"] = chains
     refs = []
@@ -639,7 +868,7 @@ def take_gpu(model):
     return fd
 
 
-def stats_line(w, where, args, t_start, n_session):
+def stats_line(w, where, args, t_start, n_session, parallel=1):
     r = w.execute(f"SELECT count(*), sum(status='ok'), sum(status='json_fail'), sum(status='error'), "
                   f"sum(ms), sum(prompt_tokens), sum(eval_tokens) FROM extract e JOIN thread t USING (src, tid) "
                   f"WHERE {where}", args).fetchone()
@@ -657,6 +886,8 @@ def stats_line(w, where, args, t_start, n_session):
     todo = w.execute(f"SELECT count(*) FROM thread t WHERE {where} AND NOT EXISTS "
                      f"(SELECT 1 FROM extract e WHERE e.src=t.src AND e.tid=t.tid AND e.status='ok')", args).fetchone()[0]
     per_h = 3600 * done / (ms / 1000) if ms else 0
+    if parallel > 1 and t_start and n_session:      # requests overlap: only the wall clock tells the rate
+        per_h = 3600 * n_session / max(time.time() - t_start, 1)
     return (f"{done} done ({ok} ok, json fail {100 * jf / max(done, 1):.1f}%, errors {er}); "
             f"quote fail {100 * qf / max(items, 1):.1f}% of {items} items, unsupported {100 * uns / max(items, 1):.1f}%; "
             f"{fields / max(ok, 1):.1f} fields/thread; {per_h:.0f} threads/h; "
@@ -664,41 +895,63 @@ def stats_line(w, where, args, t_start, n_session):
             f"{todo} left, ~{todo / per_h if per_h else 0:.0f} h")
 
 
+def extract_one(llm, system, schema, segs, p90, lite, make):
+    """One thread -> (status, content, prompt tokens, output tokens, rec, checks). Runs in worker threads."""
+    texts = trim(segs) if lite else None
+    try:
+        content, pt, et = llm.chat(system, thread_text(segs, texts), schema)
+    except (urllib.error.URLError, OSError, KeyError, ValueError, IndexError) as e:
+        time.sleep(10)
+        return "error", None, 0, 0, None, {"error": str(e)[:200]}
+    try:
+        raw = json.loads(content)
+        if lite:
+            codes, refs, veh = code_fill(segs, make)
+            raw = dict(raw, codes=codes, refs=refs, vehicle={})
+        rec, ck = validate(raw, segs, p90)
+        if lite:
+            rec["vehicle"] = veh
+            n = sum(k in veh for k in ("model", "year", "engine", "transmission", "mileage"))
+            ck["items"] += n
+            ck["kept"] += n
+            rec["n_fields"] = sum(bool(rec[k]) for k in ("vehicle", "codes", "symptoms", "tests", "ruled_out",
+                                                          "suggestions", "outcome", "chains", "refs"))
+            ck["chars_in"] = len(thread_text(segs))
+            ck["chars_sent"] = len(thread_text(segs, texts))
+        return "ok", content, pt, et, rec, ck
+    except (ValueError, TypeError, AttributeError, KeyError) as e:
+        return "json_fail", content, pt, et, None, {"error": str(e)[:200]}
+
+
 def step_extract(make, a):
-    if not a.force:
+    if a.backend == "ollama" and not a.force:
         ok, why = gpu_free()
         if not ok:
             log(f"extract {make}: {why}; not started (re-run later, or --force)")
             return
-    lock = take_gpu(a.model)  # noqa: F841  (held until exit)
+    # llama backend: our own llama-server already holds the GPU (gpu_guard counts it as busy), so only take the lock
+    lock = take_gpu(a.model if a.backend == "ollama" else "")  # noqa: F841  (held until exit)
     w = work_db(make)
-    where, args = ("t.pilot=1", []) if a.pilot else ("1", [])
+    where, args = thread_filter(a)
     p90 = {(s, sub): p for s, sub, p in w.execute("SELECT src, sub, p90 FROM sub_score")}
-    todo = w.execute(f"SELECT t.src, t.tid, t.sub, t.segs FROM thread t LEFT JOIN extract e "
+    todo = w.execute(f"SELECT t.src, t.tid, t.sub, t.segs, t.rules FROM thread t LEFT JOIN extract e "
                      f"ON e.src=t.src AND e.tid=t.tid WHERE {where} AND (e.status IS NULL OR "
                      f"(e.status!='ok' AND e.tries<3))", args).fetchall()
+    if a.order == "priority":
+        todo.sort(key=lambda r: -priority(json.loads(r[3]), json.loads(r[4] or "{}")))
     if a.limit:
         todo = todo[:a.limit]
-    llm = Ollama(a.model, num_ctx=a.num_ctx)
-    system = SYSTEM.format(make=make.replace("_", " ").title())
-    log(f"extract {make}: {len(todo)} threads to do with {a.model}{' (pilot)' if a.pilot else ''}")
+    llm = LlamaServer(a.model, a.url) if a.backend == "llama" else Ollama(a.model, num_ctx=a.num_ctx)
+    system = (SYSTEM_LITE if a.lite else SYSTEM).format(make=make.replace("_", " ").title())
+    schema = SCHEMA_LITE if a.lite else SCHEMA
+    log(f"extract {make}: {len(todo)} threads to do with {a.model} ({a.backend}, {a.parallel} at once"
+        f"{', lite' if a.lite else ''}{', ' + a.order + ' order' if a.order != 'stored' else ''})"
+        f"{' (pilot)' if a.pilot else ''}")
     t0, n = time.time(), 0
-    for src, tid, sub, segs_json in todo:
-        segs = json.loads(segs_json)
-        t1 = time.time()
-        raw = rec = ck = None
-        try:
-            content, pt, et = llm.chat(system, thread_text(segs))
-            try:
-                raw = json.loads(content)
-                rec, ck = validate(raw, segs, p90.get((src, sub)))
-                status = "ok"
-            except (ValueError, TypeError, AttributeError, KeyError) as e:
-                status, ck = "json_fail", {"error": str(e)[:200]}
-        except (urllib.error.URLError, OSError, KeyError, ValueError) as e:
-            status, content, pt, et, ck = "error", None, 0, 0, {"error": str(e)[:200]}
-            time.sleep(10)
-        ms = int((time.time() - t1) * 1000)
+    started = time.strftime("%F %T")
+
+    def save(src, tid, res, ms):
+        status, content, pt, et, rec, ck = res
         w.execute("INSERT INTO extract(src, tid, status, raw, rec, checks, llm_model, ms, prompt_tokens, eval_tokens, at) "
                   "VALUES (?,?,?,?,?,?,?,?,?,?,datetime('now')) ON CONFLICT(src, tid) DO UPDATE SET "
                   "status=excluded.status, raw=excluded.raw, rec=excluded.rec, checks=excluded.checks, "
@@ -706,10 +959,46 @@ def step_extract(make, a):
                   "eval_tokens=excluded.eval_tokens, at=excluded.at, tries=extract.tries+1",
                   (src, tid, status, content, json.dumps(rec) if rec else None, json.dumps(ck), a.model, ms, pt, et))
         w.commit()
-        n += 1
-        if n % (a.stats_every) == 0 or n == len(todo):
-            log(f"extract {make} stats: " + stats_line(w, where, args, t0, n))
-    log(f"extract {make}: finished {n} threads in {(time.time() - t0) / 3600:.1f} h")
+
+    def work(row):
+        src, tid, sub, segs_json, _ = row
+        t1 = time.time()
+        res = extract_one(llm, system, schema, json.loads(segs_json), p90.get((src, sub)), a.lite, make)
+        return src, tid, res, int((time.time() - t1) * 1000)
+
+    with cf.ThreadPoolExecutor(max_workers=max(1, a.parallel)) as ex:   # only this thread writes to SQLite
+        it = iter(todo)
+        running = {ex.submit(work, r) for r in itertools.islice(it, a.parallel * 2)}
+        while running:
+            done, running = cf.wait(running, return_when=cf.FIRST_COMPLETED)
+            if HALT.is_set():          # drop queued requests; only those already on a llama-server slot finish
+                running = {f for f in running if not f.cancel()}
+            for f in done:
+                save(*f.result())
+                n += 1
+                nxt = None if HALT.is_set() else next(it, None)
+                if nxt is not None:
+                    running.add(ex.submit(work, nxt))
+                if n % a.stats_every == 0 or n == len(todo):
+                    log(f"extract {make} stats: " + stats_line(w, where, args, t0, n, a.parallel))
+    secs = time.time() - t0
+    w.execute("INSERT INTO run VALUES (?,?,?,?,?,?,?,?)", (make, a.model, a.backend, a.parallel, int(a.lite), n, secs, started))
+    w.commit()
+    log(f"extract {make}: {'STOPPED (signal), saved' if HALT.is_set() else 'finished'} {n} threads in "
+        f"{secs / 3600:.2f} h ({3600 * n / max(secs, 1):.0f} threads/h wall)")
+
+
+def step_progress(make, a):
+    """One line: threads done / left in this run's set (same filter as extract)."""
+    w = work_db(make)
+    where, args = thread_filter(a)
+    tot, ok, jf = w.execute(f"SELECT count(*), sum(e.status='ok'), sum(e.status='json_fail') FROM thread t LEFT JOIN "
+                            f"extract e ON e.src=t.src AND e.tid=t.tid WHERE {where}", args).fetchone()
+    left = w.execute(f"SELECT count(*) FROM thread t LEFT JOIN extract e ON e.src=t.src AND e.tid=t.tid WHERE {where} "
+                     f"AND (e.status IS NULL OR (e.status!='ok' AND e.tries<3))", args).fetchone()[0]
+    log(f"progress {make}: {ok or 0} of {tot} done ({jf or 0} json fail), {left} left")
+    print(f"LEFT {make} {left}", flush=True)       # for tools/community_gpu_on.sh
+    return left
 
 
 # ============================================================================ pass 2: tables
@@ -849,7 +1138,7 @@ def step_tables(make, a):
             roles.append((o.get("component") or o.get("fix"), "fix_confirmed" if o["op_confirmed"] else "fix_claimed"))
         for ch in r["chains"]:
             c.execute("INSERT INTO comm_chain(thread_id, steps) VALUES (?,?)",
-                      (th, json.dumps([{k: s[k] for k in ("step", "seg", "who", "quote")} for s in ch["steps"]])))
+                      (th, json.dumps([{k: s[k] for k in ("role", "seg", "who", "quote")} for s in ch["steps"]])))
         for x in r["refs"]:
             c.execute("INSERT INTO comm_ref(thread_id, kind, value, seg, quote) VALUES (?,?,?,?,?)",
                       (th, x["kind"], x["value"], x["seg"], x["quote"]))
@@ -913,7 +1202,7 @@ def docs(c):
                   (th, "test", i, f"{test} on {comp}" + (f": {res}" if res else "")))
     for i, th, steps in c.execute("SELECT id, thread_id, steps FROM comm_chain").fetchall():
         c.execute("INSERT INTO comm_doc(thread_id, kind, ref_id, text) VALUES (?,?,?,?)",
-                  (th, "chain", i, " -> ".join(s["step"] for s in json.loads(steps))))
+                  (th, "chain", i, " -> ".join(f"{s['role']}: {s['quote']}" for s in json.loads(steps))))
     c.execute("INSERT INTO comm_doc_fts(comm_doc_fts) VALUES ('rebuild')")
 
 
@@ -1184,10 +1473,175 @@ def step_sample(make, a):
     print(f"sample: {len(pick)} files in {a.out}")
 
 
+# ============================================================================ A/B tests
+FIELDS = ("vehicle", "codes", "symptoms", "tests", "ruled_out", "suggestions", "outcome", "chains", "refs")
+
+
+def _dirs(a):
+    out = []
+    for part in (a.dirs or "").split(","):
+        k, _, d = part.partition("=")
+        out.append((k, os.path.abspath(d)))
+    return out
+
+
+def _rows(d, makes):
+    """{(make, src, tid): (status, rec, checks, ms, pt, et, segs)} for the pilot threads in one work folder."""
+    out = {}
+    for m in makes:
+        p = os.path.join(d, f"{m}.work.db")
+        if not os.path.isfile(p):
+            continue
+        c = ro(p)
+        for src, tid, st, rec, ck, ms, pt, et, segs in c.execute(
+                "SELECT e.src, e.tid, e.status, e.rec, e.checks, e.ms, e.prompt_tokens, e.eval_tokens, t.segs "
+                "FROM extract e JOIN thread t ON t.src=e.src AND t.tid=e.tid WHERE t.pilot=1"):
+            out[(m, src, tid)] = (st, json.loads(rec) if rec else None, json.loads(ck or "{}"), ms or 0, pt or 0, et or 0, segs)
+    return out
+
+
+def _rate(d, makes, rows):
+    runs = []
+    for m in makes:
+        p = os.path.join(d, f"{m}.work.db")
+        if os.path.isfile(p):
+            c = ro(p)
+            if c.execute("SELECT 1 FROM sqlite_master WHERE name='run'").fetchone():   # older work folders have none
+                runs += c.execute("SELECT n, seconds, parallel FROM run WHERE make=?", (m,)).fetchall()
+    if runs and max(r[2] for r in runs) > 1:
+        return 3600 * sum(r[0] for r in runs) / max(sum(r[1] for r in runs), 1), "wall"
+    ms = sum(r[3] for r in rows.values())
+    return (3600 * len(rows) / (ms / 1000) if ms else 0), "serial"
+
+
+def _veh_fields(rec):
+    v = (rec or {}).get("vehicle") or {}
+    return {k: norm(str(v[k])) for k in ("model", "year", "engine", "transmission", "mileage") if v.get(k)}
+
+
+def _outcome_agree(ra, rb):
+    oa, ob = (ra or {}).get("outcome") or {}, (rb or {}).get("outcome") or {}
+    sa, sb = oa.get("status") or "none", ob.get("status") or "none"
+    if sa != sb:
+        return False
+    if sa == "none":
+        return True
+    return bool(content_tokens(f"{oa.get('component', '')} {oa.get('fix', '')}") &
+                content_tokens(f"{ob.get('component', '')} {ob.get('fix', '')}"))
+
+
+def step_compare(a):
+    makes = a.makes.split(",")
+    dirs = _dirs(a)
+    data = {k: _rows(d, makes) for k, d in dirs}
+    base_k = dirs[0][0]
+    print(f"pilot threads in {', '.join(makes)}; baseline {base_k}")
+    hdr = ["set", "threads", "thr/h", "tok in/out", "json fail", "quote fail", "unsupp.", "agree " + base_k]
+    hdr += [f[:6] for f in FIELDS]
+    print(" | ".join(hdr))
+    for k, d in dirs:
+        rows = data[k]
+        ok = {key: r for key, r in rows.items() if r[0] == "ok"}
+        n = max(len(rows), 1)
+        rate, how = _rate(d, makes, rows)
+        items = sum(r[2].get("items", 0) for r in ok.values())
+        qf = sum(r[2].get("quote_fail", 0) for r in ok.values())
+        un = sum(r[2].get("unsupported", 0) for r in ok.values())
+        common = [key for key in ok if key in data[base_k] and data[base_k][key][0] == "ok"]
+        agree = sum(_outcome_agree(data[base_k][key][1], ok[key][1]) for key in common)
+        per = []
+        for f in FIELDS:
+            if f == "vehicle":
+                per.append(sum(len(_veh_fields(r[1])) for r in ok.values()) / max(len(ok), 1))
+            elif f == "outcome":
+                per.append(sum(bool(r[1].get("outcome")) for r in ok.values()) / max(len(ok), 1))
+            else:
+                per.append(sum(len(r[1].get(f) or []) for r in ok.values()) / max(len(ok), 1))
+        print(" | ".join([k, str(len(rows)), f"{rate:.0f} ({how})",
+                          f"{sum(r[4] for r in rows.values()) // n}/{sum(r[5] for r in rows.values()) // n}",
+                          f"{100 * sum(r[0] == 'json_fail' for r in rows.values()) / n:.1f}%",
+                          f"{100 * qf / max(items, 1):.1f}%", f"{100 * un / max(items, 1):.1f}%",
+                          f"{100 * agree / max(len(common), 1):.0f}% of {len(common)}"] + [f"{x:.1f}" for x in per]))
+        if k != base_k and any(r[2].get("chars_sent") for r in ok.values()):
+            ci = sum(r[2].get("chars_in", 0) for r in ok.values())
+            cs = sum(r[2].get("chars_sent", 0) for r in ok.values())
+            print(f"   {k}: input trimmed {ci // max(len(ok), 1)} -> {cs // max(len(ok), 1)} chars/thread "
+                  f"(-{100 * (1 - cs / max(ci, 1)):.0f}%)")
+            cm = ce = vm = ve = vd = 0
+            for key in common:
+                ra, rb = data[base_k][key][1], ok[key][1]
+                ca = {c["code"] for c in ra.get("codes") or []}
+                cb = {c["code"] for c in rb.get("codes") or []}
+                cm += len(ca - cb)
+                ce += len(cb - ca)
+                va, vb = _veh_fields(ra), _veh_fields(rb)
+                vm += len(set(va) - set(vb))
+                ve += len(set(vb) - set(va))
+                vd += sum(va[f] != vb[f] and not (va[f] in vb[f] or vb[f] in va[f]) for f in set(va) & set(vb))
+            print(f"   {k} vs {base_k}: codes missed {cm}, extra {ce}; vehicle fields missed {vm}, extra {ve}, "
+                  f"different value {vd}")
+
+
+def _render(rec):
+    """Compact text of one record for grading: one line per item, quotes kept short."""
+    out = []
+    v = rec.get("vehicle") or {}
+    if v:
+        out.append("vehicle: " + ", ".join(f"{k}={v[k]}" for k in ("model", "year", "engine", "transmission", "mileage")
+                                            if v.get(k)))
+    for f, keys in (("codes", ("code",)), ("symptoms", ("symptom", "condition")),
+                    ("tests", ("test", "tool", "component", "result", "status")), ("ruled_out", ("component", "evidence")),
+                    ("suggestions", ("component", "reason")), ("refs", ("kind", "value"))):
+        for x in rec.get(f) or []:
+            out.append(f"{f}: " + " | ".join(str(x.get(k) or "") for k in keys) + f"  [S{x.get('seg')}]")
+    o = rec.get("outcome") or {}
+    if o:
+        out.append(f"outcome: {o.get('status')} | {o.get('fix')} | {o.get('component')} | came back {o.get('came_back')}"
+                   f"  [S{o.get('seg')}]")
+    for ch in rec.get("chains") or []:
+        out.append("chain: " + " -> ".join(f"{s['role']}[S{s['seg']}]" for s in ch["steps"]))
+    return "\n".join(out) or "(nothing)"
+
+
+def step_absample(a):
+    """The same --n random pilot threads for every set, records in shuffled order under neutral labels; the key is in
+    a separate file, read only after grading."""
+    makes = a.makes.split(",")
+    dirs = _dirs(a)
+    data = {k: _rows(d, makes) for k, d in dirs}
+    keys = sorted(set.intersection(*[{key for key, r in data[k].items() if r[0] == "ok"} for k, _ in dirs]))
+    rnd = random.Random(a.seed)
+    pick = rnd.sample(keys, min(a.n, len(keys)))
+    os.makedirs(a.out, exist_ok=True)
+    key_lines = []
+    for i, key in enumerate(pick, 1):
+        sets = [k for k, _ in dirs]
+        rnd.shuffle(sets)
+        labels = "XYZW"[:len(sets)]
+        segs = json.loads(data[dirs[0][0]][key][6])
+        with open(os.path.join(a.out, f"{i:02d}.txt"), "w") as f:
+            f.write(f"#{i} {key[0]} {key[1]} {key[2]}\n\n=== THREAD\n{thread_text(segs)}\n")
+            for lab, k in zip(labels, sets):
+                f.write(f"\n=== RECORD {lab}\n{_render(data[k][key][1])}\n")
+        key_lines.append(f"{i:02d} " + " ".join(f"{lab}={k}" for lab, k in zip(labels, sets)))
+    with open(os.path.join(a.out, "KEY.txt"), "w") as f:
+        f.write("\n".join(key_lines) + "\n")
+    print(f"absample: {len(pick)} threads in {a.out} (key in KEY.txt)")
+
+
+def step_priority(make):
+    w = work_db(make)
+    n = first = 0
+    for segs, rules in w.execute("SELECT segs, rules FROM thread"):
+        n += 1
+        first += priority(json.loads(segs), json.loads(rules or "{}"))
+    log(f"priority {make}: {first} of {n} kept threads in the first group (OP outcome + code or test)")
+
+
 def main():
-    global LOG, MAX_CHARS
+    global LOG, MAX_CHARS, WORK
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("steps", nargs="+", choices=["prefilter", "pilot", "extract", "tables", "embed", "merge",
+    ap.add_argument("steps", nargs="+", choices=["prefilter", "pilot", "extract", "compare", "absample", "priority", "progress", "tables", "embed", "merge",
                                                   "report", "sample", "raw", "rawembed"])
     ap.add_argument("--make")
     ap.add_argument("--all", action="store_true")
@@ -1203,26 +1657,48 @@ def main():
     ap.add_argument("--vec", action="store_true", help="tables: add vector search to the manual links (CPU embedder)")
     ap.add_argument("--device", default="auto")
     ap.add_argument("--out", default=os.path.join(OUT, "sample"))
+    ap.add_argument("--work-dir", help="use another work folder (e.g. a copy for a model comparison)")
+    ap.add_argument("--backend", choices=["ollama", "llama"], default="ollama")
+    ap.add_argument("--url", default="http://127.0.0.1:8080", help="llama backend: llama-server address")
+    ap.add_argument("--parallel", type=int, default=1, help="requests at once (llama-server -np slots)")
+    ap.add_argument("--lite", action="store_true", help="Python fills vehicle/codes/refs; trimmed input")
+    ap.add_argument("--order", choices=["stored", "priority"], default="stored",
+                    help="priority: OP-reported outcome with a code or test first (same set, other order)")
+    ap.add_argument("--min-replies", type=int, default=0, help="only threads with at least this many replies")
+    ap.add_argument("--any-of", default="", help="only threads whose pass-0 flags include one of these, e.g. test,outcome,code")
+    ap.add_argument("--log", help="log file instead of logs/community_<make>.log")
+    ap.add_argument("--dirs", help="compare/absample: A=dir,B=dir,... (first one is the baseline)")
     a = ap.parse_args()
+    if a.work_dir:
+        WORK = os.path.abspath(a.work_dir)
     if a.seed is None:
         a.seed = int(time.time())
+    if "compare" in a.steps or "absample" in a.steps:
+        for st in a.steps:
+            {"compare": step_compare, "absample": step_absample}[st](a)
+        return
     if "pilot" in a.steps:
         makes = a.makes.split(",")
         LOG = os.path.join(ROOT, "logs", "community_pilot.log")
         step_pilot(makes, a.n, a.seed)
         return
-    makes = makes_with_data() if a.all else ([a.make] if a.make else [])
+    signal.signal(signal.SIGTERM, _stop)
+    signal.signal(signal.SIGINT, _stop)
+    makes = makes_with_data() if a.all else ([m.strip() for m in a.make.split(",") if m.strip()] if a.make else [])
     if not makes and a.pilot:
         makes = a.makes.split(",")
     if not makes:
         sys.exit("--make <db name>, --all, or --pilot (uses --makes)")
     for make in makes:
-        LOG = os.path.join(ROOT, "logs", f"community_{'pilot' if a.pilot else make}.log")
+        if HALT.is_set():
+            break
+        LOG = a.log or os.path.join(ROOT, "logs", f"community_{'pilot' if a.pilot else make}"
+                           f"{'_' + os.path.basename(WORK) if a.work_dir else ''}.log")
         for s in a.steps:
             {"prefilter": lambda: step_prefilter(make), "extract": lambda: step_extract(make, a),
              "tables": lambda: step_tables(make, a), "embed": lambda: step_embed(make, a.device),
              "merge": lambda: step_merge(make), "report": lambda: step_report(make, a),
-             "sample": lambda: step_sample(make, a), "raw": lambda: step_raw(make),
+             "sample": lambda: step_sample(make, a), "priority": lambda: step_priority(make), "progress": lambda: step_progress(make, a), "raw": lambda: step_raw(make),
              "rawembed": lambda: step_rawembed(make, a.device)}[s]()
 
 

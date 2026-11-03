@@ -165,6 +165,11 @@ model writes a word: NHTSA owner complaints grouped by system and by the mileage
 and confirmed forum fixes. The model only puts those numbers into words and never adds a problem of its own
 (`app/common_issues.py`).
 
+**A searchable shop manual.** You don't need a diagnosis to use it. Type any part or job into the Repair Guide
+tab (or `/fsm` in Chat) and the deck pulls up that car's own factory procedure from CHARM and the service manuals,
+with the steps, specs and pictures. It works like a Haynes or Chilton manual you can search, for every make in the
+database.
+
 **diagent** (`python -m diagent gui`), the strict one. It walks the manual's own diagnostic chart step by step. Python
 answers any step it can from the scan, checks every number you type against the cited spec, and watches live data
 for "until X reaches N" steps. The model can only cite sources it was handed; uncited values and invented steps are
@@ -232,8 +237,25 @@ with all the codes. `/part <name or number>` does the same from Chat.
    community layer brings that real-world experience in, and the manual stays first for specs and test steps.
 
 3. Other manual pages: specs, connector views, component tests, cross-references.
-4. **Community reports**: what owners tested, ruled out and fixed, extracted from forum and Reddit threads
-   and linked back to manual sections (`kb/build_community.py`). They're shown as supporting evidence, never as the answer.
+4. **Community reports**: what owners tested, ruled out and fixed, extracted from forum and Reddit threads and
+   linked back to manual sections (`kb/build_community.py`). They're shown as supporting evidence, never as the
+   answer, and every outcome is labelled **"claimed"**: an owner said it fixed the car, nobody verified it.
+
+   **How the threads are read.** Every thread kept by the keyword pass is searchable as raw text. The useful ones
+   then get a full read by a local model that pulls out, as structured JSON, the car, the symptoms, each test and
+   its result, what was ruled out and why, the suggestions, and the outcome. Every item has to quote the sentence
+   it came from, and Python checks the quote is really in the thread.
+   - **Which threads:** ones that mention a test, an outcome or a trouble code *and* have at least 3 replies, which
+     is 68,770 threads for Subaru and Chevrolet. Threads where the owner reports a fix go first, so the most useful
+     ones are done early.
+   - **Which model, and why:** a 9B model (Qwen3.5-9B, 4-bit, four parallel requests on the RTX 3070) was tested
+     against the 30B model it replaced, on the same threads, with the results graded blind. The 9B made fewer
+     mistakes (9 wrong items vs 26), failed the quote check less often (1.1% vs 3.7%), and ran about 4.5x faster
+     (691 vs 148 threads an hour). It did return slightly more malformed replies (2.9% vs 0.6%). A lighter "code
+     fills the easy fields" mode was faster still but was dropped, because it missed important items. Accuracy decided; speed only counted once accuracy held.
+   - **Sharing one GPU:** the run takes about 100 GPU hours, so it works in scheduled windows (7 pm-10 am and
+     11 am-4 pm). In between, the extraction stops cleanly, the GPU is handed back, and the picture server and the
+     Home models are free for real diagnosis. It resumes where it left off, without losing or repeating threads.
 5. NHTSA complaints, TSBs, recalls and investigations; StackExchange Q&A; a general automotive knowledge base.
 
 Manual sources: Subaru factory service manuals (PDF), Operation CHARM (most makes, up to the early 2010s) and, optionally,
@@ -257,6 +279,50 @@ each model has a fixed job, and Python does the bookkeeping.
 Piper). Diagnoses and prices stay on screen. See `app/README.md`.
 
 ---
+
+## Why an Orange Pi 5
+
+The deck has to run two language models, an embedding model, offline voice, a PyQt app and the car link, all at
+once, offline, on a tool battery. The Orange Pi 5 fits that job better than the usual small boards:
+
+- **It has an NPU that runs LLMs.** The RK3588 chip has a 6 TOPS neural processing unit, and Rockchip's RKLLM
+  toolkit converts a normal Hugging Face model (Qwen3 here) into a quantized 8-bit `.rkllm` file that runs on it. That
+  is a one-time conversion on the PC, not training. The models run on the NPU, which leaves the CPU free for the
+  app, search, voice and the car link.
+- **16 GB of RAM.** A 1.7B and a 4B model loaded side by side, plus the embedding model and SQLite, need room. 16 GB
+  holds them all without swapping.
+- **Eight CPU cores** (four fast Cortex-A76, four efficient A55). The voice listener runs on the small cores so
+  it never slows the big ones.
+- **An M.2 NVMe slot**, so the make databases and manual pictures live on a fast SSD instead of an SD card.
+- **Low power.** It runs from a 12 V tool battery through a buck converter.
+
+**Compared with a Raspberry Pi 5:** a great general-purpose board, but it has no NPU of its own, so a language
+model runs on the CPU and competes with everything else the deck is doing, unless you add a separate
+accelerator board.
+
+**A Raspberry Pi can still work in Home mode.** If the models are always streamed from a desktop running Ollama
+(over Tailscale, see Home mode), the board only runs the app, search and the car link, and a Raspberry Pi 5 should
+manage that. The cost is offline use: with no NPU there's no model on the deck when the PC can't be reached, so
+out in the field you'd be down to the no-model tools (manual search, specs, the diagnostic trees, live data). The
+Orange Pi's NPU is what lets the deck keep diagnosing with no connection at all. (This setup hasn't been tested on
+a Raspberry Pi yet.)
+
+That also makes it the cheapest way in, and a use for a Raspberry Pi you already have lying around, as long as
+you have a desktop with a decent GPU to run the models. Rough minimums (untested, from what the app needs):
+- **Raspberry Pi 5 or Pi 4 with 4 GB or more, on 64-bit Raspberry Pi OS:** should run the full app. With 4 GB,
+  turn the embedding search off (`"embed_model": "off"`) and use keyword search only;
+  with 8 GB the embedding model can run on the Pi's CPU.
+- **Pi 3 (1 GB):** marginal. The window and keyword search might run, but slowly, with no room for embeddings.
+- **Pi Zero 2 W (512 MB):** not enough memory for the app. It could only ever be a small OBD-to-Wi-Fi bridge, and
+  that isn't built.
+
+**Compared with an NVIDIA Jetson Nano:** the original Nano has only 4 GB of memory, shared between the CPU and the
+GPU, which isn't enough for a 4B model plus everything else, and its software is stuck on an old Ubuntu. The newer
+Jetson Orin Nano is capable, but it costs more and has 8 GB of shared memory, half of what the Orange Pi has.
+
+**The trade-off:** RKLLM is Rockchip's own toolkit, so models need that conversion step, and the board's Linux
+images are community-maintained. You need a kernel with NPU driver 0.9.7 or newer for RKLLM 1.3.1 (the build guide
+covers this). For this job, that's a fair price for a real NPU and 16 GB.
 
 ## Engineering notes
 
@@ -351,6 +417,14 @@ Working: car ID, OBD-II reads through the EX on real cars (a 2003 Tahoe on J1850
 Not yet proven on a car: the two-way tests, SSM2 through the EX, and the 4B models on the NPU under load.
 Planned: a vision pass that reads chart pictures into walkable steps, real-time parts prices, customer work orders,
 and more makes' extended live data.
+
+**A real diagnosis.** A friend's 2003 Chevy Tahoe had a dead horn and dead steering-wheel buttons. The plan was to
+get the multimeter out and start checking fuses. Instead, describing the symptoms in Brainstorm was enough: the
+deck pointed at a failed spiral cable (the clockspring in the steering column), a known problem on that truck that
+the author didn't know about. Typing "spiral cable" into the Repair Guide tab then brought up the full replacement
+procedure.
+Follow-up questions in the same chat explained why the spiral cable tends to fail on that truck, and rated the job
+about 7/10 if you're comfortable working around airbags, 8-9/10 if you're not, because of the airbag risk.
 
 ## Tests
 

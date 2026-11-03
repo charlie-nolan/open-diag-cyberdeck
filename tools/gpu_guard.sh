@@ -15,7 +15,10 @@ gpu_free() {   # 0 = free. Prints why not.
     [ "${GPU_LOCK_HELD:-0}" = 1 ] && return 0   # this shell already holds the lock (its own earlier GPU step)
     busy=$(gpu_jobs)
     if [ -n "$busy" ]; then echo "GPU busy: $busy"; return 1; fi
-    if pgrep -f "build_charm_all.sh|build_subaru_kb.py.* embed|llama-server" >/dev/null; then
+    # Ollama runs its models through its own llama-server (/usr/lib/ollama/...): that one doesn't count,
+    # gpu_lock unloads Ollama's models anyway. Only our own llama-server (card bake / forum fixes) does.
+    if pgrep -af "build_charm_all.sh|build_subaru_kb.py.* embed|llama-server" | grep -v -e pgrep -e "/ollama/" |
+            grep -q .; then
         echo "GPU busy: the CHARM per-make build, an embed, or llama-server is running (it may be between GPU phases)"
         return 1
     fi
