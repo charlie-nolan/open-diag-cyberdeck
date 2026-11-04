@@ -1,4 +1,8 @@
 """
+LEGACY, Subaru only: the retriever from before the per-make knowledge DBs (kb/<make>.db, kb/kb_retriever.py).
+cyberdeck_gui.make_retriever() falls back to it only when the make is Subaru and kb/subaru.db is missing,
+so a Subaru deck with just the old DBs still answers with cited DTC procedures and specs. Keyword search only, no embeddings. Remove it together with that fallback once no deck needs it.
+
 Deterministic lookups that feed the LLMs. Standard library only (runs on the Orange Pi).
 
 Sources, all read-only:

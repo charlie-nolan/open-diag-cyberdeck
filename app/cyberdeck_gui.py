@@ -5,8 +5,9 @@ Cyberdeck diagnostic GUI (one knowledge DB per make): two local models, no agent
   FAST model  (default Qwen3-1.7B)              -> 2. Chat / brainstorm
   DEEP model  (default Qwen3-4B-Instruct-2507)  -> 3. Final verdict, 4. Repair SOP
 
-Answers are grounded in subaru_diag.db (DTC procedures) and test_subaru_knowledge.db
-(FSM text + fast_specs). Torque specs are looked up, never generated.
+Answers are grounded in the make's knowledge DB, kb/<make>.db (factory manual sections, DTC procedures, specs,
+TSBs), through kb/kb_retriever.py. Torque specs are looked up, never generated. A Subaru deck without
+kb/subaru.db falls back to the legacy retriever (app/retrieval.py: subaru_diag.db + test_subaru_knowledge.db).
 
 Backend: RKLLM on the Orange Pi (aarch64 + librkllmrt.so present), Ollama on the desktop.
 Settings: app/config.json (optional; only the keys you want to change. The mic and cable picks are saved there).
