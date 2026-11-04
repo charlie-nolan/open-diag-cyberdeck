@@ -303,6 +303,11 @@ def fsm_hits(r, text, k=3, chars=900):
     return out
 
 
+def log_caught(where, e):
+    """For handlers that degrade instead of crashing (a field tool keeps going): say what was caught."""
+    print(f"[{where}] {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+
+
 def load_figure(path):
     """QPixmap of a figure, or a null one. Pillow decodes it if Qt has no WebP plugin."""
     pm = QPixmap(path)
@@ -313,8 +318,8 @@ def load_figure(path):
                 im = im.convert("L")
                 qi = QImage(im.tobytes(), im.width, im.height, im.width, QImage.Format.Format_Grayscale8)
                 pm = QPixmap.fromImage(qi.copy())
-        except Exception:
-            pass
+        except Exception as e:
+            log_caught(f"figure {os.path.basename(path)}", e)
     if not pm.isNull() and pm.width() > FIG_W:
         pm = pm.scaledToWidth(FIG_W)
     return pm
@@ -1579,8 +1584,8 @@ def vehicle_table(retriever):
         try:
             for model, year, engine in db.execute("SELECT model, year, engine FROM vehicle"):
                 out.setdefault((model, year), set()).add(engine)
-        except Exception:
-            pass
+        except Exception as e:
+            log_caught("vehicle table", e)
     return out
 
 
@@ -2023,8 +2028,8 @@ class CyberdeckApp(QMainWindow):
             sql = "SELECT component FROM spec" if hasattr(self.retriever, "db") else "SELECT component FROM fast_specs"
             for (c,) in db.execute(sql):
                 words |= {w for w in re.findall(r"[a-z]{3,}", (c or "").lower())}
-        except Exception:
-            pass
+        except Exception as e:
+            log_caught("voice vocabulary", e)
         return sorted(words)[:3000]
 
     def on_voice(self, cmd, arg):
@@ -3548,7 +3553,8 @@ class CyberdeckApp(QMainWindow):
             try:
                 cfg = self._ps_cfg()
                 cfg = cfg if cfg["kb_ok"] else None
-            except Exception:
+            except Exception as e:
+                log_caught("maintenance parts settings", e)
                 cfg = None
         lines, total = [], 0.0
         for e in today:
@@ -3559,12 +3565,12 @@ class CyberdeckApp(QMainWindow):
                 try:
                     from parts_sourcing import junk_quote
                     hours = junk_quote.labor_hours(cfg["kb_db"], name, cfg["car"]["model"], cfg["car"]["year"])
-                except Exception:
-                    pass
+                except Exception as e:
+                    log_caught(f"book hours for {name!r}", e)
                 try:
                     parts = PS.parts_for_job(cfg["kb_db"], name, cfg["car"]["model"], cfg["car"]["year"])[:3]
-                except Exception:
-                    pass
+                except Exception as e:
+                    log_caught(f"part numbers for {name!r}", e)
                 cache[ck] = (hours, parts or [])
             hours, parts = cache.get(ck, (None, []))
             if hours and hours.get("hours"):
@@ -3803,7 +3809,8 @@ class CyberdeckApp(QMainWindow):
             if not cfg["kb_ok"]:
                 return []
             return PS.parts_for_job(cfg["kb_db"], name, cfg["car"]["model"], cfg["car"]["year"])[:3]
-        except Exception:
+        except Exception as e:
+            log_caught(f"part rows for {name!r}", e)
             return []
 
     def _issue_parts(self, d):
