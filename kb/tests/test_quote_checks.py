@@ -75,6 +75,21 @@ class Supported(unittest.TestCase):
     def test_value_of_only_stop_words_has_nothing_to_check(self):
         self.assertTrue(B.supported("replaced it", "something else entirely"))
 
+    def test_one_shared_word_is_not_enough(self):
+        self.assertFalse(B.supported("MAF sensor failure", "Replaced the MAF"))
+        self.assertFalse(B.supported("coolant leak", "well, it's definitely not coolant"))
+        self.assertFalse(B.supported("timing belt", "it's possible the timing is out"))
+
+    def test_two_shared_words_pass(self):
+        self.assertTrue(B.supported("MAF sensor failure", "the MAF sensor died on the highway"))
+
+    def test_head_noun_alone_passes(self):
+        self.assertTrue(B.supported("water pump", "the pump was leaking from the weep hole"))
+
+    def test_single_word_value_needs_that_word(self):
+        self.assertTrue(B.supported("thermostat", "swapped the thermostat"))
+        self.assertFalse(B.supported("thermostat", "swapped the radiator"))
+
     def test_short_words_ignored(self):
         # words under 3 letters are not content words
         self.assertFalse(B.supported("ox valve", "an ox was here"))
