@@ -5,24 +5,47 @@ engine, not any one car. Each line says what the number is and whether it's in t
 """
 import re
 
+import telemetry_ref as T
+
 NAMES = {"rpm": "rpm", "idle": "rpm", "ect": "ect", "coolant": "ect", "iat": "iat", "stft1": "stft", "stft": "stft",
          "ltft1": "ltft", "ltft": "ltft", "map": "map", "timing": "timing", "knock corr": "knock",
          "tps": "tps", "o2 front": "o2", "o2 b1s1": "o2", "o2 b1s2": "o2r", "o2 b1s1 lambda": "lam",
          "volts": "volts", "battery": "volts", "load": "load", "maf": "maf", "speed": "speed", "stft2": "stft2",
          "ltft2": "ltft2"}
-NUM = re.compile(r"\s*[:=]?\s*([+-]?\d+(?:\.\d+)?)")
+# The unit every value is judged in. A reading in another unit of the same quantity is converted (mph, °F,
+# psi, mV); a unit of another quantity drops the reading. No unit after the number means this unit.
+UNITS = {"rpm": "rpm", "ect": "°C", "iat": "°C", "stft": "%", "ltft": "%", "stft2": "%", "ltft2": "%",
+         "map": "kPa", "timing": "°", "knock": "°", "tps": "%", "o2": "V", "o2r": "V", "lam": None,
+         "volts": "V", "load": "%", "maf": "g/s", "speed": "km/h"}
+NUM = re.compile(r"\s*[:=]?\s*([+-]?\d+(?:\.\d+)?)\s*(°\s*[cf]\b|deg\s*[cf]\b|[a-zµ%°_]+(?:/[a-z]+)?)?")
+
+
+def _in_unit(key, value, unit_text):
+    """value in the key's own unit, or None when the text names a unit of another quantity."""
+    want = UNITS.get(key)
+    tok = re.sub(r"\s+", "", unit_text or "")
+    u = T.unit_norm(tok)
+    if u not in T._UNIT:
+        u = T.unit_norm(tok.replace("deg", "°"))      # 'degc', '°c'
+    if not unit_text or want is None or u not in T._UNIT:
+        return value                                  # no unit, unitless value, or a word that isn't a unit
+    return T.convert(value, u, want)
 
 
 def parse(text):
-    """{'ect': 12.0, ...} from 'ECT 12 C | STFT1 -3.9 percent' or typed 'LTFT +12%, idle 650'."""
+    """{'ect': 12.0, ...} from 'ECT 12 C | STFT1 -3.9 percent' or typed 'LTFT +12%, idle 650'.
+    Values come back in UNITS (an 'ECT 190 F' reading is 87.8); a value whose unit doesn't fit is left out."""
     vals = {}
     for seg in re.split(r"[|;,]", text or ""):
         seg = seg.strip().lower()
         for name in sorted(NAMES, key=len, reverse=True):  # 'stft1' before 'stft', 'o2 front' whole
             if seg.startswith(name):
                 m = NUM.match(seg[len(name):])
-                if m and NAMES[name] not in vals:
-                    vals[NAMES[name]] = float(m.group(1))
+                key = NAMES[name]
+                if m and key not in vals:
+                    v = _in_unit(key, float(m.group(1)), m.group(2))
+                    if v is not None:
+                        vals[key] = v
                 break
     return vals
 
