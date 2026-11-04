@@ -2,7 +2,5 @@
   "_comment": "Copy to app/config.json and change what you need. Any key in DEFAULT_CONFIG (app/cyberdeck_gui.py) can be set here. CYBERDECK_HOME_URL / CYBERDECK_PIC_URL in the environment work too.",
   "home_url": "http://100.64.0.1:11434",
   "pic_url": "http://100.64.0.1:8765",
-  "vosk_model": "~/subaru_cyberdeck/models/vosk/vosk-model-small-en-us-0.15",
-  "whisper_model": "~/subaru_cyberdeck/models/whisper/ggml-base.en.bin",
   "launchers": {}
 }

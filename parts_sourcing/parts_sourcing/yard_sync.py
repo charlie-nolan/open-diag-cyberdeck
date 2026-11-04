@@ -4,7 +4,7 @@ Needs internet; run it on the PC (or on the deck over a phone hotspot), then the
 offline. Polite by default: one page every 3 s, about 90 pages for a 100-mile radius around Seattle.
 
     python3 -m parts_sourcing.yard_sync                      # ZIP + radius from sourcing.json
-    python3 -m parts_sourcing.yard_sync --zip 98101 --miles 100 --db ~/subaru_cyberdeck/kb/yards.db
+    python3 -m parts_sourcing.yard_sync --zip 98101 --miles 100 --db kb/yards.db
     python3 -m parts_sourcing.yard_sync --probe              # fetch page 1 only, print what was parsed
 
 Row52 search results carry year/make/model, VIN, yard, row and the date the car was set. The parser

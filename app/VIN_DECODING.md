@@ -5,7 +5,7 @@ Code: `app/vehicle_id.py` (decode) and Intake in `app/cyberdeck_gui.py`. Written
 ## One database per make
 - Each make has its own file in `kb/`: `subaru.db` now, and later `chevrolet.db`, `toyota.db` and so on. A few alternate names are also accepted, for example `chevy.db` or `vw.db`.
 - Whenever the make changes, Intake loads that make's database. That happens at startup (the last car's make), when you pick a Make, when you type a VIN, or when READ CAR identifies the car.
-- If a make has no database, Intake says so in orange: "No database for Toyota yet (toyota.db is not in ~/subaru_cyberdeck/kb). Codes, chat and verdict still work, without manual pages, specs or parts." The Parts tab and `/part` give the same message.
+- If a make has no database, Intake says so in orange: "No database for Toyota yet (toyota.db is not in ~/open-diag-cyberdeck/kb). Codes, chat and verdict still work, without manual pages, specs or parts." The Parts tab and `/part` give the same message.
 - The Model list comes from that make's database. A make without a database gets a box where you type the model.
 - The prompts no longer say "Subaru". The car named in the case is the one the models work on.
 

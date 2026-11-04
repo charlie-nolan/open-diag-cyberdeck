@@ -4,12 +4,13 @@
 # Ubuntu's PostgreSQL is 16 and NHTSA builds its dumps on 17+, so this loads the plain-SQL dump with psql
 # (a custom-format dump from a newer pg_dump won't pg_restore on 16) and drops the few 17-only SET lines.
 # Safe to re-run: each run replaces the vpic database.
-#   bash ~/subaru_cyberdeck/tools/vpic_setup_deck.sh            # 2026_10
-#   bash ~/subaru_cyberdeck/tools/vpic_setup_deck.sh 2026_11    # a newer month
+#   bash tools/vpic_setup_deck.sh            # 2026_10
+#   bash tools/vpic_setup_deck.sh 2026_11    # a newer month
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 set -e
 MONTH=${1:-2026_10}
 ZIP=vPICList_lite_${MONTH}.plain.zip
-DIR=~/subaru_cyberdeck/raw/vpic
+DIR=$CK/raw/vpic
 
 echo "== 1/5 PostgreSQL from apt (asks for your password once)"
 sudo apt-get install -y postgresql postgresql-client unzip curl
@@ -20,7 +21,7 @@ sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$USER'" | grep
 echo "== 2/5 get $ZIP"
 mkdir -p "$DIR" && cd "$DIR"
 if [ ! -f "$ZIP" ]; then
-    if [ -f ~/subaru_cyberdeck/tools/"$ZIP" ]; then cp ~/subaru_cyberdeck/tools/"$ZIP" .
+    if [ -f $CK/tools/"$ZIP" ]; then cp $CK/tools/"$ZIP" .
     else curl -fL --retry 4 -o "$ZIP" "https://vpic.nhtsa.dot.gov/downloads/$ZIP"; fi
 fi
 rm -rf unpacked && mkdir unpacked && unzip -q "$ZIP" -d unpacked
@@ -45,6 +46,6 @@ echo "$OUT" | grep -iE '"(make|model|model year|displacement \(l\)|transmission 
 
 echo "== 5/5 app check"
 python3 -c "
-import sys; sys.path.insert(0, '$HOME/subaru_cyberdeck/app')
+import sys; sys.path.insert(0, '$CK/app')
 import vpic_local; print(vpic_local.vpic_decode('JF1SF6557YH712345'))"
 echo "Done. The deck now decodes VINs offline."

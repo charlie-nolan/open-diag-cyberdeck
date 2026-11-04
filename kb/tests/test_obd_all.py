@@ -1,6 +1,6 @@
 """app/obd_all.py against simulated ELM adapters on a pty, through the real python-obd.
 Mixed cars: ISO 9141 4-cyl, J1850 VPW V8, CAN V6 with wideband O2 + transmission ECU + PIDs past 5F. Values are made up.
-    ~/subaru_cyberdeck/venv/bin/python -m unittest kb/tests/test_obd_all.py
+    python -m pytest kb/tests/test_obd_all.py
 """
 import os
 import pty

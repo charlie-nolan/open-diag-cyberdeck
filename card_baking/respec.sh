@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Redo only the spec/labor lines of the baked cards with the current kb_retriever, reload them, re-embed card vectors.
 # No card model needed; runs at lowest priority so it stays out of the way of other jobs.
-#   setsid nohup nice -n 19 bash ~/subaru_cyberdeck/card_baking/respec.sh > ~/subaru_cyberdeck/logs/respec.log 2>&1 &
+#   setsid nohup nice -n 19 bash card_baking/respec.sh > logs/respec.log 2>&1 &
 set -uo pipefail
-CK=~/subaru_cyberdeck
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 KB=$CK/kb
 cd "$(dirname "$0")"
 log() { echo "$(date '+%F %T') $*"; }

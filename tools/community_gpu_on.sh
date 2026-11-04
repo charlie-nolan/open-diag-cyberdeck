@@ -4,7 +4,7 @@
 export PATH=/usr/local/bin:/usr/bin:/bin
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
-CK=$HOME/subaru_cyberdeck
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 cd "$CK" || exit 1
 LOG=$CK/logs/community_run_9b.log
 RUNPID=$CK/logs/community_run_9b.pid

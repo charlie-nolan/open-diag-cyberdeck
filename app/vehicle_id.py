@@ -285,7 +285,7 @@ def car_from_rom(rom_id, rom_db):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) >= 3 and sys.argv[1] == "--build-romdb":
-        # python3 vehicle_id.py --build-romdb ~/subaru_cyberdeck/kb/romid.db defs1.xml [defs2.xml ...]
+        # python3 vehicle_id.py --build-romdb kb/romid.db defs1.xml [defs2.xml ...]
         print(build_rom_db(sys.argv[3:], sys.argv[2]), "ECU ids")
     else:
         print("usage: vehicle_id.py --build-romdb <out.db> <RomRaider ECU definition .xml> ...")

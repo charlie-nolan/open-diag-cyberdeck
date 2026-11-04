@@ -14,7 +14,7 @@ The chat model is planned as a separate app.
 On the deck, run this once to put Shopdeck (with its icon) in the app list:
 
 ```
-cd ~/subaru_cyberdeck/shopdeck && ~/subaru_cyberdeck/venv/bin/python -m shopdeck --install-icon
+cd ~/open-diag-cyberdeck/shopdeck && ~/open-diag-cyberdeck/venv/bin/python -m shopdeck --install-icon
 ```
 
 After that, open it from the app list like any other app. It opens in its own window.
@@ -22,11 +22,11 @@ After that, open it from the app list like any other app. It opens in its own wi
 To start it from a terminal instead:
 
 ```
-cd ~/subaru_cyberdeck/shopdeck && ~/subaru_cyberdeck/venv/bin/python -m shopdeck
+cd ~/open-diag-cyberdeck/shopdeck && ~/open-diag-cyberdeck/venv/bin/python -m shopdeck
 ```
 
 - **Over ssh:** add `--tui` to run the same screens inside the terminal.
-- **Database:** it uses `~/subaru_cyberdeck/kb/subaru.db` by default. Use `--kb /path/to/subaru.db` to point it at another file.
+- **Database:** it uses `~/open-diag-cyberdeck/kb/subaru.db` by default. Use `--kb /path/to/subaru.db` to point it at another file.
 - **Car cable:** reading the car needs `pyserial`, and the window needs PyQt6. The deck's venv has both, which is why the commands above use it.
 - **Where things are saved:** tickets go to `~/.shopdeck/tickets/`, one JSON file per car, saved after every change. Work orders go to `~/shopdeck_workorders/`.
 
@@ -109,7 +109,7 @@ The app can only walk a chart that survived conversion from PDF. What it found, 
 ## Tests
 
 ```
-cd ~/subaru_cyberdeck/shopdeck && python3 -m unittest discover -s tests
+cd ~/open-diag-cyberdeck/shopdeck && python3 -m unittest discover -s tests
 ```
 
 The tests check limit parsing, quote maths and tickets. With the database present, they also check:

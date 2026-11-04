@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
 );
 """
 
-DEFAULT_DB = os.path.expanduser("~/subaru_cyberdeck/kb/yards.db")
+DEFAULT_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "kb", "yards.db")
 MAX_AGE_DAYS = 45   # a car only known from an alert or a partial paste stops counting after this (yards crush)
 
 

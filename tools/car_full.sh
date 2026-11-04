@@ -1,14 +1,14 @@
 #!/bin/bash
 # Bring one car up to the Forester's level, start to finish, unattended. Every step is skipped when already
 # done, so it's safe to re-run or resume after Ctrl-C.
-#   bash ~/subaru_cyberdeck/tools/car_full.sh chevrolet Tahoe 2003            # the friend's Tahoe
-#   bash ~/subaru_cyberdeck/tools/car_full.sh toyota Camry 2005 --dry-run      # say what would run
-#   setsid nohup bash ~/subaru_cyberdeck/tools/car_full.sh chevrolet Tahoe 2003 >/dev/null 2>&1 &   # detached
+#   bash tools/car_full.sh chevrolet Tahoe 2003            # the friend's Tahoe
+#   bash tools/car_full.sh toyota Camry 2005 --dry-run      # say what would run
+#   setsid nohup bash tools/car_full.sh chevrolet Tahoe 2003 >/dev/null 2>&1 &   # detached
 # Steps: 1 make_full.sh (make DB layers)  2 community threads -> <make>.threads.db (CPU)
 #        3 thread vectors (GPU)  4 baked DTC cards for that model (~6 h GPU)  5 queue its chart pictures
 # GPU steps wait (checking every 5 min) until no other GPU job runs, then go. Cyberdeck Home's PC models are
-# slow while they run. Log: ~/subaru_cyberdeck/logs/car_full_<make>.log
-CK=~/subaru_cyberdeck
+# slow while they run. Log: logs/car_full_<make>.log
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 P=$CK/venv/bin/python
 KB=$CK/kb
 . "$CK/tools/gpu_guard.sh"

@@ -8,7 +8,7 @@ No agents. Two local Qwen3 models with fixed jobs, grounded in your FSM database
 | 2. Brainstorm / Chat | DEEP: Qwen3-4B (the 1.7B if the 4B is missing or won't load; `"chat_model": "fast"` in config.json forces the 1.7B) | Back-and-forth brainstorming that already knows the case. Each turn is rebuilt from the case, the manual's steps for its codes and the last few exchanges, so it never fills up. Buttons: TORQUE and MANUAL (plain lookups of what you typed), DEBATE (Parts Cannon vs Frugal Skeptic; SAVE DEBATE adds it to the case), WILDCARD (5 unlikely-but-possible causes on the 4B at high temperature, never saved), CLEAR. The slash commands still work. Nothing writes to the case except SAVE DEBATE |
 | 3. Verdict | DEEP: Qwen3-4B-Instruct-2507 | Most likely cause, what rules out the rest, next test. Tick THINK HARDER to use Qwen3-4B-Thinking-2507 instead (slower, shows its reasoning) |
 | 4. Repair Guide | DEEP | Tap a repair (or it takes the one named in the verdict). Specs from the database first, then a numbered procedure built from FSM excerpts |
-| 5. Parts | none | Tap a job (or it takes the repair/verdict): CHARM part numbers for this car, which other Subarus share the part, QR codes for dealer / aftermarket / junkyard searches, and the junkyard quote (Pick-n-Pull price + CHARM book hours). PRINT SHEET opens a printable page. Needs `~/subaru_cyberdeck/parts_sourcing/` and `pip install segno`. `/part <name or number>` does the same in Chat |
+| 5. Parts | none | Tap a job (or it takes the repair/verdict): CHARM part numbers for this car, which other Subarus share the part, QR codes for dealer / aftermarket / junkyard searches, and the junkyard quote (Pick-n-Pull price + CHARM book hours). PRINT SHEET opens a printable page. Needs `~/open-diag-cyberdeck/parts_sourcing/` and `pip install segno`. `/part <name or number>` does the same in Chat |
 
 Torque specs are always looked up, never generated. The app uses `kb/subaru.db` (FSM-sourced specs with page numbers) when it exists, and falls back to `subaru_diag.db` + `test_subaru_knowledge.db` otherwise (where hand-entered specs show as `UNVERIFIED`).
 
@@ -54,16 +54,16 @@ Two engines with separate jobs. Voice runs in its own background process, pinned
 - **whisper.cpp** (`base.en`, falls back to `tiny.en`) is idle until you say **"hey deck, intake note"** (or "customer complaint"), or press MIC. It stops after about 1.5 s of quiet (or 25 s), or when you press MIC/F2 again. The punctuated text lands in the Intake **Notes** box. The raw text is kept, and the fast model pulls out three lines (symptoms, parts already replaced or checked, when it happens). SAVE CASE stores both, and Verdict sees both.
 - **Spoken replies** use pyttsx3, falling back to espeak-ng (Piper optional, via `piper_bin`/`piper_model` in config). Only information asks are spoken. Diagnoses, verdicts, quotes and prices stay on screen.
 
-Setup on the Pi (models go in `~/subaru_cyberdeck/models/voice/`, about 700 MB of RAM for both engines while running):
+Setup on the Pi (models go in `~/open-diag-cyberdeck/models/voice/`, about 700 MB of RAM for both engines while running):
 
 ```
 sudo apt install espeak-ng libportaudio2 cmake build-essential
 pip install vosk sounddevice numpy pyttsx3
 # Vosk small English model
-wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip && unzip vosk-model-small-en-us-0.15.zip -d ~/subaru_cyberdeck/models/voice/
+wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip && unzip vosk-model-small-en-us-0.15.zip -d ~/open-diag-cyberdeck/models/voice/
 # whisper.cpp built on the Pi, plus base.en (and tiny.en as the fallback)
-git clone https://github.com/ggml-org/whisper.cpp ~/subaru_cyberdeck/models/voice/whisper.cpp
-cd ~/subaru_cyberdeck/models/voice/whisper.cpp && cmake -B build && cmake --build build -j4 --config Release
+git clone https://github.com/ggml-org/whisper.cpp ~/open-diag-cyberdeck/models/voice/whisper.cpp
+cd ~/open-diag-cyberdeck/models/voice/whisper.cpp && cmake -B build && cmake --build build -j4 --config Release
 sh ./models/download-ggml-model.sh base.en && sh ./models/download-ggml-model.sh tiny.en
 cp models/ggml-base.en.bin models/ggml-tiny.en.bin ../
 ```
@@ -78,8 +78,8 @@ In the venv that has `rkllm-toolkit` 1.3.1 (same version as the Pi runtime):
 
 ```
 pip install huggingface_hub
-python ~/subaru_cyberdeck/tools/export_qwen3_rkllm.py            # all three models (fast, deep, think)
-python ~/subaru_cyberdeck/tools/export_qwen3_rkllm.py --only fast
+python ~/open-diag-cyberdeck/tools/export_qwen3_rkllm.py            # all three models (fast, deep, think)
+python ~/open-diag-cyberdeck/tools/export_qwen3_rkllm.py --only fast
 ```
 
 float32 export of the 4B needs about 32 GB RAM; add `--dtype bfloat16` if it runs out.
@@ -87,12 +87,12 @@ Other models work too, e.g. `--hf Qwen/Qwen3-8B --name Qwen3-8B`, then point `de
 
 ## Run on the Orange Pi
 
-Copy `~/subaru_cyberdeck` (at least `app/`, `models/rkllm/`, `kb/`, `rknn-llm/rkllm-runtime/`, and `session_active.db`) to the Pi, then:
+Copy `~/open-diag-cyberdeck` (at least `app/`, `models/rkllm/`, `kb/`, `rknn-llm/rkllm-runtime/`, and `session_active.db`) to the Pi, then:
 
 ```
 sudo apt install python3-pyqt6      # or: pip install PyQt6
 pip install obd pyserial
-python3 ~/subaru_cyberdeck/app/cyberdeck_gui.py
+python3 ~/open-diag-cyberdeck/app/cyberdeck_gui.py
 ```
 
 The app uses RKLLM automatically when it finds `librkllmrt.so` on an aarch64 board.

@@ -1,14 +1,14 @@
 #!/bin/bash
 # Pre-baked DTC cards (like the 2002 Forester's 176) for one model of one make. ~6 h per model on the GPU.
-#   bash ~/subaru_cyberdeck/tools/bake_cards.sh acura                 # lists the models worth baking, bakes nothing
-#   bash ~/subaru_cyberdeck/tools/bake_cards.sh acura TL               # bake TL, all its CHARM years
-#   bash ~/subaru_cyberdeck/tools/bake_cards.sh acura TL 1999-2003     # bake TL 1999-2003
+#   bash tools/bake_cards.sh acura                 # lists the models worth baking, bakes nothing
+#   bash tools/bake_cards.sh acura TL               # bake TL, all its CHARM years
+#   bash tools/bake_cards.sh acura TL 1999-2003     # bake TL 1999-2003
 #   add --dry-run to see the commands only
 # Needs make_full.sh step e done for that make (forum fixes). Uses llama-server with Qwen3.6-35B-A3B
 # (card_baking/serve_cards.sh, port 8081; the first run downloads the model, ~22 GB). Refuses while another
 # GPU job runs; unloads Ollama's models, so Cyberdeck Home is slow until it finishes.
-# Log: ~/subaru_cyberdeck/logs/bake_cards_<make>.log   Resumable: cards already built are skipped.
-CK=~/subaru_cyberdeck
+# Log: logs/bake_cards_<make>.log   Resumable: cards already built are skipped.
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 P=$CK/venv/bin/python
 KB=$CK/kb
 . "$CK/tools/gpu_guard.sh"

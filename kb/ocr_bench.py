@@ -13,10 +13,10 @@ Readers:
   <tag>      any Ollama vision model, e.g. qwen3.6:35b-a3b-q4_K_M, glm-ocr, qwen2.5vl:3b
 
 Run on the desktop (needs pymupdf; Ollama running):
-  python3 ~/subaru_cyberdeck/kb/ocr_bench.py --pdf "<manual.pdf>" --pages 512,513,600 \
+  python3 kb/ocr_bench.py --pdf "<manual.pdf>" --pages 512,513,600 \
       --models qwen3.6:35b-a3b-q4_K_M,glm-ocr --mode chart
-  python3 ~/subaru_cyberdeck/kb/ocr_bench.py --images ~/some/charm_charts/ --models ... --mode chart
-Output: ~/subaru_cyberdeck/logs/ocr_bench/<run>/  (one .md per page and reader, report.md)
+  python3 kb/ocr_bench.py --images ~/some/charm_charts/ --models ... --mode chart
+Output: logs/ocr_bench/<run>/  (one .md per page and reader, report.md)
 
 --mode text   transcribe the page as markdown (tables as markdown tables)
 --mode chart  diagnostic chart / flowchart: every step with its check and where YES and NO lead

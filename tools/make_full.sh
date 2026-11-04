@@ -1,15 +1,15 @@
 #!/bin/bash
 # Give one make (or every make) the layers subaru.db has, in order. Each step is skipped when already done,
 # so it's safe to re-run, or to resume after Ctrl-C.
-#   bash ~/subaru_cyberdeck/tools/make_full.sh acura          # one make (file name in kb/, e.g. land_rover)
-#   bash ~/subaru_cyberdeck/tools/make_full.sh --all          # every CHARM make except subaru
-#   bash ~/subaru_cyberdeck/tools/make_full.sh acura --dry-run  # say what would run, run nothing
-# Log: ~/subaru_cyberdeck/logs/make_full_<make>.log
+#   bash tools/make_full.sh acura          # one make (file name in kb/, e.g. land_rover)
+#   bash tools/make_full.sh --all          # every CHARM make except subaru
+#   bash tools/make_full.sh acura --dry-run  # say what would run, run nothing
+# Log: logs/make_full_<make>.log
 # Steps: a CHARM text DB  b NHTSA  b2 car names  c Reddit  d NHTSA investigations + StackExchange
 #        e forum fixes (LLM, GPU)  f embed --missing (GPU)  g finish  h test score -> logs/eval_make/history.csv
 # GPU steps (e, f) refuse to start while another GPU job runs; they unload Ollama's models first, so
 # Cyberdeck Home's PC models are slow until they finish.
-CK=~/subaru_cyberdeck
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 P=$CK/venv/bin/python
 KB=$CK/kb
 ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"

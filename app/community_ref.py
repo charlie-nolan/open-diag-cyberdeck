@@ -3,14 +3,14 @@ Community knowledge lookup (Reddit + forum threads, built by kb/build_community.
 only, read-only, runs on the Pi. Works on kb/<make>.db (merged comm_* tables) or kb/community/<make>.community.db.
 
     from community_ref import community
-    r = community("~/subaru_cyberdeck/kb/<make>.db", code="<DTC>", model="<model>", year=<year>)
+    r = community("kb/<make>.db", code="<DTC>", model="<model>", year=<year>)
     r = community(db, text="<symptom in plain words>", model=..., year=..., embed=<QueryEmbedder or None>)
 
 Returns {"threads", "causes", "tests", "chains", "note"}. Every count is separate threads, every item carries
 its quote and permalink. Community data ranks below the manual: it suggests, the manual confirms.
 
 Every thread pass 0 kept, unextracted (kb/<make>.threads.db, build_community.py raw + rawembed):
-    r = raw_threads("~/subaru_cyberdeck/kb/<make>.db", text="<symptom>", code=None, model=..., year=..., embed=...)
+    r = raw_threads("kb/<make>.db", text="<symptom>", code=None, model=..., year=..., embed=...)
 Returns {"threads": [{title, url, sub, score, car_match, excerpt, text}], "note"}: what people wrote, unchecked.
 """
 import os

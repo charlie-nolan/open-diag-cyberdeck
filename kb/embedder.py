@@ -3,7 +3,7 @@ Query embedder for kb_retriever's vector search: Qwen3-Embedding-0.6B on the CPU
 truncation, normalisation and int8 scaling that build_subaru_kb.py's embed step used for the documents.
 
     from embedder import QueryEmbedder
-    embed = QueryEmbedder("~/subaru_cyberdeck/models/qwen3emb")    # local folder or "Qwen/Qwen3-Embedding-0.6B"
+    embed = QueryEmbedder("models/qwen3emb")    # local folder or "Qwen/Qwen3-Embedding-0.6B"
     r = Retriever(db, model="Forester", year=2002, embed=embed)
 
 Needs sentence-transformers (torch CPU is enough) and numpy. The model loads on first use (~1.2 GB).

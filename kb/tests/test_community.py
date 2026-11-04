@@ -1,6 +1,6 @@
 """
 Tests for kb/build_community.py (quote checks, tables, counts) and app/community_ref.py.
-    ~/subaru_cyberdeck/venv/bin/python -m unittest discover -s ~/subaru_cyberdeck/kb/tests -v
+    python -m pytest kb/tests
 
 The thread is synthetic and its codes are drawn at random, so no car, code or cause is special.
 """

@@ -35,7 +35,7 @@ import threading
 
 import serial
 
-SESSION_DB = os.path.expanduser("~/subaru_cyberdeck/session_active.db")
+SESSION_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "session_active.db")
 
 # (column, address, byte length, conversion) from RomRaider logger_STD_EN_v370
 PARAMS = [
@@ -88,7 +88,7 @@ class TelemetryPoller:
 
     def _init_db_wal(self):
         # Only the logger needs the session DB. A one-off read (READ CAR) must not fail because
-        # ~/subaru_cyberdeck is missing or read-only, so this runs when polling starts, not in __init__.
+        # the checkout is missing or read-only, so this runs when polling starts, not in __init__.
         if self._db_ready:
             return
         os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)

@@ -10,10 +10,10 @@ Steps (each resumable, all state in the work DB):
   export    write confirmed fixes into subaru_diag.db forum_fix (then run the kb builder's `diag` step)
 
 Typical:
-  python3 extract_fixes.py filter --reddit ~/subaru_cyberdeck/raw/reddit/reddit_subaru.db
+  python3 extract_fixes.py filter --reddit raw/reddit/reddit_subaru.db
   python3 extract_fixes.py run --limit 100          # timing sample, prints a projected total
   python3 extract_fixes.py run --parallel 4         # the rest (match llama-server -np)
-  python3 extract_fixes.py export --diag-db ~/subaru_cyberdeck/subaru_diag.db
+  python3 extract_fixes.py export --diag-db subaru_diag.db
 
 Standard library only.
 """
@@ -29,7 +29,8 @@ import time
 from llm import LLM
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_WORK = os.path.expanduser("~/subaru_cyberdeck/kb/bake_work.db")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+DEFAULT_WORK = os.path.join(ROOT, "kb", "bake_work.db")
 
 DTC_RE = re.compile(r"\b([PCBU][0-3][0-9A-F]{3})\b", re.I)
 SYMPTOM_RE = re.compile(
@@ -549,7 +550,7 @@ def main():
     s.add_argument("--code")
     sub.add_parser("recat", help="re-derive each fix's cause bucket from its part/fix text (no model needed)")
     e = sub.add_parser("export")
-    e.add_argument("--diag-db", default="~/subaru_cyberdeck/subaru_diag.db")
+    e.add_argument("--diag-db", default=os.path.join(ROOT, "subaru_diag.db"))
     a = ap.parse_args()
     if a.make and a.make.lower() != "subaru":
         configure_make(a.make, (a.models or "").split(","))

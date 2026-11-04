@@ -7,13 +7,13 @@ but each PDF is converted in page chunks so a 2,000-page manual can't run the GP
 and a crash only costs one chunk. Re-running resumes where it stopped.
 
 Output matches the existing layout, so build_subaru_kb.py can read it:
-  ~/subaru_cyberdeck/test_batch_out/<name>/<name>.md   (+ images)
+  test_batch_out/<name>/<name>.md   (+ images)
 
 Run on the desktop, in the marker env:
   conda activate marker_env
-  python3 ~/subaru_cyberdeck/kb/convert_big_manuals.py            # all 7
-  python3 ~/subaru_cyberdeck/kb/convert_big_manuals.py --only 1999 # names containing "1999"
-  python3 ~/subaru_cyberdeck/kb/convert_big_manuals.py --list      # show status only
+  python3 kb/convert_big_manuals.py            # all 7
+  python3 kb/convert_big_manuals.py --only 1999 # names containing "1999"
+  python3 kb/convert_big_manuals.py --list      # show status only
 """
 import argparse
 import os

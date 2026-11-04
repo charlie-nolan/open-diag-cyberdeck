@@ -148,10 +148,10 @@ Optional: Tailscale (same tailnet as the deck), and PostgreSQL if you want the o
 
 ## 5. Get the code
 
-**On both machines**, at the same path (the scripts expect `~/subaru_cyberdeck`):
+**On both machines**, in the same folder under your home directory (`tools/deck_pull.sh` assumes the deck's copy has the same folder name as the PC's):
 ```bash
-git clone https://github.com/charlie-nolan/open-diag-cyberdeck.git ~/subaru_cyberdeck
-cd ~/subaru_cyberdeck
+git clone https://github.com/charlie-nolan/open-diag-cyberdeck.git ~/open-diag-cyberdeck
+cd ~/open-diag-cyberdeck
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt            # deck
 venv/bin/pip install -r requirements-build.txt      # PC only: builders (torch, sentence-transformers, ...)
@@ -161,7 +161,7 @@ cp app/config.example.json app/config.json          # edit later (section 13)
 ## 6. Models: export Qwen3 for the NPU
 
 **RKLLM runtime on the Pi.** Get Rockchip's [rknn-llm](https://github.com/airockchip/rknn-llm) **1.3.1** and put it at
-`~/subaru_cyberdeck/rknn-llm`, so that the runtime library is at
+`~/open-diag-cyberdeck/rknn-llm`, so that the runtime library is at
 `rknn-llm/rkllm-runtime/Linux/librkllm_api/aarch64/librkllmrt.so` (or copy that file to `/usr/lib/`).
 Toolkit and runtime versions must match.
 
@@ -169,8 +169,8 @@ Toolkit and runtime versions must match.
 ```bash
 python3 -m venv ~/rkllm-env
 ~/rkllm-env/bin/pip install <rknn-llm>/rkllm-toolkit/packages/rkllm_toolkit-1.3.1-*.whl huggingface_hub
-~/rkllm-env/bin/python ~/subaru_cyberdeck/tools/export_qwen3_rkllm.py               # fast + deep + think
-~/rkllm-env/bin/python ~/subaru_cyberdeck/tools/export_qwen3_rkllm.py --only fast   # just one
+~/rkllm-env/bin/python ~/open-diag-cyberdeck/tools/export_qwen3_rkllm.py               # fast + deep + think
+~/rkllm-env/bin/python ~/open-diag-cyberdeck/tools/export_qwen3_rkllm.py --only fast   # just one
 ```
 Files land in `models/rkllm/` (`Qwen3-1.7B_W8A8_RK3588.rkllm` and so on). Add `--dtype bfloat16` if the 4B export
 runs out of RAM.
@@ -207,7 +207,7 @@ redistribute either.
 
 ### 7a. Factory service manuals (PDF)
 ```bash
-cd ~/subaru_cyberdeck/kb
+cd ~/open-diag-cyberdeck/kb
 ../venv/bin/python pdf_to_md.py --list                     # what's queued / done
 ../venv/bin/python pdf_to_md.py                            # PDF -> markdown, keeps chart tables intact
 # (put the PDFs where pdf_to_md.py's list expects them; see the top of the script)
@@ -274,9 +274,9 @@ job at a time; `tools/gpu_guard.sh` enforces it.
 **On the deck:**
 ```bash
 export CYBERDECK_PC=you@your-pc            # Tailscale name or LAN address
-bash ~/subaru_cyberdeck/tools/deck_pull.sh                 # app + core DBs
-bash ~/subaru_cyberdeck/tools/deck_pull.sh toyota honda    # plus these makes
-bash ~/subaru_cyberdeck/tools/deck_pull.sh --all-makes     # everything (~70 GB, use ethernet)
+bash ~/open-diag-cyberdeck/tools/deck_pull.sh                 # app + core DBs
+bash ~/open-diag-cyberdeck/tools/deck_pull.sh toyota honda    # plus these makes
+bash ~/open-diag-cyberdeck/tools/deck_pull.sh --all-makes     # everything (~70 GB, use ethernet)
 ```
 It skips any make the PC is still building and only sends changed files. Copy `models/rkllm/` and `models/qwen3emb/`
 the first time with `rsync`.
@@ -287,7 +287,7 @@ Optional offline VIN decoding on the deck: `bash tools/vpic_setup_deck.sh` (abou
 
 **On the deck:**
 ```bash
-mkdir -p ~/subaru_cyberdeck/models/voice && cd ~/subaru_cyberdeck/models/voice
+mkdir -p ~/open-diag-cyberdeck/models/voice && cd ~/open-diag-cyberdeck/models/voice
 wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip && unzip vosk-model-small-en-us-0.15.zip
 git clone https://github.com/ggml-org/whisper.cpp && cd whisper.cpp
 cmake -B build && cmake --build build -j4 --config Release
@@ -301,7 +301,7 @@ Pick the mic in the app's mic dropdown. If any piece is missing, the app runs wi
 1. Plug the cable into the car and the deck. Key ON (engine off is fine for a first read).
 2. Start the app:
    ```bash
-   cd ~/subaru_cyberdeck/app && ~/subaru_cyberdeck/venv/bin/python cyberdeck_gui.py
+   cd ~/open-diag-cyberdeck/app && ~/open-diag-cyberdeck/venv/bin/python cyberdeck_gui.py
    ```
    Over ssh, prefix it with `DISPLAY=:0 QT_QPA_PLATFORM=xcb`.
 3. In **Intake & Scan**, pick the cable (OBDLink EX or KKL) and press **READ CAR**. It finds the port by itself
@@ -317,9 +317,9 @@ Cable tips:
 
 The other two apps:
 ```bash
-~/subaru_cyberdeck/venv/bin/python -m diagent gui
-~/subaru_cyberdeck/venv/bin/python -m diagent gui --install-icon      # add a menu icon (never autostarts)
-cd ~/subaru_cyberdeck/shopdeck && ../venv/bin/python -m shopdeck [--tui]
+~/open-diag-cyberdeck/venv/bin/python -m diagent gui
+~/open-diag-cyberdeck/venv/bin/python -m diagent gui --install-icon      # add a menu icon (never autostarts)
+cd ~/open-diag-cyberdeck/shopdeck && ../venv/bin/python -m shopdeck [--tui]
 ```
 
 ## 11. Home mode: big models from your PC

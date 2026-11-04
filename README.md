@@ -420,14 +420,14 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 ## Quick start (if you already have the hardware and databases)
 
 ```bash
-git clone https://github.com/charlie-nolan/open-diag-cyberdeck.git ~/subaru_cyberdeck
-cd ~/subaru_cyberdeck && python3 -m venv venv && venv/bin/pip install -r requirements.txt
+git clone https://github.com/charlie-nolan/open-diag-cyberdeck.git
+cd open-diag-cyberdeck && python3 -m venv venv && venv/bin/pip install -r requirements.txt
 cp app/config.example.json app/config.json
 cd app && ../venv/bin/python cyberdeck_gui.py            # add --home to use the PC's models
 ```
 
-The scripts expect the checkout at `~/subaru_cyberdeck`. For everything else, see the
-[build guide](docs/BUILD_GUIDE.md).
+The checkout can live anywhere: every script and module finds its files relative to its own place in it.
+For everything else, see the [build guide](docs/BUILD_GUIDE.md).
 
 ## Status
 

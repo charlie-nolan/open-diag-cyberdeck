@@ -5,7 +5,7 @@ Drop-in for app/retrieval.py's Retriever: same methods (dtc, search_fsm, specs, 
 same string formats, but one read-only DB and no cache to build.
 
     from kb_retriever import Retriever
-    r = Retriever("~/subaru_cyberdeck/subaru.db", model="Forester", year=2002)
+    r = Retriever("kb/subaru.db", model="Forester", year=2002)
 
 Vector search is optional: pass embed=<callable(str) -> 1024 int8 bytes from Qwen3-Embedding-0.6B with prompt_name="query"> and have sqlite-vec
 installed, and search_fsm fuses BM25 and vector ranks. Without it, FTS5 alone is used.

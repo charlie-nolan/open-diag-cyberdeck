@@ -1,9 +1,10 @@
 #!/bin/bash
 # Sourced by make_full.sh and bake_cards.sh. gpu_free tells whether the GPU may be used; gpu_lock takes
-# ~/subaru_cyberdeck/.gpu.lock for this shell (released when the script exits). While a GPU step runs,
+# .gpu.lock for this shell (released when the script exits). While a GPU step runs,
 # Cyberdeck Home's PC models are slow or unloaded: that's expected.
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 
-GPU_LOCK=~/subaru_cyberdeck/.gpu.lock
+GPU_LOCK=$CK/.gpu.lock
 
 gpu_jobs() {   # GPU compute jobs other than the desktop and Ollama (Ollama is stopped instead)
     nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader,nounits 2>/dev/null |

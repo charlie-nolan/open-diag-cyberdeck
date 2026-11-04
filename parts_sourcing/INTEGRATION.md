@@ -1,12 +1,12 @@
 # Hooking parts_sourcing into the deck app
 
-For the thread that owns `app/`. The module lives at `~/subaru_cyberdeck/parts_sourcing/` and only reads `kb/subaru.db` and `kb/yards.db`. It never talks to the car, and only `yard_sync.py` goes online.
+For the thread that owns `app/`. The module lives at `~/open-diag-cyberdeck/parts_sourcing/` and only reads `kb/subaru.db` and `kb/yards.db`. It never talks to the car, and only `yard_sync.py` goes online.
 
 ## 1. Import
 
 ```python
 import sys, os
-sys.path.insert(0, os.path.expanduser(CFG.get("parts_sourcing_dir", "~/subaru_cyberdeck/parts_sourcing")))
+sys.path.insert(0, os.path.expanduser(CFG.get("parts_sourcing_dir", "~/open-diag-cyberdeck/parts_sourcing")))
 try:
     import parts_sourcing as PS
     from parts_sourcing import qr as PSQR, sheet as PSSHEET
@@ -65,4 +65,4 @@ Usually the PC refreshes `yards.db` (daily is plenty) and it gets copied to the 
 
 ## Config keys to add to `app/config.json`
 
-- `parts_sourcing_dir`: default `~/subaru_cyberdeck/parts_sourcing`
+- `parts_sourcing_dir`: default `~/open-diag-cyberdeck/parts_sourcing`

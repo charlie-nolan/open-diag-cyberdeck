@@ -13,9 +13,9 @@ The LMDB is opened readonly + lock=False and nothing is ever written to it. Requ
                       "unverified" so the app can say check them on the picture.
   GET /ping
 
-    ~/subaru_cyberdeck/venv/bin/python tools/charm_pic_server.py serve --host <your PC tailnet address>
-    ~/subaru_cyberdeck/venv/bin/python tools/charm_pic_server.py queue --db kb/subaru.db --car Forester --year 2002
-    ~/subaru_cyberdeck/venv/bin/python tools/charm_pic_server.py status
+    venv/bin/python tools/charm_pic_server.py serve --host <your PC tailnet address>
+    venv/bin/python tools/charm_pic_server.py queue --db kb/subaru.db --car Forester --year 2002
+    venv/bin/python tools/charm_pic_server.py status
 
 Bind it to the Tailscale address only (the default), so only the user's own devices can reach it.
 """

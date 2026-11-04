@@ -28,9 +28,10 @@ import time
 
 from llm import LLM
 
-DEFAULT_KB = os.path.expanduser("~/subaru_cyberdeck/kb/subaru.db")
-DEFAULT_WORK = os.path.expanduser("~/subaru_cyberdeck/kb/bake_work.db")
-DEFAULT_OUT = os.path.expanduser("~/subaru_cyberdeck/kb/cards.db")
+KB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kb")
+DEFAULT_KB = os.path.join(KB_DIR, "subaru.db")
+DEFAULT_WORK = os.path.join(KB_DIR, "bake_work.db")
+DEFAULT_OUT = os.path.join(KB_DIR, "cards.db")
 
 CARD_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS dtc_card (

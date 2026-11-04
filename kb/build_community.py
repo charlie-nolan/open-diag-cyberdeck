@@ -21,8 +21,8 @@ Steps (each takes --make <db name> or --all; state lives in kb/community/work/<m
   rawembed   vectors for those threads (first 512 tokens each); GPU when gpu_guard says free, else the CPU.
              Resumable. Runtime lookup: community_ref.raw_threads().
 
-  ~/subaru_cyberdeck/venv/bin/python kb/build_community.py --make subaru prefilter
-  setsid nohup ~/subaru_cyberdeck/venv/bin/python kb/build_community.py --make subaru extract \
+  venv/bin/python kb/build_community.py --make subaru prefilter
+  setsid nohup venv/bin/python kb/build_community.py --make subaru extract \
       > /dev/null 2>&1 &          # log: logs/community_subaru.log
 Runtime lookup: app/community_ref.py. Community data suggests; the manual confirms.
 """

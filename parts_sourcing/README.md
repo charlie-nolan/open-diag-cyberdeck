@@ -67,7 +67,7 @@ Cars whose decoded engine differs (for example a WRX 2.0 turbo against a 2.5 SOH
 ## Use
 
 ```
-cd ~/subaru_cyberdeck/parts_sourcing
+cd ~/open-diag-cyberdeck/parts_sourcing
 pip install segno                                    # QR codes (pure Python, also on the Pi)
 python3 -m parts_sourcing.yard_sync --probe          # online: fetch one Row52 page, show what was parsed
 python3 -m parts_sourcing.yard_sync                  # online: refresh kb/yards.db (about 90 pages, 3 s apart, plus VIN decodes)

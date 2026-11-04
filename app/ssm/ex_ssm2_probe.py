@@ -21,7 +21,7 @@ and 0xA8 (read addresses). send_ssm2_command() refuses anything else.
 
 Usage (key ON, engine off or idling; unplug the KKL cable first):
     python3 ex_ssm2_probe.py                    # auto-find /dev/ttyUSB* speed
-    python3 ex_ssm2_probe.py --port /dev/ttyUSB0 --ssm-dir ~/subaru_cyberdeck/app/ssm
+    python3 ex_ssm2_probe.py --port /dev/ttyUSB0 --ssm-dir app/ssm
 
 STNSSM2 has the same send_ssm2_command()/probe_ecu()/init_raw interface as
 TelemetryPoller, so ssm2_capabilities.read_dtcs() works on it unchanged.
@@ -210,7 +210,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--port", help="default: first /dev/ttyUSB*")
     ap.add_argument("--host-baud", type=int)
-    ap.add_argument("--ssm-dir", default=os.path.expanduser("~/subaru_cyberdeck/app/ssm"),
+    ap.add_argument("--ssm-dir", default=os.path.dirname(os.path.abspath(__file__)),
                     help="folder with ssm2_capabilities.py (for DTC/switch decoding)")
     ap.add_argument("--rate-test", type=int, default=20, help="timed live reads (0 = skip)")
     args = ap.parse_args()

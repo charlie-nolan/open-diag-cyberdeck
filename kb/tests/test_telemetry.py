@@ -1,6 +1,6 @@
 """
 Tests for app/telemetry_ref.py and kb/build_telemetry.py.
-    ~/subaru_cyberdeck/venv/bin/python -m unittest discover -s ~/subaru_cyberdeck/kb/tests -v
+    python -m pytest kb/tests
 
 Readings here are made-up byte patterns that sweep each definition's range; no car, code or case is special.
 """

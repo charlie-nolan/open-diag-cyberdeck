@@ -1,10 +1,11 @@
 #!/bin/bash
 # Runs beside build_charm_all.sh: gives each finished make its NHTSA TSBs/complaints/recalls (CPU only, seconds),
 # then, once the CHARM loop is done and the GPU is free, embeds the new knowledge rows (embed --missing) per DB.
-#   setsid nohup bash ~/subaru_cyberdeck/tools/nhtsa_follow.sh >> ~/subaru_cyberdeck/logs/nhtsa_follow.log 2>&1 &
+#   setsid nohup bash tools/nhtsa_follow.sh >> logs/nhtsa_follow.log 2>&1 &
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 set -o pipefail
-P=~/subaru_cyberdeck/venv/bin/python
-KB=~/subaru_cyberdeck/kb
+P=$CK/venv/bin/python
+KB=$CK/kb
 ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"
 export HF_HUB_OFFLINE=1
 while pgrep -f build_charm_all.sh >/dev/null; do

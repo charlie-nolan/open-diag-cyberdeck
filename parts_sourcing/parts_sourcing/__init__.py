@@ -16,9 +16,17 @@ from .interchange import parts_for_job, normalize_pn  # noqa: F401
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+ROOT = os.path.dirname(os.path.dirname(HERE))      # the checkout
+
+
 def settings(path=None):
+    """sourcing.json; its relative DB paths are relative to the checkout."""
     with open(path or os.path.join(HERE, "sourcing.json")) as f:
-        return json.load(f)
+        cfg = json.load(f)
+    for k in ("kb_db", "yards_db"):
+        if cfg.get(k):
+            cfg[k] = os.path.join(ROOT, os.path.expanduser(cfg[k]))
+    return cfg
 
 
 def sourcing(part_number, name=None, price=None, cfg=None):

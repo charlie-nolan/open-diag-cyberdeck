@@ -5,7 +5,7 @@ imports `app/procedures.py`, `kb/kb_retriever.py`, `app/live_data.py`, `app/comm
 `app/vehicle_id.py` and `app/ssm_reader.py` without changing them.
 
 ```sh
-cd ~/subaru_cyberdeck
+cd ~/open-diag-cyberdeck
 venv/bin/python -m diagent test                      # scripted fake-the user scenarios, log in logs/diagent/
 venv/bin/python -m diagent test --agent pc           # same scenarios with Qwen3.6 35B (only when the GPU is free)
 venv/bin/python -m diagent gen [--seed N]            # rewrite the script-chosen scenarios (diagent/scenarios/gen_*.json)

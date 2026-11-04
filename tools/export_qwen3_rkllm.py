@@ -9,7 +9,7 @@ installed (the toolkit wheel must be the same version as the Pi runtime: v1.3.1)
   python tools/export_qwen3_rkllm.py --only fast     # just Qwen3-1.7B
   python tools/export_qwen3_rkllm.py --hf Qwen/Qwen3-8B --name Qwen3-8B   # any other model
 
-Output goes to ~/subaru_cyberdeck/models/rkllm/<name>_W8A8_RK3588.rkllm, which is where
+Output goes to models/rkllm/<name>_W8A8_RK3588.rkllm, which is where
 app/config.json looks. Copy that folder to the Pi.
 
 RAM: float32 export needs roughly 4-5x the model's fp16 size in system RAM

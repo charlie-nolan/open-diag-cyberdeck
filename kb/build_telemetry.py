@@ -20,7 +20,7 @@ Steps (each takes --make <db name> or --all; run them in this order):
   report  coverage table (manual / CHARM / generic / none per parameter, pathways, cable reads), definition
           comparison for parameters both cables read, and a 20 + 20 spot-check sample with its cited page.
 
-  ~/subaru_cyberdeck/venv/bin/python kb/build_telemetry.py --make subaru params zones paths embed merge report
+  venv/bin/python kb/build_telemetry.py --make subaru params zones paths embed merge report
 Log: logs/telemetry_<make>.log. Never talks to a car.
 """
 import argparse
@@ -1209,7 +1209,7 @@ def step_replay(make, session_db, car_text):
     for one car ('Model,Year[,Engine]'). The reader isn't stored with old samples, so both label sets are tried
     and the one that reads more values is used. Prints a status count per parameter."""
     if not os.path.isfile(session_db):
-        sys.exit(f"{session_db} not found (copy the deck's ~/subaru_cyberdeck/session_active.db here first)")
+        sys.exit(f"{session_db} not found (copy the deck's session_active.db here first)")
     parts = [x.strip() for x in (car_text or "").split(",")]
     car = {"model": parts[0] if parts else None, "year": parts[1] if len(parts) > 1 else None,
            "engine": parts[2] if len(parts) > 2 else None, "db": master_path(make)}

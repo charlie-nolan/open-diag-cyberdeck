@@ -3,11 +3,12 @@
 # decoding only) restored into a local PostgreSQL. After this, the app's VIN decode (vehicle_id.nhtsa_decode)
 # asks this database first: year, make, model, trim, engine, transmission, drive for any 1981+ US-market VIN,
 # no internet needed. Safe to re-run (it skips what's done).
-#   bash ~/subaru_cyberdeck/tools/vpic_setup.sh            # newest month NHTSA lists
-#   bash ~/subaru_cyberdeck/tools/vpic_setup.sh 2026_10    # a given month
+#   bash tools/vpic_setup.sh            # newest month NHTSA lists
+#   bash tools/vpic_setup.sh 2026_10    # a given month
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 set -e
 MONTH=${1:-2026_10}
-DIR=~/subaru_cyberdeck/raw/vpic
+DIR=$CK/raw/vpic
 ZIP=vPICList_lite_${MONTH}.custom.zip
 
 echo "== 1/5 PostgreSQL (asks for your password once)"
@@ -36,7 +37,7 @@ psql -d vpic -Atc "SELECT row_to_json(t) FROM vpic.spVinDecode('JF1SF6557YH71234
     grep -iE '"(make|model|model year|displacement \(l\)|transmission style)"' | head -8 || true
 
 echo "== 5/5 app check"
-~/subaru_cyberdeck/venv/bin/python -c "
-import sys; sys.path.insert(0, '$HOME/subaru_cyberdeck/app')
+$CK/venv/bin/python -c "
+import sys; sys.path.insert(0, '$CK/app')
 import vpic_local; print(vpic_local.vpic_decode('JF1SF6557YH712345'))"
 echo "Done. The app now decodes VINs offline on this PC."

@@ -10,7 +10,7 @@ from .case import Case, Note, HOME
 from .kb import KB, Vehicle
 
 DEFAULTS = {
-    "kb_dir": "~/subaru_cyberdeck/kb",
+    "kb_dir": os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "kb"),
     "make": "subaru",
     "labor_rate": 100.0,
     "tax_rate": 0.0,

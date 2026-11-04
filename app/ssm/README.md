@@ -32,7 +32,7 @@ Tested against a simulated ECU (SYS ID A11001, P0303+P0304 set): it decoded 67 l
 ## First run on the car (KKL cable, key ON)
 
 ```bash
-cd ~/subaru_cyberdeck/app/ssm
+cd ~/open-diag-cyberdeck/app/ssm
 python3 ssm2_capabilities.py --live     # saves ecu_init_reply.hex, prints supported data + DTCs + switches
 ```
 

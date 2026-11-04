@@ -1,5 +1,5 @@
 -- Proposed addition to kb/subaru.db (owner: kb/build_subaru_kb.py), loaded from cards.db by a new
--- builder step, e.g. `build_subaru_kb.py cards ~/subaru_cyberdeck/kb/cards.db`, run before `embed` and `finish`.
+-- builder step, e.g. `build_subaru_kb.py cards kb/cards.db`, run before `embed` and `finish`.
 -- Same columns as cards.db's dtc_card, so the step is: ATTACH cards.db; DELETE FROM dtc_card;
 -- INSERT INTO dtc_card SELECT * FROM c.dtc_card; INSERT INTO dtc_card_fts(dtc_card_fts) VALUES('rebuild').
 

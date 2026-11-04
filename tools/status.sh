@@ -1,8 +1,8 @@
 #!/bin/bash
 # One screen of what's running on the PC.
-#   bash ~/subaru_cyberdeck/tools/status.sh            # everything
-#   bash ~/subaru_cyberdeck/tools/status.sh charm      # one job: charm | nhtsa | telemetry | photos | reddit | dbs | disk | gpu | ollama
-CK=~/subaru_cyberdeck
+#   bash tools/status.sh            # everything
+#   bash tools/status.sh charm      # one job: charm | nhtsa | telemetry | photos | reddit | dbs | disk | gpu | ollama
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 L=$CK/logs
 SEA="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}"
 up() { pgrep -f "$1" >/dev/null && echo "running" || echo "stopped"; }

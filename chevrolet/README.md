@@ -4,7 +4,7 @@ Same steps as the Subaru build, driven by a profile. Nothing about the Tahoe is 
 `profiles/chevrolet_tahoe_gmt800.json` (make, years 2000-2006 = the GMT800 Tahoe, CHARM/NHTSA names, subreddits,
 forums, regexes). For another car or make, copy the profile.
 
-PC copy: `~/subaru_cyberdeck/chevrolet/`. Output:
+PC copy: `~/open-diag-cyberdeck/chevrolet/`. Output:
 
 | What | Where | Source |
 |---|---|---|
@@ -18,7 +18,7 @@ PC copy: `~/subaru_cyberdeck/chevrolet/`. Output:
 ## Run
 
 ```
-setsid nohup ~/subaru_cyberdeck/chevrolet/run_all.sh > ~/subaru_cyberdeck/logs/chevrolet_pipeline.log 2>&1 &
+setsid nohup ~/open-diag-cyberdeck/chevrolet/run_all.sh > ~/open-diag-cyberdeck/logs/chevrolet_pipeline.log 2>&1 &
 ```
 Add the Tahoe's VIN after `run_all.sh` to decode it too. The log ends with `ALL DONE`, then `status` prints one
 summary. Every step can be re-run alone: `python3 make_pipeline.py chevrolet_tahoe_gmt800.json <step>`.

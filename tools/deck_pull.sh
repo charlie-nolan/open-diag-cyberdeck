@@ -1,15 +1,16 @@
 #!/bin/bash
 # RUN ON THE DECK. Pulls the app and every finished, useful DB from the PC over Tailscale.
-#   bash ~/subaru_cyberdeck/tools/deck_pull.sh                  # app + Subaru + Tahoe + general + VIN/ECU tables
-#   bash ~/subaru_cyberdeck/tools/deck_pull.sh toyota honda     # also these makes' DBs (file names in kb/)
-#   bash ~/subaru_cyberdeck/tools/deck_pull.sh --all-makes      # also every other finished make (~70 GB)
+#   bash tools/deck_pull.sh                  # app + Subaru + Tahoe + general + VIN/ECU tables
+#   bash tools/deck_pull.sh toyota honda     # also these makes' DBs (file names in kb/)
+#   bash tools/deck_pull.sh --all-makes      # also every other finished make (~70 GB)
 #   A make the PC is still building is skipped (a copy now could be half-written); everything else is copied.
 #   Run it again any time: only new or changed files are sent. --force copies even makes being built.
 # rsync writes each file to a temp name and renames it when complete, so a cut connection never leaves a broken DB;
 # re-running only sends what changed. Files that don't exist yet on the PC are skipped quietly.
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 PC=${CYBERDECK_PC:?set CYBERDECK_PC=user@your-pc (e.g. its Tailscale name)}
-R=subaru_cyberdeck            # same folder name on both machines
-L=~/subaru_cyberdeck
+R=$(basename "$CK")           # same folder name in both home directories
+L=$CK
 FORCE=0; ALL=0; EXTRA=()
 for x in "$@"; do case $x in --force) FORCE=1;; --all-makes) ALL=1;; *) EXTRA+=("$x");; esac; done
 
@@ -36,7 +37,7 @@ if [ $ALL = 1 ]; then   # every make DB the PC has finished (a kb/.<make>.done m
     echo "--all-makes: ${#EXTRA[@]} makes, $(( ${need:-0} / 1000000000 )) GB (deck has $(df -h --output=avail "$L" | tail -1 | tr -d ' ') free)"
 fi
 mkdir -p "$L/kb/community" "$L/tools"
-pull() {   # pull <remote path relative to ~/subaru_cyberdeck> <local dir>
+pull() {   # pull <remote path relative to the PC checkout> <local dir>
     rsync -a --partial --ignore-missing-args --info=progress2,name1 -e ssh "$PC:$R/$1" "$2"
 }
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Download the public sources for kb/general.db to the Seagate, build it, then embed + finish
-# once make_full / the GPU lock are gone. Log: ~/subaru_cyberdeck/logs/general_kb.log
+# once make_full / the GPU lock are gone. Log: logs/general_kb.log
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 set -u
-ROOT=~/subaru_cyberdeck
+ROOT=$CK
 cd "$ROOT" || exit 1
 SG="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}"
 RAW=""

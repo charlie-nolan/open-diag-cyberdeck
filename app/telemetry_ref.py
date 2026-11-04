@@ -574,7 +574,7 @@ def summary(judged, budget=1500, car=None, db=None, paths_per=2):
 
 
 # ---------------------------------------------------------------------------------- capabilities
-SEEN_DB = os.path.expanduser("~/subaru_cyberdeck/cache/telemetry_seen.db")
+SEEN_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cache", "telemetry_seen.db")
 
 
 def _seen(path=None, write=False):

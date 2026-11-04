@@ -9,13 +9,13 @@
 #   ./run_bake.sh cards         job 2 for the Forester (MODEL_ARGS to change car/years)
 #   ./run_bake.sh all           extract, then cards
 # Detached, so it survives closing the terminal:
-#   setsid nohup ./run_bake.sh all > ~/subaru_cyberdeck/logs/bake.log 2>&1 &
+#   setsid nohup ./run_bake.sh all > logs/bake.log 2>&1 &
 # NO_WAIT=1 stops conversion/embedding runs instead of waiting for them.
 set -euo pipefail
 ME="${USER:-$(id -un)}"
 cd "$(dirname "$0")"
 STEP="${1:-sample}"
-CK=~/subaru_cyberdeck
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 REDDIT="${REDDIT:-$CK/raw/reddit/reddit_subaru.db}"
 FORUM="${FORUM:-$CK/raw/forums/ultimatesubaru.db}"
 DIAG_DB="${DIAG_DB:-$CK/subaru_diag.db}"

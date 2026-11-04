@@ -1,5 +1,5 @@
 """app/drive_file.py: drive logs survive a crash and read back.
-    ~/subaru_cyberdeck/venv/bin/python -m unittest kb/tests/test_drive_file.py
+    python -m pytest kb/tests/test_drive_file.py
 """
 import os
 import sys

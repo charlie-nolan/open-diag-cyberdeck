@@ -1,6 +1,6 @@
 """python3 -m unittest discover -s tests   (from the shopdeck folder)
 
-Most tests need the knowledge database: set SHOPDECK_KB=/path/to/subaru.db, else ~/subaru_cyberdeck/kb/subaru.db.
+Most tests need the knowledge database: set SHOPDECK_KB=/path/to/subaru.db, else kb/subaru.db in this checkout.
 They check behaviour across several cars and codes, not one car's case."""
 import os
 import tempfile
@@ -12,7 +12,7 @@ from shopdeck import chart as C
 from shopdeck import repair as R
 from shopdeck.case import Case, Note
 
-KB_PATH = os.environ.get("SHOPDECK_KB", os.path.expanduser("~/subaru_cyberdeck/kb/subaru.db"))
+KB_PATH = os.environ.get("SHOPDECK_KB", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "kb", "subaru.db"))
 HAVE_KB = os.path.isfile(KB_PATH)
 
 

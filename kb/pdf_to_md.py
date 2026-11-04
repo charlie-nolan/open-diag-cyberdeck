@@ -8,17 +8,17 @@ ECM and chas"), so their step charts can't be walked. These PDFs have a real tex
 so reading them directly keeps every word and every cell in its column. No GPU, no OCR, no guessing.
 
 Output, next to marker's output so load_manuals.sh picks it up (it prefers <name>.fixed.md):
-  ~/subaru_cyberdeck/test_batch_out/<name>/<name>.fixed.md
+  test_batch_out/<name>/<name>.fixed.md
 An existing .fixed.md is kept as <name>.fixed.md.bak-<date> (never deleted).
 Figures (raster images and vector drawings such as wiring diagrams) are saved as
   _page_<N>_Figure_<M>.jpeg    (distinct from marker's _Picture_ files; ship_images.py finds figures by the names in the text)
 
 Run on the desktop (needs: pip install pymupdf):
-  python3 ~/subaru_cyberdeck/kb/pdf_to_md.py --list                # which manuals, done or not
-  python3 ~/subaru_cyberdeck/kb/pdf_to_md.py                       # all the damaged ones
-  python3 ~/subaru_cyberdeck/kb/pdf_to_md.py --only 2009           # names containing "2009"
-  python3 ~/subaru_cyberdeck/kb/pdf_to_md.py --only 2004 --pages 500-520 --out /tmp/try   # quick look
-  python3 ~/subaru_cyberdeck/kb/pdf_to_md.py --no-images           # text only, faster
+  python3 kb/pdf_to_md.py --list                # which manuals, done or not
+  python3 kb/pdf_to_md.py                       # all the damaged ones
+  python3 kb/pdf_to_md.py --only 2009           # names containing "2009"
+  python3 kb/pdf_to_md.py --only 2004 --pages 500-520 --out /tmp/try   # quick look
+  python3 kb/pdf_to_md.py --no-images           # text only, faster
 """
 import argparse
 import bisect

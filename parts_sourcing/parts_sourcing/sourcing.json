@@ -1,8 +1,8 @@
 {
   "home_zip": "98101",
   "yard_radius_miles": 100,
-  "kb_db": "~/subaru_cyberdeck/kb/subaru.db",
-  "yards_db": "~/subaru_cyberdeck/kb/yards.db",
+  "kb_db": "kb/subaru.db",
+  "yards_db": "kb/yards.db",
   "car": {
     "make": "Subaru",
     "model": "Forester",

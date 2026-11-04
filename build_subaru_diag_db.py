@@ -15,7 +15,7 @@ Steps (run any subset, in any order; each one is re-runnable):
   index      rebuild DTC cross-links and the full-text search index
 
 Examples:
-  python3 build_subaru_diag_db.py fsm --knowledge-db ~/subaru_cyberdeck/test_subaru_knowledge.db \
+  python3 build_subaru_diag_db.py fsm --knowledge-db test_subaru_knowledge.db \
       --model Forester --chassis SF --years 2002 --engine EJ251
   python3 build_subaru_diag_db.py download nhtsa index
   python3 build_subaru_diag_db.py romraider --xml ~/Downloads/logger_STD_EN_v370.xml index

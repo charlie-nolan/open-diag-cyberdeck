@@ -16,12 +16,12 @@ Size: 43.9 MB, of which the FSM part is 7.1 MB (compared with 16.7 MB for `test_
 ## Rebuild
 
 ```
-cd ~/subaru_cyberdeck/kb
+cd ~/open-diag-cyberdeck/kb
 python3 build_subaru_kb.py fsm "../test_batch_out/USDM Forester FSM 2002 G8050BE_V1 (SF)/USDM Forester FSM 2002 G8050BE_V1 (SF).md" \
     --model Forester --chassis SF --years 2002 --engines EJ251 --title "USDM Forester FSM 2002 G8050BE"
 python3 build_subaru_kb.py diag ../subaru_diag.db
-~/subaru_cyberdeck/venv/bin/python build_subaru_kb.py charm --charm ~/mnt/charm   # Operation CHARM, needs the image mounted
-python3 build_subaru_kb.py cards ~/subaru_cyberdeck/kb/cards.db    # pre-baked DTC cards (card_baking/), if built
+~/open-diag-cyberdeck/venv/bin/python build_subaru_kb.py charm --charm ~/mnt/charm   # Operation CHARM, needs the image mounted
+python3 build_subaru_kb.py cards ~/open-diag-cyberdeck/kb/cards.db    # pre-baked DTC cards (card_baking/), if built
 python3 build_subaru_kb.py embed        # optional, desktop GPU only (see below)
 python3 build_subaru_kb.py finish
 ```
@@ -52,7 +52,7 @@ The Pi doesn't need it. FTS5 finds the right FSM procedure for part names, DTCs 
 
 ```python
 from kb_retriever import Retriever
-retriever = Retriever("~/subaru_cyberdeck/kb/subaru.db", model="Forester", year=2002)
+retriever = Retriever("~/open-diag-cyberdeck/kb/subaru.db", model="Forester", year=2002)
 ```
 
 It also adds `card(code)` (the pre-baked diagnostic card for this car, which `context_for()` puts first), `section(id)`, `refs(id)` (follow the FSM's cross references) and `knowledge(text)` (TSBs and complaints once they're loaded). It knows a few shop-word synonyms. For example, "exhaust manifold" also searches "front exhaust pipe", because that's what the SF manual calls it.

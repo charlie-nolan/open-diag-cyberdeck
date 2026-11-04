@@ -178,7 +178,7 @@ def step_check(c):
     line(shutil.which("aria2c"), "aria2c", "sudo pacman -S aria2")
     line(glob.glob(c.path("raw/reddit/pushshift/*.torrent")), "Pushshift subreddits torrent file")
     free = shutil.disk_usage(c.root).free / 1e9
-    line(free > 60, f"{free:.0f} GB free on the subaru_cyberdeck disk", "want 60+ GB for dumps")
+    line(free > 60, f"{free:.0f} GB free on the checkout's disk", "want 60+ GB for dumps")
     print("check:", "ALL PASS" if ok else "some FAIL (steps that need them will say so)")
 
 
@@ -911,7 +911,7 @@ def main():
     ap.add_argument("step", choices=["check", "nhtsa", "vin", "charm-list", "kb", "dtc-names", "reddit-get", "reddit",
                                      "forums", "gm-pids", "embed", "status"])
     ap.add_argument("xlsx", nargs="?", help="gm-pids: optional community PID .xlsx (comma list); PCMHammer is read from raw/pcmhammer")
-    ap.add_argument("--root", default="~/subaru_cyberdeck")
+    ap.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     ap.add_argument("--vin", action="append", help="vin: also decode this VIN (repeatable)")
     ap.add_argument("--topup", action="store_true", help="reddit: also pull 2025+ posts from the Arctic Shift API")
     ap.add_argument("--only", help="forums: comma list of forum names")

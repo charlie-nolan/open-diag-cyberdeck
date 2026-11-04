@@ -3,10 +3,10 @@
 #   wait for extract -> backup subaru.db -> builder diag (forum fixes into subaru.db) -> bake cards
 #   -> builder cards -> builder finish -> embed new/changed rows (after finish, so card rowids stay put)
 # Detached:
-#   setsid nohup ~/subaru_cyberdeck/card_baking/after_extract.sh > ~/subaru_cyberdeck/logs/after_extract.log 2>&1 &
+#   setsid nohup card_baking/after_extract.sh > logs/after_extract.log 2>&1 &
 set -uo pipefail
 ME="${USER:-$(id -un)}"
-CK=~/subaru_cyberdeck
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 KB=$CK/kb
 cd "$(dirname "$0")"
 log() { echo "$(date '+%F %T') $*"; }

@@ -2,14 +2,15 @@
 # Build one knowledge DB per make from the mounted CHARM text image: charm -> finish -> embed (GPU) -> finish.
 # Reads kb/charm_make_groups.txt ("db|Make,Make Truck"). Skips subaru (built separately) and any make
 # with a kb/.<db>.done marker, so re-running continues where it stopped.
-#   setsid nohup bash ~/subaru_cyberdeck/tools/build_charm_all.sh >> ~/subaru_cyberdeck/logs/charm_text_all.log 2>&1 &
+#   setsid nohup bash tools/build_charm_all.sh >> logs/charm_text_all.log 2>&1 &
+CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 set -o pipefail
 # one copy at a time: two loops writing the same DBs gave 'database is locked' and GPU out-of-memory (Oct 23)
-exec 8>~/subaru_cyberdeck/.charm_loop.lock
+exec 8>$CK/.charm_loop.lock
 flock -n 8 || { echo "another build_charm_all.sh is already running"; exit 1; }
-P=~/subaru_cyberdeck/venv/bin/python
-B=~/subaru_cyberdeck/kb/build_subaru_kb.py
-KB=~/subaru_cyberdeck/kb
+P=$CK/venv/bin/python
+B=$CK/kb/build_subaru_kb.py
+KB=$CK/kb
 ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"
 export HF_HUB_OFFLINE=1   # the embedding model is already cached
 failed=""
