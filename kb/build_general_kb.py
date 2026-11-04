@@ -13,6 +13,8 @@ Extra tables (citation + filtering):
   source(doc_id, url, publisher, license, era, file, sha256, fetched)
   section_tag(section_id, tag)   tags from words in the passage itself: carburetor, breaker_points,
                                  diesel, efi, obd2. Lets the app skip carburetor-era text on an EFI car.
+Each file's sha256 is checked against sources.json before it is loaded; a mismatch or a missing
+hash is an [ERROR] line in the report and that source is skipped.
 Re-running rebuilds the DB from scratch (old file kept as general.db.bak-<date>).
 """
 import argparse, hashlib, html, json, os, re, shutil, sqlite3, sys, time
@@ -211,6 +213,17 @@ def load_wiki(conn, doc_id, path, stats):
         add_section(conn, doc_id, title, h, h, None, body, stats)
 
 
+def content_sha256(path, kind):
+    """The digest fetch_general.py recorded: the file's bytes (pdf, html), the article text (wiki json)."""
+    if kind == "wiki":
+        return hashlib.sha256(json.load(open(path))["extract"].encode()).hexdigest()
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--raw", required=True)
@@ -231,6 +244,15 @@ def main():
         path = os.path.join(a.raw, rel)
         if not os.path.exists(path):
             report.append(f"[MISSING FILE] {rel}"); continue
+        kind = r.get("type", "pdf")
+        try:
+            digest = content_sha256(path, kind)
+        except Exception as e:
+            report.append(f"[ERROR] {rel}: can't hash: {e!r}"); continue
+        if not r.get("sha256"):
+            report.append(f"[ERROR] {rel}: no sha256 in sources.json, not loaded"); continue
+        if digest != r["sha256"]:
+            report.append(f"[ERROR] {rel}: sha256 {digest[:12]} on disk, {r['sha256'][:12]} in sources.json"); continue
         title = (r.get("title") or rel)[:200]
         if conn.execute("SELECT 1 FROM doc WHERE title=?", (title,)).fetchone():
             title = f"{title} [{os.path.basename(rel)}]"
@@ -239,17 +261,17 @@ def main():
         doc_id = cur.lastrowid
         conn.execute("INSERT INTO source VALUES (?,?,?,?,?,?,?,?,?)",
                      (doc_id, r.get("url"), r.get("publisher"), r.get("license"), r.get("era"), rel,
-                      r.get("sha256"), r.get("fetched"), r.get("item") or r.get("found_on")))
+                      digest, r.get("fetched"), r.get("item") or r.get("found_on")))
         stats = dict(kept=0, dup=0, pages=0, scan_pages=0)
         try:
             {"pdf": lambda: load_pdf(conn, doc_id, path, stats),
              "html": lambda: load_html(conn, doc_id, path, title, stats),
-             "wiki": lambda: load_wiki(conn, doc_id, path, stats)}[r.get("type", "pdf")]()
+             "wiki": lambda: load_wiki(conn, doc_id, path, stats)}[kind]()
         except Exception as e:
             report.append(f"[ERROR] {rel}: {e!r}")
         conn.commit()
         line = f"{stats['kept']:5} passages  {title}"
-        if r.get("type", "pdf") == "pdf":
+        if kind == "pdf":
             line += f"  ({stats['pages']} text pages, {stats['scan_pages']} scan/empty pages)"
         report.append(line)
         print(line, flush=True)
