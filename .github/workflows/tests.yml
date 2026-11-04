@@ -1,0 +1,25 @@
+name: tests
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.14"]     # the deck's Ubuntu 24.04 Python, and the build PC's
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Qt runtime libraries (the GUI module is imported, never shown)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+      - name: Test dependencies
+        run: pip install pytest PyQt6 obd
+      - name: Tests (no data files; tests that need a built DB or the RomRaider XML skip and say why)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest

@@ -448,13 +448,14 @@ about 7/10 if you're comfortable working around airbags, 8-9/10 if you're not, b
 ## Tests
 
 ```bash
-cd kb && ../venv/bin/python -m pytest tests            # telemetry, OBD PID decoding, community refs
-cd shopdeck && ../venv/bin/python -m pytest tests
-cd parts_sourcing && ../venv/bin/python -m pytest tests
+venv/bin/python -m pytest                               # every suite (pytest.ini); no data files needed
 venv/bin/python -m diagent test                          # needs kb/subaru.db + generated scenarios
 ```
 
-Tests that need data you haven't built are skipped.
+The suite covers the quote checks behind the community data, the telemetry zone parser, unit handling in live
+data, NHTSA layout checks, source hashes, OBD-II decoding against simulated adapters, verdict parsing and the
+parts tools. Tests that need a database you haven't built skip and say why. GitHub Actions runs it on every
+push (`.github/workflows/tests.yml`).
 
 ## How this was built
 
