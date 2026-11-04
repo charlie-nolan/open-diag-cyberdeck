@@ -466,6 +466,15 @@ def parse_values(text, unit_hint=None):
     return out
 
 
+def numbers_quoted(lo, hi, typ, quote):
+    """Every bound to be stored appears as a number in the quoted source text. 'mid ± tol' bounds are
+    computed, so a zone with a typical value passes on its mid and tolerance (parse_values read them there)."""
+    if typ is not None:
+        return True
+    qnums = {round(_f(x), 4) for x in re.findall(NUM, quote.replace("°", " "))}
+    return all(v is None or round(v, 4) in qnums or round(-v, 4) in qnums for v in (lo, hi))
+
+
 def _cond_after(part, end):
     rest = part[end:].strip(" :)(")
     return rest[:120]
@@ -851,12 +860,7 @@ def step_zones(make, limit=0):
                 k2, u2 = ku
                 vs = {v.upper().replace("/", "") for v in VARIANT_RX.findall(f"{ctext} {mine}")}
                 variant = vhint or (vs.pop() if len(vs) == 1 else None)
-                # Python check: every number stored must appear in the quoted source text
-                qnums = {round(_f(x), 4) for x in re.findall(NUM, quote.replace("°", " "))}
-                for v in (lo, hi):
-                    if v is not None and round(v, 4) not in qnums and round(-v, 4) not in qnums and typ is None:
-                        break
-                else:
+                if numbers_quoted(lo, hi, typ, quote):
                     cname, clabel, cdef, ckind = cl[0]
                     lo, hi, typ = (round(x, 4) if x is not None else None for x in (lo, hi, typ))
                     conds[cname] = (clabel, cdef, ckind, (pcond or ctext)[:300])

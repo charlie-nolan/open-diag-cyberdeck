@@ -712,9 +712,13 @@ def supported(value, quote):
     return not v or bool(v & content_tokens(quote))
 
 
+def _no_thousands(s):
+    return re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", s or "")     # '120,000' -> '120000' (norm() would split it)
+
+
 def numbers_in(value, quote):
-    nums = re.findall(r"\d+(?:\.\d+)?", value or "")
-    qn = norm(quote).replace(",", "")
+    nums = re.findall(r"\d+(?:\.\d+)?", _no_thousands(value))
+    qn = norm(_no_thousands(quote))
     return all(re.search(rf"(?<![0-9.]){re.escape(n)}(?![0-9])", qn) for n in nums)
 
 

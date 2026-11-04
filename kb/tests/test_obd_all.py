@@ -15,11 +15,13 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "app"))
 import live_data  # noqa: E402
-import obd  # noqa: E402
-import obd_all  # noqa: E402
 import telemetry_ref as T  # noqa: E402
-
-obd.logger.setLevel(100)
+try:
+    import obd  # noqa: E402
+    import obd_all  # noqa: E402
+    obd.logger.setLevel(100)
+except ImportError:            # python-obd is a deck dependency (requirements.txt), not needed for the KB tests
+    obd = None
 
 
 def bitmap(pids, base):
@@ -132,6 +134,7 @@ def core(extra):
     return v
 
 
+@unittest.skipIf(obd is None, "python-obd not installed")
 class Cars(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
