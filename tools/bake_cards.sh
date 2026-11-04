@@ -9,17 +9,18 @@
 # GPU job runs; unloads Ollama's models, so Cyberdeck Home is slow until it finishes.
 # Log: logs/bake_cards_<make>.log   Resumable: cards already built are skipped.
 CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
+set -euo pipefail
 P=$CK/venv/bin/python
 KB=$CK/kb
 . "$CK/tools/gpu_guard.sh"
 DRY=0; A=()
 for x in "$@"; do [ "$x" = "--dry-run" ] && DRY=1 || A+=("$x"); done
-SLUG=${A[0]}; MODEL=${A[1]}; YEARS=${A[2]}
-[ -n "$SLUG" ] || { sed -n 2,11p "$0"; exit 2; }
+SLUG=${A[0]:-}; MODEL=${A[1]:-}; YEARS=${A[2]:-}
+[ -n "$SLUG" ] || { sed -n '2,/^[^#]/p' "$0" | grep '^#'; exit 2; }
 DB=$KB/$SLUG.db; [ -f "$DB" ] || DB="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build/$SLUG.db"
 [ -f "$DB" ] || { echo "no DB for $SLUG yet (CHARM build not done)"; exit 1; }
 WORK=$KB/bake_work_$SLUG.db
-MAKE=$($P -c "import json; print(json.load(open('$CK/chevrolet/profiles/makes/$SLUG.json'))['make'])" 2>/dev/null || echo "$SLUG")
+MAKE=$($P -c 'import json, sys; print(json.load(open(sys.argv[1]))["make"])' "$CK/chevrolet/profiles/makes/$SLUG.json" 2>/dev/null || echo "$SLUG")
 
 if [ -z "$MODEL" ]; then
     echo "Models in $SLUG.db, most DTC procedures first (pick one; forum fixes count if step e ran):"
@@ -28,7 +29,7 @@ if [ -z "$MODEL" ]; then
     exit 0
 fi
 [ -f "$WORK" ] || { echo "no forum-fix work DB ($WORK): run make_full.sh $SLUG first (step e)"; exit 1; }
-[ -n "$YEARS" ] || YEARS=$(sqlite3 -readonly "$DB" "SELECT min(year)||'-'||max(year) FROM vehicle WHERE model='$MODEL'")
+[ -n "$YEARS" ] || YEARS=$(sqlite3 -readonly "$DB" "SELECT min(year)||'-'||max(year) FROM vehicle WHERE model='${MODEL//\'/\'\'}'")
 OUT=$KB/cards_$SLUG.db
 CMD=("$P" "$CK/card_baking/bake_cards.py" --make "$MAKE" --model "$MODEL" --years "$YEARS" --kb "$DB" --kb-dir "$KB"
      --work "$WORK" --out "$OUT")
@@ -43,7 +44,7 @@ exec > >(tee -a "$CK/logs/bake_cards_$SLUG.log") 2>&1
 trap 'kill $SRV 2>/dev/null' EXIT
 for _ in $(seq 720); do curl -sf http://127.0.0.1:8081/health >/dev/null && break; kill -0 $SRV || { echo "llama-server died, see logs/serve_cards_$SLUG.log"; exit 1; }; sleep 5; done
 "${CMD[@]}" || exit 1
-kill $SRV; wait $SRV 2>/dev/null; trap - EXIT
+kill $SRV; wait $SRV 2>/dev/null || true; trap - EXIT
 "$P" "$KB/build_subaru_kb.py" --db "$DB" cards "$OUT" &&
 "$P" "$KB/build_subaru_kb.py" --db "$DB" embed --missing --only dtc_card &&
 "$P" "$KB/build_subaru_kb.py" --db "$DB" finish && echo "cards for $MAKE $MODEL $YEARS are in $DB"

@@ -529,18 +529,22 @@ def step_lookup(conn, a):
               + (f"  SSM tmp {tmp}" if tmp else ""))
     n = conn.execute("SELECT count(*) FROM dtc_procedure WHERE code=?", (code,)).fetchone()[0]
     print(f"  FSM procedure chunks: {n}")
-    where, args = "m.code=?", [code]
-    if model:
-        where += " AND upper(t.model) LIKE ?"
-        args.append(f"%{model}%")
-    if a.year:
-        where += " AND t.model_year=?"
-        args.append(a.year)
+    def filt(t):        # the code/model/year filter for the table aliased t (tsb or complaint)
+        where, args = "m.code=?", [code]
+        if model:
+            where += f" AND upper({t}.model) LIKE ?"
+            args.append(f"%{model}%")
+        if a.year:
+            where += f" AND {t}.model_year=?"
+            args.append(a.year)
+        return where, args
+
+    where, args = filt("t")
     for bno, y, summ in conn.execute(
             f"SELECT DISTINCT t.bulletin_no, t.model_year, substr(t.summary,1,160) FROM dtc_mention m "
             f"JOIN tsb t ON m.kind='tsb' AND t.nhtsa_id=m.ref WHERE {where} LIMIT 10", args):
         print(f"  TSB {bno} ({y}): {summ}")
-    cwhere = where.replace("t.", "c.")
+    cwhere, args = filt("c")
     cnt = conn.execute(
         f"SELECT count(*), avg(c.miles) FROM dtc_mention m JOIN complaint c "
         f"ON m.kind='complaint' AND c.cmpl_id=m.ref WHERE {cwhere}", args).fetchone()

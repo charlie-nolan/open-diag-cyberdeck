@@ -13,15 +13,16 @@ B=$CK/kb/build_subaru_kb.py
 KB=$CK/kb
 ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"
 export HF_HUB_OFFLINE=1   # the embedding model is already cached
+STEP_TIMEOUT=${STEP_TIMEOUT:-24h}     # a hung step is killed after this; that make fails, the loop goes on
 failed=""
 # step PATTERN ARGS...: run one builder step on $out, show matching lines (or the last line when PATTERN
 # is empty), return the builder's own exit code.
 step() {
     local pat=$1 rc; shift
     if [ -n "$pat" ]; then
-        "$P" "$B" --db "$out" "$@" < /dev/null 2>&1 | { grep -E "$pat" || true; }; rc=${PIPESTATUS[0]}
+        timeout -k 60 "$STEP_TIMEOUT" "$P" "$B" --db "$out" "$@" < /dev/null 2>&1 | { grep -E "$pat" || true; }; rc=${PIPESTATUS[0]}
     else
-        "$P" "$B" --db "$out" "$@" < /dev/null 2>&1 | tail -1; rc=${PIPESTATUS[0]}
+        timeout -k 60 "$STEP_TIMEOUT" "$P" "$B" --db "$out" "$@" < /dev/null 2>&1 | tail -1; rc=${PIPESTATUS[0]}
     fi
     return "$rc"
 }

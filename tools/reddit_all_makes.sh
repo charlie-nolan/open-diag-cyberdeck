@@ -5,6 +5,9 @@
 #   setsid nohup bash tools/reddit_all_makes.sh >> logs/reddit_all_makes.log 2>&1 &
 CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
 set -o pipefail
+# one copy at a time; make_full.sh checks this lock to know the loop is running
+exec 8>"$CK/.reddit_loop.lock"
+flock -n 8 || { echo "another reddit_all_makes.sh is already running"; exit 1; }
 P=$CK/venv/bin/python
 MP=$CK/chevrolet/make_pipeline.py
 PR=$CK/chevrolet/profiles/makes

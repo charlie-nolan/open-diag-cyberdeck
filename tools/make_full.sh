@@ -10,24 +10,27 @@
 # GPU steps (e, f) refuse to start while another GPU job runs; they unload Ollama's models first, so
 # Cyberdeck Home's PC models are slow until they finish.
 CK=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)   # the checkout this script is in
+set -euo pipefail
 P=$CK/venv/bin/python
 KB=$CK/kb
 ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"
 PROF=$CK/chevrolet/profiles/makes
 . "$CK/tools/gpu_guard.sh"
 export HF_HUB_OFFLINE=1
+STEP_TIMEOUT=${STEP_TIMEOUT:-24h}     # a hung Python step is killed after this and counts as failed
 
 DRY=0; ARGS=()
 for x in "$@"; do [ "$x" = "--dry-run" ] && DRY=1 || ARGS+=("$x"); done
-[ ${#ARGS[@]} -eq 1 ] || { sed -n 2,12p "$0"; exit 2; }
+[ ${#ARGS[@]} -eq 1 ] || { sed -n '2,/^[^#]/p' "$0" | grep '^#'; exit 2; }
 
 say() { echo "$(date '+%F %T') [$SLUG] $*"; }
-run() { if [ $DRY = 1 ]; then say "would run: $*"; else say "\$ $*"; "$@"; fi; }
+run() { if [ $DRY = 1 ]; then say "would run: $*"; else say "\$ $*"; timeout -k 60 "$STEP_TIMEOUT" "$@"; fi; }
+running() { [ -e "$1" ] && ! flock -n "$1" true 2>/dev/null; }   # running <lock file>: that loop holds it now
 count() { sqlite3 -readonly "$1" "$2" 2>/dev/null || echo 0; }
 
 one_make() {
     SLUG=$1
-    MAKES=$(grep "^$SLUG|" "$KB/charm_make_groups.txt" | cut -d'|' -f2)
+    MAKES=$(grep "^$SLUG|" "$KB/charm_make_groups.txt" | cut -d'|' -f2 || true)
     [ -n "$MAKES" ] || { say "not in kb/charm_make_groups.txt"; return 1; }
     case $SLUG in subaru) say "skip: built separately"; return 0;; esac
     DB="$KB/$SLUG.db"; [ -f "$DB" ] || { [ -f "$ALT/$SLUG.db" ] && DB="$ALT/$SLUG.db"; }
@@ -35,7 +38,7 @@ one_make() {
     # a. CHARM text
     if [ -f "$KB/.$SLUG.done" ] || [ "$(count "$DB" 'SELECT count(*) FROM section')" -gt 0 ]; then
         say "a. CHARM DB: done ($(du -h "$DB" | cut -f1))"
-    elif pgrep -f build_charm_all.sh >/dev/null; then
+    elif running "$CK/.charm_loop.lock"; then
         say "a. CHARM DB: not built yet, and the per-make CHARM loop is running; it will build $SLUG. Stopping here."
         return 0
     else
@@ -61,7 +64,7 @@ one_make() {
     if [ ! -f "$PROF/$SLUG.json" ]; then say "c. Reddit: no profile (no subreddit for this make in the dump)"
     elif [ "$(count "$RDB" 'SELECT count(*) FROM dump_state WHERE done=0')" = 0 ] && [ -f "$RDB" ]; then
         say "c. Reddit: done ($(count "$RDB" 'SELECT count(*) FROM reddit_post') posts)"
-    elif pgrep -f reddit_all_makes.sh >/dev/null; then
+    elif running "$CK/.reddit_loop.lock"; then
         say "c. Reddit: the all-makes Reddit pull is running and will load $SLUG; re-run after it"
     else
         run "$P" "$CK/chevrolet/make_pipeline.py" "$PROF/$SLUG.json" reddit-get &&
@@ -82,8 +85,8 @@ one_make() {
     elif [ ! -f "$RDB" ]; then say "e. forum fixes: skipped (no Reddit DB)"
     elif ! gpu_free; then say "e. forum fixes: waiting for the GPU; re-run later"; return 0
     else
-        MODELS=$($P -c "import json; print(','.join(json.load(open('$PROF/$SLUG.json'))['models']))")
-        MAKE=$($P -c "import json; print(json.load(open('$PROF/$SLUG.json'))['make'])")
+        MODELS=$($P -c 'import json, sys; print(",".join(json.load(open(sys.argv[1]))["models"]))' "$PROF/$SLUG.json")
+        MAKE=$($P -c 'import json, sys; print(json.load(open(sys.argv[1]))["make"])' "$PROF/$SLUG.json")
         EX=("$P" "$CK/card_baking/extract_fixes.py" --work "$WORK" --make "$MAKE" --models "$MODELS")
         run "${EX[@]}" filter --reddit "$RDB" || return 1
         if [ $DRY = 0 ]; then
@@ -98,7 +101,7 @@ one_make() {
         fi
         run "${EX[@]}" run --parallel 4 && run "${EX[@]}" export --diag-db "$DIAG" &&
         run "$P" "$KB/build_subaru_kb.py" --db "$DB" diag "$DIAG" && { [ $DRY = 1 ] || touch "$KB/.$SLUG.fixes"; }
-        [ $DRY = 1 ] || { kill $SRV 2>/dev/null; wait $SRV 2>/dev/null; trap - EXIT; }
+        [ $DRY = 1 ] || { kill $SRV 2>/dev/null || true; wait $SRV 2>/dev/null || true; trap - EXIT; }
     fi
 
     # f. vectors for everything new (keyword search works without them)
@@ -108,14 +111,16 @@ one_make() {
     # g. finish
     run "$P" "$KB/build_subaru_kb.py" --db "$DB" finish || { say "g. FAILED"; return 1; }
     # h. score, appended to history
-    (cd "$KB" && run "$P" eval_make.py "$DB" --history --label "make_full") | tail -5
+    (cd "$KB" && run "$P" eval_make.py "$DB" --history --label "make_full") | tail -5 || say "h. score FAILED"
     say "done"
 }
 
+failed=""
 if [ "${ARGS[0]}" = "--all" ]; then
     for s in $(cut -d'|' -f1 "$KB/charm_make_groups.txt"); do
-        one_make "$s" 2>&1 | tee -a "$CK/logs/make_full_$s.log"
+        one_make "$s" 2>&1 | tee -a "$CK/logs/make_full_$s.log" || failed="$failed $s"
     done
 else
-    one_make "${ARGS[0]}" 2>&1 | tee -a "$CK/logs/make_full_${ARGS[0]}.log"
+    one_make "${ARGS[0]}" 2>&1 | tee -a "$CK/logs/make_full_${ARGS[0]}.log" || failed=" ${ARGS[0]}"
 fi
+[ -z "$failed" ] || { echo "make_full: FAILED for:$failed"; exit 1; }
