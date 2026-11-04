@@ -250,10 +250,64 @@ def step_download(conn, a):
                   f"https://www.nhtsa.gov/nhtsa-datasets-and-apis and put the zips in {dest_dir}")
 
 
+def _year_ok(v):
+    v = v.strip()
+    return v.isdigit() and (1900 <= int(v) <= 2100 or v == "9999")      # 9999: year not known
+
+
+def _date_ok(v):
+    v = v.strip()
+    return not v or (len(v) == 8 and v.isdigit() and 1900 <= int(v[:4]) <= 2100)
+
+
+# Fields are read by position. Before a file is used, its first rows must show a model year, a make and a
+# date where the code reads them; a reordered layout stops that file instead of filling the wrong columns.
+LAYOUT = {  # folder -> (minimum fields, {index: (name, check)})
+    "tsbs": (14, {9: ("model year", _year_ok), 7: ("make", lambda v: bool(re.search(r"[A-Za-z]", v))),
+                  4: ("communication date", _date_ok)}),
+    "cmpl": (20, {5: ("YEARTXT", _year_ok), 3: ("MAKETXT", lambda v: bool(re.search(r"[A-Za-z]", v))),
+                  7: ("FAILDATE", _date_ok)}),
+    "rcl": (22, {4: ("YEARTXT", _year_ok), 2: ("MAKETXT", lambda v: bool(re.search(r"[A-Za-z]", v)))}),
+}
+LAYOUT_SAMPLE = 200
+
+
+def layout_error(kind, rows):
+    """None when the sampled rows fit LAYOUT[kind], else a message naming the field and what it held."""
+    if kind not in LAYOUT:
+        return None
+    width, fields = LAYOUT[kind]
+    full = [r for r in rows if len(r) >= width]
+    if not full:
+        return f"no row has the {width} fields this layout needs (first row has {len(rows[0]) if rows else 0})"
+    for i, (name, ok) in fields.items():
+        bad = [r[i] for r in full if not ok(r[i])]
+        if len(bad) > 0.05 * len(full):
+            return f"field {i} ({name}) holds {bad[0][:40]!r} in {len(bad)} of {len(full)} sampled rows"
+    return None
+
+
+def _checked(kind, label, rows):
+    """Pass rows through after the first LAYOUT_SAMPLE pass layout_error(); otherwise skip the file, loudly."""
+    head = []
+    for r in rows:
+        head.append(r)
+        if len(head) >= LAYOUT_SAMPLE:
+            break
+    err = layout_error(kind, head)
+    if err:
+        print(f"nhtsa: SKIPPED {label}: layout changed? {err}", file=sys.stderr)
+        return
+    yield from head
+    yield from rows
+
+
 def iter_flat_rows(dir_):
-    """Yield tab-split rows from every .zip/.txt in dir_, streaming (no extraction)."""
+    """Yield tab-split rows from every .zip/.txt in dir_, streaming (no extraction). Each file's layout is
+    checked first (LAYOUT, by folder name)."""
     if not os.path.isdir(dir_):
         return
+    kind = os.path.basename(os.path.normpath(dir_))
     csv.field_size_limit(1 << 24)
     for name in sorted(os.listdir(dir_)):
         path = os.path.join(dir_, name)
@@ -263,10 +317,11 @@ def iter_flat_rows(dir_):
                     if member.lower().endswith((".txt", ".tsv")) and not member.upper().startswith(
                             ("TSBS.TXT", "CMPL.TXT", "RCL.TXT", "MFRCOMMS.TXT")):
                         with z.open(member) as fh:
-                            yield from _read_tab(io.TextIOWrapper(fh, "latin-1", newline=""))
+                            yield from _checked(kind, f"{name}:{member}",
+                                                _read_tab(io.TextIOWrapper(fh, "latin-1", newline="")))
         elif name.lower().endswith((".txt", ".tsv")) and "FLAT" in name.upper():
             with open(path, encoding="latin-1", newline="") as fh:
-                yield from _read_tab(fh)
+                yield from _checked(kind, name, _read_tab(fh))
 
 
 def _read_tab(fh):
