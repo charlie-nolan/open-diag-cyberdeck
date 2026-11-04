@@ -7,6 +7,15 @@ import re
 
 import telemetry_ref as T
 
+# Generic ranges (gasoline engines, common OBD-II practice, not any one car). explain() judges with these, and
+# kb/build_telemetry.py stores the same numbers as the 'generic' telemetry zones: change them here only.
+COOLANT_NORMAL_C = (80, 105)
+TRIM_NORMAL_PCT = 10            # fuel trim within ±10 %
+WARM_IDLE_RPM = (550, 1000)
+IDLE_MAP_MAX_KPA = 40           # manifold pressure at idle at or below this: strong vacuum
+CHARGING_V = (13.3, 14.9)       # engine running
+BATTERY_CHARGED_V = 12.4        # engine off
+
 NAMES = {"rpm": "rpm", "idle": "rpm", "ect": "ect", "coolant": "ect", "iat": "iat", "stft1": "stft", "stft": "stft",
          "ltft1": "ltft", "ltft": "ltft", "map": "map", "timing": "timing", "knock corr": "knock",
          "tps": "tps", "o2 front": "o2", "o2 b1s1": "o2", "o2 b1s2": "o2r", "o2 b1s1 lambda": "lam",
@@ -69,7 +78,7 @@ def _trim(name, v):
     side = "adding fuel (it sees lean)" if v > 0 else "removing fuel (it sees rich)"
     if a <= 5:
         return f"{name} {v:+.1f} %: near zero, normal"
-    if a <= 10:
+    if a <= TRIM_NORMAL_PCT:
         return f"{name} {v:+.1f} %: ECU slightly {side}, still within normal"
     if a <= 20:
         return f"{name} {v:+.1f} %: ECU {side}, outside the usual ±10 %"
@@ -84,7 +93,8 @@ def explain(text):
     cold = ect is not None and ect < 70
     if ect is not None:
         state = ("cold (engine recently started)" if ect < 40 else "warming up, not at operating temperature"
-                 if ect < 80 else "normal operating temperature" if ect <= 105 else "hot" if ect <= 115
+                 if ect < COOLANT_NORMAL_C[0] else "normal operating temperature" if ect <= COOLANT_NORMAL_C[1]
+                 else "hot" if ect <= 115
                  else "overheating")
         out.append(f"Coolant {ect:.0f} C: {state}")
         if cold:
@@ -95,8 +105,8 @@ def explain(text):
         if cold and 900 <= r <= 1800:
             out.append(f"Engine speed {r:.0f} rpm: cold fast idle, normal while warming up")
         elif not cold and ect is not None and v.get("tps", 0) < 3:
-            out.append(f"Engine speed {r:.0f} rpm: " + ("normal warm idle" if 550 <= r <= 1000 else
-                       "high for a warm idle" if r > 1000 else "low for an idle"))
+            out.append(f"Engine speed {r:.0f} rpm: " + ("normal warm idle" if WARM_IDLE_RPM[0] <= r <= WARM_IDLE_RPM[1] else
+                       "high for a warm idle" if r > WARM_IDLE_RPM[1] else "low for an idle"))
         else:
             out.append(f"Engine speed {r:.0f} rpm")
     for key, name in (("stft", "Short-term fuel trim"), ("ltft", "Long-term fuel trim"),
@@ -109,7 +119,7 @@ def explain(text):
         out.append("Short-term trim exactly 0 while cold usually means open loop (O2 sensor not used yet)")
     if "map" in v and v.get("tps", 0) < 3:
         m = v["map"]
-        out.append(f"Manifold pressure {m:.0f} kPa at idle: " + ("strong vacuum, normal" if m <= 40 else
+        out.append(f"Manifold pressure {m:.0f} kPa at idle: " + ("strong vacuum, normal" if m <= IDLE_MAP_MAX_KPA else
                    "weak vacuum (can come from a vacuum leak, misfire, late timing or a cold engine)"
                    if m <= 55 else "very weak vacuum for an idle"))
     if "knock" in v:
@@ -133,9 +143,9 @@ def explain(text):
     if "volts" in v:
         b = v["volts"]
         running = v.get("rpm", 0) > 300
-        out.append(f"System voltage {b:.1f} V: " + (("charging normally" if 13.3 <= b <= 14.9 else
-                   "low: alternator not charging fully" if b < 13.3 else "high: overcharging") if running else
-                   ("battery charged" if b >= 12.4 else "battery low")))
+        out.append(f"System voltage {b:.1f} V: " + (("charging normally" if CHARGING_V[0] <= b <= CHARGING_V[1] else
+                   "low: alternator not charging fully" if b < CHARGING_V[0] else "high: overcharging") if running else
+                   ("battery charged" if b >= BATTERY_CHARGED_V else "battery low")))
     if "tps" in v:
         out.append(f"Throttle {v['tps']:.0f} %: " + ("closed" if v["tps"] < 3 else "open"))
     return out
@@ -208,7 +218,7 @@ def drive_summary(samples, max_rows=10, max_chars=1500):
         tot = [v["stft"] + v["ltft"] for v in vs if "stft" in v and "ltft" in v]
         if tot:
             avg = sum(tot) / len(tot)
-            line += f"; average total trim {avg:+.1f}% (" + ("normal" if abs(avg) <= 10 else
+            line += f"; average total trim {avg:+.1f}% (" + ("normal" if abs(avg) <= TRIM_NORMAL_PCT else
                     "adding fuel: ECU sees lean" if avg > 0 else "pulling fuel: ECU sees rich") + ")"
         out.append(line)
     # codes: when each first showed up and whether it was still there at the end

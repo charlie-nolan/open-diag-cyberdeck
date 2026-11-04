@@ -195,5 +195,41 @@ class Conditions(unittest.TestCase):
         self.assertEqual(B.conditions_from(""), [])
 
 
+class GenericRanges(unittest.TestCase):
+    """The generic zones stored by the builder and the ranges live_data.explain() judges with are one set."""
+
+    def test_stored_generic_zones_are_live_data_constants(self):
+        L = B.L
+        db = sqlite3.connect(":memory:")
+        db.executescript(B.SCHEMA)
+        B.generic_zones(db, {})
+        z = {(p, c): (lo, hi) for p, c, lo, hi in
+             db.execute("SELECT param, condition, low, high FROM telem_zone WHERE source_kind='generic'")}
+        self.assertEqual(z[("ect", "running_any")], L.COOLANT_NORMAL_C)
+        self.assertEqual(z[("rpm", "idle_warm")], L.WARM_IDLE_RPM)
+        self.assertEqual(z[("map", "idle_warm")], (None, L.IDLE_MAP_MAX_KPA))
+        self.assertEqual(z[("ecu_volts", "running_any")], L.CHARGING_V)
+        self.assertEqual(z[("ecu_volts", "koeo")], (L.BATTERY_CHARGED_V, None))
+        for k in ("stft1", "ltft1", "stft2", "ltft2"):
+            self.assertEqual(z[(k, "idle_warm")], (-L.TRIM_NORMAL_PCT, L.TRIM_NORMAL_PCT))
+        self.assertEqual(B.WARM_C, L.COOLANT_NORMAL_C[0])
+
+    def test_explain_judges_at_the_same_edges(self):
+        L = B.L
+        lo, hi = L.COOLANT_NORMAL_C
+        self.assertIn("normal operating temperature", L.explain(f"ECT {hi} C")[0])
+        self.assertNotIn("normal operating temperature", L.explain(f"ECT {hi + 1} C")[0])
+        self.assertIn("warming up", L.explain(f"ECT {lo - 1} C")[0])
+        t = L.TRIM_NORMAL_PCT
+        self.assertIn("within normal", L.explain(f"ECT 90 C | STFT1 {t} %")[1])
+        self.assertIn("outside the usual", L.explain(f"ECT 90 C | STFT1 {t + 1} %")[1])
+        r0, r1 = L.WARM_IDLE_RPM
+        self.assertIn("normal warm idle", " ".join(L.explain(f"ECT 90 C | RPM {r1} | TPS 0 %")))
+        self.assertIn("high for a warm idle", " ".join(L.explain(f"ECT 90 C | RPM {r1 + 1} | TPS 0 %")))
+        c0, c1 = L.CHARGING_V
+        self.assertIn("charging normally", " ".join(L.explain(f"RPM 800 | Volts {c0} V")))
+        self.assertIn("low:", " ".join(L.explain(f"RPM 800 | Volts {c0 - 0.1:.1f} V")))
+
+
 if __name__ == "__main__":
     unittest.main()

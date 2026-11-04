@@ -42,6 +42,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 KB = os.path.join(ROOT, "kb")
 OUT = os.path.join(KB, "telemetry")
 sys.path.insert(0, os.path.join(ROOT, "app"))
+import live_data as L  # noqa: E402
 import telemetry_ref as T  # noqa: E402
 
 ROMRAIDER_XML = os.path.join(ROOT, "raw/romraider/v370/logger_STD_EN_v370.xml")
@@ -482,7 +483,7 @@ def _cond_after(part, end):
 
 # ---- conditions: only phrases a Python check can follow. Thresholds the manual doesn't give are generic
 # and marked so (warm = coolant at least 80 °C as in app/live_data.py; stated rpm = ±10 %).
-WARM_C = 80.0
+WARM_C = float(L.COOLANT_NORMAL_C[0])
 NOT_CHECKABLE = re.compile(r"(a/c|air condition\w*)\W{0,3}\W*(switch\W*)?(to\W*)?\W*on\b|when loaded|electrical load|"
                            r"head\s?lights? on|blower|steering wheel (fully )?turned", re.I)
 VARIANT_RX = re.compile(r"\b(MT|AT|M/T|A/T)\b(?:\s*(?:model|vehicle)s?)?")      # upper case only ('at idle')
@@ -885,23 +886,26 @@ def step_zones(make, limit=0):
     log(f"zones {make}: {st}")
 
 
+def generic_rows():
+    """The fallback ranges app/live_data.py judges with (its constants, so the two can't drift), as zone rows
+    (param, condition, low, high, unit, quote)."""
+    ect, trim, rpm = L.COOLANT_NORMAL_C, L.TRIM_NORMAL_PCT, L.WARM_IDLE_RPM
+    chg, bat, mp = L.CHARGING_V, L.BATTERY_CHARGED_V, L.IDLE_MAP_MAX_KPA
+    trim_q = f"fuel trim within ±{trim} %: normal"
+    volts = [("running_any", chg[0], chg[1], f"{chg[0]}-{chg[1]} V with the engine running: charging normally"),
+             ("koeo", bat, None, f"{bat} V or more, engine off: battery charged")]
+    return [("ect", "running_any", ect[0], ect[1], "°C", f"Coolant {ect[0]}-{ect[1]} C: normal operating temperature"),
+            *[(k, "idle_warm", -trim, trim, "%", trim_q) for k in ("stft1", "ltft1", "stft2", "ltft2")],
+            ("rpm", "idle_warm", rpm[0], rpm[1], "rpm", f"{rpm[0]}-{rpm[1]} rpm: normal warm idle"),
+            ("map", "idle_warm", None, mp, "kPa", f"manifold pressure at idle {mp} kPa or less: strong vacuum, normal"),
+            *[(k, c, lo, hi, "V", q) for k in ("ecu_volts", "adapter_volts") for c, lo, hi, q in volts]]
+
+
 def generic_zones(tdb, conds):
-    """Fallback ranges already in app/live_data.py (generic OBD-II / common practice, gasoline engines), marked
+    """Fallback ranges from app/live_data.py (generic OBD-II / common practice, gasoline engines), marked
     'generic'. The apps prefer any manual or CHARM zone for the same parameter and condition."""
     LD = "app/live_data.py generic range (not from this car's manual)"
-    rows = [
-        ("ect", "running_any", 80, 105, "°C", "Coolant 80-105 C: normal operating temperature"),
-        ("stft1", "idle_warm", -10, 10, "%", "fuel trim within ±10 %: normal"),
-        ("ltft1", "idle_warm", -10, 10, "%", "fuel trim within ±10 %: normal"),
-        ("stft2", "idle_warm", -10, 10, "%", "fuel trim within ±10 %: normal"),
-        ("ltft2", "idle_warm", -10, 10, "%", "fuel trim within ±10 %: normal"),
-        ("rpm", "idle_warm", 550, 1000, "rpm", "550-1000 rpm: normal warm idle"),
-        ("map", "idle_warm", None, 40, "kPa", "manifold pressure at idle 40 kPa or less: strong vacuum, normal"),
-        ("ecu_volts", "running_any", 13.3, 14.9, "V", "13.3-14.9 V with the engine running: charging normally"),
-        ("ecu_volts", "koeo", 12.4, None, "V", "12.4 V or more, engine off: battery charged"),
-        ("adapter_volts", "running_any", 13.3, 14.9, "V", "13.3-14.9 V with the engine running: charging normally"),
-        ("adapter_volts", "koeo", 12.4, None, "V", "12.4 V or more, engine off: battery charged"),
-    ]
+    rows = generic_rows()
     conds.setdefault("idle_warm", ("Idling, engine warm", {"engine": "running", "speed": [None, 3],
                                                              "ect": [WARM_C, None]}, "generic-threshold", None))
     conds.setdefault("running_any", ("Engine running", {"engine": "running"}, "generic", None))
