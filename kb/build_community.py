@@ -55,7 +55,6 @@ GROUPS = os.path.join(KB, "charm_make_groups.txt")
 sys.path.insert(0, os.path.join(ROOT, "card_baking"))
 sys.path.insert(0, KB)
 from extract_fixes import prefilter_score  # noqa: E402  (the card filter, for the side-by-side count)
-from bake_cards import PART_NO_RE  # noqa: E402  (OEM part-number shapes, formats only)
 
 # Forum dumps -> the make DB their threads go to (the record's own vehicle field says the exact model)
 FORUM_MAKE = {"ultimatesubaru": "subaru", "gmtnation": "chevrolet"}
@@ -220,15 +219,12 @@ def segments(title, op_body, cs):
     return segs
 
 
-def thread_text(segs, texts=None):
-    """texts: {seg index: trimmed text} (lite mode); segments left out keep their numbers out of the prompt."""
+def thread_text(segs):
     lab = {"op": "OP", "op_reply": "OP reply"}
     out = []
     for i, s in enumerate(segs):
-        if texts is not None and i not in texts:
-            continue
         tag = lab.get(s["k"]) or (f"reply, score {s['s']}" if s["s"] is not None else "reply")
-        out.append(f"[S{i} {tag}]\n{s['t'] if texts is None else texts[i]}")
+        out.append(f"[S{i} {tag}]\n{s['t']}")
     return "\n\n".join(out)
 
 
@@ -488,176 +484,6 @@ class LlamaServer:
         return d["choices"][0]["message"]["content"], u.get("prompt_tokens") or 0, u.get("completion_tokens") or 0
 
 
-# ---------------------------------------------------------------- lite mode: Python fills the easy fields
-LITE_FIELDS = ("vehicle", "codes", "refs")
-SCHEMA_LITE = {"type": "object", "properties": {k: v for k, v in SCHEMA["properties"].items() if k not in LITE_FIELDS},
-               "required": [k for k in SCHEMA["required"] if k not in LITE_FIELDS]}
-SYSTEM_LITE = "\n".join(ln for ln in SYSTEM.splitlines()
-                         if not ln.startswith(("- vehicle:", "- codes:", "- refs:")))
-TSB_RE = re.compile(r"\b(?:TSB|service bulletin|bulletin)\s*(?:no\.?|number|#)?\s*:?\s*([0-9]{2}-[0-9A-Z-]{2,}|[0-9A-Z]{2,}-[0-9A-Z-]{2,})", re.I)
-RECALL_RE = re.compile(r"\b(\d{2}V\d{3}(?:000)?)\b|\b(?:recall|campaign)\s*(?:no\.?|number|#)?\s*:?\s*([A-Z0-9]{2,}[0-9][A-Z0-9-]*)\b", re.I)
-COST_RE = re.compile(r"(?<![\d$])\$\d[\d,]*(?:\.\d{2})?(?:\s?k\b)?(?!\s*(?:years?|yrs?|months?|days?)\b)")
-LABOR_RE = re.compile(r"\b\d+(?:\.\d+)?\s?(?:-\s?\d+(?:\.\d+)?\s?)?(?:hours?|hrs?)\b(?!\s*(?:later|ago|away|drive))", re.I)
-TRANS_RE = re.compile(r"\b(manual|automatic|auto(?:matic)? trans(?:mission)?|cvt|\d[- ]speed)\b", re.I)
-MILES_RE = re.compile(r"(?<![$\d.,])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s?(k(?:\s?miles)?|miles|mi|km)\b(?!\s*(?:rpm|/h|per))", re.I)
-YEAR4 = r"(?<![\d$.,])(19[89]\d|20[0-3]\d)(?![\d,])"
-_VOCAB = {}
-
-
-def _model_name(s):
-    return " ".join(w.upper() if len(w) <= 3 else w.capitalize() for w in s.split())
-
-
-def make_vocab(make):
-    """Model names (kb/<make>.db vehicle table, NHTSA complaint models with 5+ complaints, romid.db), engine codes and
-    displacements (vehicle table) of this make. All read from the databases, nothing typed in by hand."""
-    if make in _VOCAB:
-        return _VOCAB[make]
-    names, codes, disp = {}, set(), set()
-    mk = make.replace("_", " ").upper()
-    for path, sql, args in ((os.path.join(KB, "romid.db"), "SELECT DISTINCT model FROM rom WHERE upper(make) LIKE ?",
-                             (mk + "%",)),
-                            (os.path.join(KB, "nhtsa_all.db"), "SELECT model FROM complaint WHERE make=? GROUP BY model "
-                             "HAVING count(*) >= 5", (mk,))):
-        if os.path.isfile(path):
-            try:
-                for (m,) in ro(path).execute(sql, args):
-                    m = re.sub(r"\(.*?\)", "", m or "").strip()
-                    if m and m.upper() != mk:
-                        names.setdefault(m.lower(), _model_name(m))
-            except sqlite3.Error:
-                pass
-    p = os.path.join(KB, f"{make}.db")
-    if os.path.isfile(p):
-        c = ro(p)
-        for (m,) in c.execute("SELECT DISTINCT model FROM vehicle WHERE model != ''"):
-            names[m.lower()] = m                            # the manual's own spelling wins
-        for (e,) in c.execute("SELECT DISTINCT engine FROM vehicle WHERE engine != ''"):
-            for tok in re.split(r"[\s/-]+", e):
-                if re.fullmatch(r"[A-Z]{1,3}\d{2,3}[A-Z]{0,2}", tok):
-                    codes.add(tok)
-                m = re.fullmatch(r"(\d\.\d)L", tok)
-                if m:
-                    disp.add(m.group(1))
-    # a name needs 2+ letters: "C" or "1500" alone would match ordinary text
-    models = sorted((m for m in names.values() if len(re.findall(r"[A-Za-z]", m)) >= 2), key=len, reverse=True)
-    alt = "|".join(re.escape(m) for m in models)
-    v = {"model": re.compile(rf"(?<![A-Za-z0-9])({alt})(?![A-Za-z0-9])", re.I) if models else None,
-         "names": {m.lower(): m for m in models},
-         "make": re.compile(rf"(?<![A-Za-z0-9]){re.escape(make.replace('_', ' '))}(?![A-Za-z0-9])", re.I),
-         "disp": re.compile(r"(?<![\d.$])(" + "|".join(re.escape(d) for d in sorted(disp)) + r")(?![\d.%])") if disp else None,
-         "engine": re.compile(r"(?<![A-Za-z0-9.])(" + "|".join(
-             [re.escape(x) for x in sorted(codes, key=len, reverse=True)] +
-             [re.escape(d) + r"\s?(?:l\b|liter|litre)" for d in sorted(disp)]) + r")(?![A-Za-z0-9])", re.I)
-         if (codes or disp) else None}
-    _VOCAB[make] = v
-    return v
-
-
-def window(text, start, end, before=6, after=6):
-    """The words around [start, end) as an exact piece of the text (3 to 30 words)."""
-    toks = [m.span() for m in re.finditer(r"\S+", text)]
-    idx = [i for i, (a, b) in enumerate(toks) if b > start and a < end]
-    if not idx:
-        return ""
-    i0, i1 = max(0, idx[0] - before), min(len(toks), idx[-1] + 1 + after)
-    if i1 - i0 > 30:
-        i1 = i0 + 30
-    return text[toks[i0][0]:toks[i1 - 1][1]]
-
-
-def code_fill(segs, make):
-    """Codes, refs (raw item format, checked by validate like the model's items) and the vehicle (checked here),
-    all from regexes and the make DB's own lists. Nothing is guessed: a field nobody wrote stays empty."""
-    codes, refs, seen = [], [], set()
-    for i, sg in enumerate(segs):
-        t = sg["t"]
-        for m in DTC_RE.finditer(t):
-            c = m.group(0).upper()
-            if c not in seen:
-                seen.add(c)
-                codes.append({"code": c, "seg": i, "quote": window(t, *m.span()), "source": "code"})
-        for kind, rx in (("part_number", PART_NO_RE), ("tsb", TSB_RE), ("recall", RECALL_RE), ("cost", COST_RE),
-                         ("labor_time", LABOR_RE)):
-            for m in rx.finditer(t):
-                val = next((g for g in m.groups() if g), None) if m.groups() else None
-                val = (val or m.group(0)).strip()
-                if (kind, val.lower()) not in seen:
-                    seen.add((kind, val.lower()))
-                    refs.append({"kind": kind, "value": val, "seg": i, "quote": window(t, *m.span()), "source": "code"})
-    v = make_vocab(make)
-    veh, quotes = {}, {}
-    ops = [(i, sg["t"]) for i, sg in enumerate(segs) if sg["k"] != "reply"]
-
-    def put(field, value, i, t, span):
-        q = window(t, *span)
-        if field not in veh and value and quote_in(q, t):
-            veh[field] = value
-            quotes[field] = (i, q)
-
-    for i, t in ops:
-        anchors = []
-        if v["model"]:
-            for m in v["model"].finditer(t):
-                put("model", v["names"][m.group(1).lower()], i, t, m.span())
-                anchors.append(m)
-                if v["disp"]:            # "5.3 <Model>" / "<Model> 5.3": a displacement the make DB lists, next to the name
-                    d = re.search(r"(?:^|\s)(" + v["disp"].pattern + r")\s+$", t[max(0, m.start() - 8):m.start()]) or \
-                        re.match(r"\s+" + v["disp"].pattern, t[m.end():m.end() + 8])
-                    if d:
-                        put("engine", d.group(1), i, t, (max(0, m.start() - 8), m.end() + 8))
-        anchors += list(v["make"].finditer(t))
-        for m in anchors:
-            # a year written right before the model ("2004 Model", "'04 <make> Model") or right after it
-            pre = t[max(0, m.start() - 30):m.start()]
-            y = re.search(YEAR4 + r"\D{0,25}$", pre) or re.search(r"(?<![\d$])'?(\d{2})\s+(?:[A-Za-z-]+\s+)?$", pre)
-            if y:
-                yy = int(y.group(1))
-                yv = yy if yy > 100 else (2000 + yy if yy <= 30 else 1900 + yy)
-                if 1980 <= yv <= 2030:
-                    a = m.start() - len(pre) + y.start(1)
-                    put("year", str(yv), i, t, (a, m.end()))
-            else:
-                y = re.match(r"\s{1,3}\(?" + YEAR4, t[m.end():m.end() + 12])
-                if y:
-                    put("year", y.group(1), i, t, (m.start(), m.end() + y.end()))
-        if v["engine"]:
-            for m in v["engine"].finditer(t):
-                put("engine", m.group(1), i, t, m.span())
-        for m in TRANS_RE.finditer(t):
-            put("transmission", m.group(1), i, t, m.span())
-        for m in MILES_RE.finditer(t):
-            put("mileage", m.group(0).strip(), i, t, m.span())
-    if veh:
-        first = quotes.get("model") or next(iter(quotes.values()))
-        veh.update(seg=first[0], quote=first[1], who="op", source="code",
-                   quotes={k: {"seg": a, "quote": b} for k, (a, b) in quotes.items()})
-    return codes, refs, veh
-
-
-QUOTED_RE = re.compile(r"^\s*(>|&gt;)|\bwrote:\s*$|^\s*quote:?\s*$", re.I)
-URL_ONLY_RE = re.compile(r"^\s*(\[[^\]]*\]\()?(https?://|www\.)\S+\)?\s*$", re.I)
-SIG_RE = re.compile(r"^\s*(--|_{3,}|-{3,})\s*$")
-
-
-def trim(segs):
-    """{seg index: text} without quoted earlier posts, URL-only lines and signatures; replies left with one word
-    or less are dropped. S0 always stays. Segment numbers don't change."""
-    out = {}
-    for i, sg in enumerate(segs):
-        keep = []
-        for ln in sg["t"].splitlines():
-            if SIG_RE.match(ln):
-                break
-            if QUOTED_RE.search(ln) or URL_ONLY_RE.match(ln):
-                continue
-            keep.append(ln)
-        t = re.sub(r"\n{3,}", "\n\n", "\n".join(keep)).strip()
-        if i == 0 or len(t.split()) > 1:
-            out[i] = t
-    return out
-
-
 def priority(segs, rules):
     """First group for --order priority: the OP reports an outcome, and the thread has a code or a test."""
     op_out = any(OUTCOME_RE.search(sg["t"]) for sg in segs if sg["k"] != "reply")
@@ -909,29 +735,15 @@ def stats_line(w, where, args, t_start, n_session, parallel=1):
             f"{todo} left, ~{todo / per_h if per_h else 0:.0f} h")
 
 
-def extract_one(llm, system, schema, segs, p90, lite, make):
+def extract_one(llm, system, schema, segs, p90):
     """One thread -> (status, content, prompt tokens, output tokens, rec, checks). Runs in worker threads."""
-    texts = trim(segs) if lite else None
     try:
-        content, pt, et = llm.chat(system, thread_text(segs, texts), schema)
+        content, pt, et = llm.chat(system, thread_text(segs), schema)
     except (urllib.error.URLError, OSError, KeyError, ValueError, IndexError) as e:
         time.sleep(10)
         return "error", None, 0, 0, None, {"error": str(e)[:200]}
     try:
-        raw = json.loads(content)
-        if lite:
-            codes, refs, veh = code_fill(segs, make)
-            raw = dict(raw, codes=codes, refs=refs, vehicle={})
-        rec, ck = validate(raw, segs, p90)
-        if lite:
-            rec["vehicle"] = veh
-            n = sum(k in veh for k in ("model", "year", "engine", "transmission", "mileage"))
-            ck["items"] += n
-            ck["kept"] += n
-            rec["n_fields"] = sum(bool(rec[k]) for k in ("vehicle", "codes", "symptoms", "tests", "ruled_out",
-                                                          "suggestions", "outcome", "chains", "refs"))
-            ck["chars_in"] = len(thread_text(segs))
-            ck["chars_sent"] = len(thread_text(segs, texts))
+        rec, ck = validate(json.loads(content), segs, p90)
         return "ok", content, pt, et, rec, ck
     except (ValueError, TypeError, AttributeError, KeyError) as e:
         return "json_fail", content, pt, et, None, {"error": str(e)[:200]}
@@ -956,10 +768,10 @@ def step_extract(make, a):
     if a.limit:
         todo = todo[:a.limit]
     llm = LlamaServer(a.model, a.url) if a.backend == "llama" else Ollama(a.model, num_ctx=a.num_ctx)
-    system = (SYSTEM_LITE if a.lite else SYSTEM).format(make=make.replace("_", " ").title())
-    schema = SCHEMA_LITE if a.lite else SCHEMA
+    system = SYSTEM.format(make=make.replace("_", " ").title())
+    schema = SCHEMA
     log(f"extract {make}: {len(todo)} threads to do with {a.model} ({a.backend}, {a.parallel} at once"
-        f"{', lite' if a.lite else ''}{', ' + a.order + ' order' if a.order != 'stored' else ''})"
+        f"{', ' + a.order + ' order' if a.order != 'stored' else ''})"
         f"{' (pilot)' if a.pilot else ''}")
     t0, n = time.time(), 0
     started = time.strftime("%F %T")
@@ -977,7 +789,7 @@ def step_extract(make, a):
     def work(row):
         src, tid, sub, segs_json, _ = row
         t1 = time.time()
-        res = extract_one(llm, system, schema, json.loads(segs_json), p90.get((src, sub)), a.lite, make)
+        res = extract_one(llm, system, schema, json.loads(segs_json), p90.get((src, sub)))
         return src, tid, res, int((time.time() - t1) * 1000)
 
     with cf.ThreadPoolExecutor(max_workers=max(1, a.parallel)) as ex:   # only this thread writes to SQLite
@@ -996,7 +808,7 @@ def step_extract(make, a):
                 if n % a.stats_every == 0 or n == len(todo):
                     log(f"extract {make} stats: " + stats_line(w, where, args, t0, n, a.parallel))
     secs = time.time() - t0
-    w.execute("INSERT INTO run VALUES (?,?,?,?,?,?,?,?)", (make, a.model, a.backend, a.parallel, int(a.lite), n, secs, started))
+    w.execute("INSERT INTO run VALUES (?,?,?,?,?,?,?,?)", (make, a.model, a.backend, a.parallel, 0, n, secs, started))
     w.commit()
     log(f"extract {make}: {'STOPPED (signal), saved' if HALT.is_set() else 'finished'} {n} threads in "
         f"{secs / 3600:.2f} h ({3600 * n / max(secs, 1):.0f} threads/h wall)")
@@ -1576,24 +1388,6 @@ def step_compare(a):
                           f"{100 * sum(r[0] == 'json_fail' for r in rows.values()) / n:.1f}%",
                           f"{100 * qf / max(items, 1):.1f}%", f"{100 * un / max(items, 1):.1f}%",
                           f"{100 * agree / max(len(common), 1):.0f}% of {len(common)}"] + [f"{x:.1f}" for x in per]))
-        if k != base_k and any(r[2].get("chars_sent") for r in ok.values()):
-            ci = sum(r[2].get("chars_in", 0) for r in ok.values())
-            cs = sum(r[2].get("chars_sent", 0) for r in ok.values())
-            print(f"   {k}: input trimmed {ci // max(len(ok), 1)} -> {cs // max(len(ok), 1)} chars/thread "
-                  f"(-{100 * (1 - cs / max(ci, 1)):.0f}%)")
-            cm = ce = vm = ve = vd = 0
-            for key in common:
-                ra, rb = data[base_k][key][1], ok[key][1]
-                ca = {c["code"] for c in ra.get("codes") or []}
-                cb = {c["code"] for c in rb.get("codes") or []}
-                cm += len(ca - cb)
-                ce += len(cb - ca)
-                va, vb = _veh_fields(ra), _veh_fields(rb)
-                vm += len(set(va) - set(vb))
-                ve += len(set(vb) - set(va))
-                vd += sum(va[f] != vb[f] and not (va[f] in vb[f] or vb[f] in va[f]) for f in set(va) & set(vb))
-            print(f"   {k} vs {base_k}: codes missed {cm}, extra {ce}; vehicle fields missed {vm}, extra {ve}, "
-                  f"different value {vd}")
 
 
 def _render(rec):
@@ -1675,7 +1469,6 @@ def main():
     ap.add_argument("--backend", choices=["ollama", "llama"], default="ollama")
     ap.add_argument("--url", default="http://127.0.0.1:8080", help="llama backend: llama-server address")
     ap.add_argument("--parallel", type=int, default=1, help="requests at once (llama-server -np slots)")
-    ap.add_argument("--lite", action="store_true", help="Python fills vehicle/codes/refs; trimmed input")
     ap.add_argument("--order", choices=["stored", "priority"], default="stored",
                     help="priority: OP-reported outcome with a code or test first (same set, other order)")
     ap.add_argument("--min-replies", type=int, default=0, help="only threads with at least this many replies")

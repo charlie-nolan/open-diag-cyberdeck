@@ -111,16 +111,3 @@ class TestCommunity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-class TestLite(unittest.TestCase):
-    def test_code_fill_and_trim(self):
-        segs = thread()
-        segs.append({"k": "reply", "s": 1, "t": "> quoted earlier text\nok"})
-        codes, refs, veh = B.code_fill(segs, "no_such_make")      # no make DB: no model/engine list, nothing guessed
-        self.assertEqual([c["code"] for c in codes], [CODE])
-        self.assertTrue(all(B.quote_in(c["quote"], segs[c["seg"]]["t"]) for c in codes))
-        self.assertNotIn("model", veh)
-        self.assertEqual(veh.get("mileage"), "120k miles")
-        self.assertEqual(B.trim(segs).keys(), {0, 1, 2})          # the quote-only reply is left out
-        self.assertNotIn("S3", B.thread_text(segs, B.trim(segs)))
