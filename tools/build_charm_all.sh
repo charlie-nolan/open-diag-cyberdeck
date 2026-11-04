@@ -12,6 +12,18 @@ B=~/subaru_cyberdeck/kb/build_subaru_kb.py
 KB=~/subaru_cyberdeck/kb
 ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"
 export HF_HUB_OFFLINE=1   # the embedding model is already cached
+failed=""
+# step PATTERN ARGS...: run one builder step on $out, show matching lines (or the last line when PATTERN
+# is empty), return the builder's own exit code.
+step() {
+    local pat=$1 rc; shift
+    if [ -n "$pat" ]; then
+        "$P" "$B" --db "$out" "$@" < /dev/null 2>&1 | { grep -E "$pat" || true; }; rc=${PIPESTATUS[0]}
+    else
+        "$P" "$B" --db "$out" "$@" < /dev/null 2>&1 | tail -1; rc=${PIPESTATUS[0]}
+    fi
+    return "$rc"
+}
 while IFS='|' read -r db makes; do
     [ -z "$db" ] && continue
     case "$db" in subaru) echo "skip $db (built separately)"; continue;; esac
@@ -22,14 +34,17 @@ while IFS='|' read -r db makes; do
     echo "=== $(date -Is) $db [$makes] -> $out"
     t0=$(date +%s)
     for m in $(ollama ps 2>/dev/null | awk 'NR>1{print $1}'); do ollama stop "$m"; echo "stopped ollama $m"; done
-    if $P "$B" --db "$out" charm --makes "$makes" --years 1982-2013 2>&1 | grep -E "^charm:|Error|error|Traceback" &&
-       $P "$B" --db "$out" finish 2>&1 | tail -1 &&
-       $P "$B" --db "$out" embed 2>&1 | grep -E "^embed:|Error|error|Traceback|CUDA" &&
-       $P "$B" --db "$out" finish 2>&1 | tail -1; then
+    # Success is the Python exit code (PIPESTATUS[0]); the grep/tail only trims what goes to the log.
+    if step "^charm:|Error|Traceback" charm --makes "$makes" --years 1982-2013 &&
+       step "" finish &&
+       step "^embed:|Error|Traceback|CUDA" embed &&
+       step "" finish; then
         touch "$KB/.$db.done"
         echo "=== OK $db $(du -h "$out" | cut -f1) in $(( ($(date +%s)-t0)/60 )) min"
     else
         echo "=== FAIL $db"
+        failed="$failed $db"
     fi
 done < "$KB/charm_make_groups.txt"
+if [ -n "$failed" ]; then echo "=== DONE WITH FAILURES:$failed $(date -Is)"; exit 1; fi
 echo "=== ALL DONE $(date -Is)"
