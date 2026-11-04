@@ -342,7 +342,7 @@ def parts_from_job(job):
     v = "|".join(re.escape(x) for x in JOB_VERBS)
     t = re.sub(r"\([^)]*\)", " ", job.strip())                              # '(belt, tensioner, idlers)'
     t = re.sub(r"(?i)^\s*(?:(?:%s)\b\s*(?:(?:and|&|,|/)\s*)?)+" % v, "", t)   # 'Clean and inspect ...'
-    t = re.split(r"[,;:.]|\s+(?:and then|then|and)\s+(?=(?:%s)\b)" % v, t, 1)[0]  # stop at the next job
+    t = re.split(r"[,;:.]|\s+(?:and then|then|and)\s+(?=(?:%s)\b)" % v, t, maxsplit=1)[0]  # stop at the next job
     t = re.sub(r"(?i)\s+(?:if|as needed|per|with|to spec|on|at|for|from|in)\b.*$", "", t)
     out = []
     for n in re.split(r"(?i)\s+(?:and|&)\s+|\s*/\s*", t):
