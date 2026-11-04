@@ -3340,11 +3340,6 @@ class CyberdeckApp(QMainWindow):
         top.addWidget(self.lbl_maint, 1)
         top.addWidget(self.cmb_maint_kind)
         top.addWidget(b_man)
-        b_align = QPushButton("WHEEL ALIGNMENT")
-        b_align.setToolTip("Camber and toe from camera photos of printed targets, specs from this car's manual, "
-                           "and how far to turn each adjuster (opens its own window)")
-        b_align.clicked.connect(self.act_alignment)
-        top.addWidget(b_align)
         if PS is not None:
             b_parts = QPushButton("PARTS + PRICES FOR THIS")
             b_parts.clicked.connect(self.act_maint_parts)
@@ -3364,21 +3359,6 @@ class CyberdeckApp(QMainWindow):
         lay.addWidget(self.txt_maint, 2)
         self.maint_rows = {}
         self.stack.addWidget(w)
-
-    def act_alignment(self):
-        """WHEEL ALIGNMENT window (app/align_gui.py) for the car on Intake; it reads this make's knowledge DB."""
-        try:
-            import align_gui
-        except Exception as e:      # e.g. OpenCV missing is reported inside the window; this is an import failure
-            self._say(self.txt_maint, f"[!] alignment screen failed to load: {e}", T.AMBER)
-            return
-        try:
-            v = json.loads(self.session.get("vehicle_info") or "{}")
-        except ValueError:
-            v = {}
-        self._align_win = align_gui.AlignmentWindow(v.get("make") or CFG.get("make", ""), v.get("model", ""),
-                                                    str(v.get("year") or ""), CFG.get("kb_db", ""), CFG["cache_dir"])
-        self._align_win.show()
 
     def _maint_status(self):
         try:

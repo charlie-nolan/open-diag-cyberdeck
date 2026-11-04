@@ -15,6 +15,24 @@ knowledge database per make (`kb/subaru.db`, `kb/chevrolet.db`, ...), and builde
 > right to use. Want to build one yourself? **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** walks through it
 > from parts list to first scan.
 
+## Design principles
+
+These ideas have been the core of the project since the first version, and every part of the deck follows from them:
+
+- **Keep the model's job small.** Code does everything that has an exact answer: what each live reading means,
+  the arithmetic, which diagnostic step applies to the codes you scanned, counting confirmed fixes, and the real
+  spec from the manual. The model does the one thing it's good at, which is reading the evidence it's handed and
+  explaining it. That's why a 1.7B or 4B model on a small board is enough.
+- **Every answer has to be checkable.** The factory manual comes first and wins, every step, spec and price cites
+  its source, owner fixes count only when confirmed, and anything else is labelled as an idea or a claim.
+- **Empty beats wrong.** A missing spec costs you a lookup. A wrong torque spec costs you a stripped bolt. When no
+  source has the answer, the deck says so.
+- **Do the heavy work ahead of time.** The big PC spends GPU hours building databases, search vectors and DTC cards
+  so the deck in the field only has to look things up. Everything the deck carries is compressed (8-bit models,
+  8-bit vectors, WebP pictures), and the slow 4800-baud car link is worked around, not fought.
+- **Offline first.** Everything works on the deck with no connection. A bigger PC is a bonus when it's reachable.
+- **You can always skip the AI.** The manual search, spec lookups and the chart walker work with no model at all.
+
 ## Why it's more than a code reader
 
 A basic OBD-II scanner tells you a code and maybe a definition. This deck gives the models **the car's live engine
@@ -82,17 +100,18 @@ that problem:
   manual pages. Community fixes are used only when owners confirmed them, and forum ideas are labelled "ideas only".
 - **Every step, spec and price cites its source**, so you can open the page and check it yourself.
 - **Python does the exact work.** Diagnostic-tree questions about the codes you scanned, and the meaning of each
-  live reading, are worked out in code before the model sees them, so the model doesn't do the arithmetic. This
-  came from experience: early on, a model read a perfectly normal 12 °C coolant temperature on a cold engine as
-  overheating. Now every reading reaches the model already labelled in range, low or high by Python.
+  live reading, are worked out in code before the model sees them, so the model doesn't do the arithmetic. Every
+  reading reaches the model already labelled in range, low or high by Python. Testing showed why that matters:
+  given only the raw number, a model read a perfectly normal 12 °C coolant temperature on a cold engine as
+  overheating. With the label, it doesn't.
 - **Embeddings find the right page** even when your wording doesn't match the manual's. That means the model isn't
   left to fill gaps on its own.
-- **Known-bad data is kept out.** This project started from scripts and databases an earlier AI assistant had
-  generated, and an audit found a lot of it was invented: "hand-verified" torque rows with no source, an ECU command
-  table with bad checksums and made-up addresses, and wrong live-data addresses. One alarming "-22% long-term fuel
-  trim" turned out to be the atmospheric pressure reading. All of it was thrown out, and it's the reason every fact
-  in this project now has to cite where it came from. The deck refuses any ECU write except the documented,
-  reversible tests.
+- **Known-bad data is kept out.** Some early helper scripts and data tables were drafted with an AI assistant, and
+  checking them against the cite-everything rule showed how much of it was invented: "hand-verified" torque rows
+  with no source, an ECU command table with bad checksums and made-up addresses, and wrong live-data addresses.
+  One alarming "-22% long-term fuel trim" turned out to be the atmospheric pressure reading. None of it could point
+  to a source, so all of it was thrown out. That's the rule doing its job. The deck refuses any ECU write except
+  the documented, reversible tests.
 - **Empty beats wrong.** When no source gives a spec, a range or a part number, the deck says so instead of filling
   the gap. A spec search never falls back to a loose match, because the wrong part's torque value is worse than none.
 - **Chat rebuilds its prompt from scratch every turn**: the case, fresh manual text for the codes, symptoms and the
@@ -188,8 +207,8 @@ with all the codes. `/part <name or number>` does the same from Chat.
 ### 4. Where answers come from, in priority order
 1. **The factory diagnostic tree** for the code (DTC procedure), with steps that ask "which codes are set?"
    answered from the scan. The trees are parsed, not pasted: a manual procedure is a big step table (median about
-   3,400 characters, up to 18,000), and early on they were cut to fit the prompt, so the models never saw a single
-   step. `app/procedures.py` now splits them into whole numbered steps, follows the manual's own "refer to" links
+   3,400 characters, up to 18,000), and cutting one to fit a prompt can drop the very steps that matter.
+   `app/procedures.py` splits them into whole numbered steps, follows the manual's own "refer to" links
    to other procedures, and fits the steps that matter for this scan into the budget.
 2. **Baked DTC cards** (`card_baking/`): one card per trouble code, combining the manual's procedure with real-world
    fixes **scraped from Reddit and owner forums and checked for credibility** before they count:
@@ -442,6 +461,14 @@ Tests that need data you haven't built are skipped.
 Built with AI coding tools (Claude Code, plus local Qwen models). I designed the architecture, set the rules (every
 value cites a source, Python computes anything exact, nothing actuates without interlocks), audited the model output,
 and tested everything on real vehicles. Shared in case it helps anyone working on the same cars or boards.
+
+## Related project
+
+**[aligndeck](https://github.com/charlie-nolan/aligndeck)** is a separate app by the same author: wheel alignment
+(camber and toe) from printed ChArUco targets and any camera. The spin axis comes from rolling the car, so error in
+how the target is mounted on the wheel drops out, and how far to turn each adjuster comes from a guided calibration
+on the car. Status: validated against synthetic photos (within 0.03°, 17 tests); the first run on a real car is
+still to come.
 
 ## License and credits
 
