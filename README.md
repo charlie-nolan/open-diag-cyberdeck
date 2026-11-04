@@ -437,6 +437,12 @@ venv/bin/python -m diagent test                          # needs kb/subaru.db + 
 
 Tests that need data you haven't built are skipped.
 
+## How this was built
+
+Built with AI coding tools (Claude Code, plus local Qwen models). I designed the architecture, set the rules (every
+value cites a source, Python computes anything exact, nothing actuates without interlocks), audited the model output,
+and tested everything on real vehicles. Shared in case it helps anyone working on the same cars or boards.
+
 ## License and credits
 
 GPL-3.0-or-later (see `LICENSE`). `app/ssm/freessm_ssm2_tables.json` and the test commands are derived from
