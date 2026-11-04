@@ -2937,10 +2937,13 @@ class CyberdeckApp(QMainWindow):
         self.case_worker.result.connect(lambda ctx: self._say(self.txt_intake, ctx or "(nothing matched)"))
         self.case_worker.start()
 
-    CASE_KEYS = ("dtcs", "telemetry", "symptoms", "ruled_out", "suspect", "history", "intake_note",
-                 "intake_summary", "final_verdict", "saved_debate", "saved_wildcard", "drive_log", "drive_log_short",
-                 "chart_reads", "chat_notes", "drive_id",
+    # One case's fields: cleared by a new case, saved with each visit, restored by LOAD LAST CASE / PAST VISITS.
+    # Anything Session.case_summary() reads must be here or in CAR_KEYS (kb/tests/test_gui_pure.py checks).
+    CASE_KEYS = ("dtcs", "telemetry", "telemetry_source", "mode06", "past_readings", "symptoms", "ruled_out",
+                 "suspect", "history", "intake_note", "intake_summary", "final_verdict", "saved_debate",
+                 "saved_wildcard", "drive_log", "drive_log_short", "chart_reads", "chat_notes", "drive_id",
                  "maint_selected", "maint_status")
+    CAR_KEYS = ("vehicle", "vehicle_info", "earlier_visits")   # the car: kept across its cases
 
     def _clear_case(self):
         """Empty the case fields (the car stays). The old case is kept for LOAD LAST CASE."""
