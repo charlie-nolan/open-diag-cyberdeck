@@ -93,7 +93,7 @@ def speed(a):
     old.encode(texts[:64], batch_size=16)       # warm-up (CUDA context, kernels) outside the timing
 
     def old_encode(bs=16):
-        out = [old.encode(texts[i:i + 4096], batch_size=bs, convert_to_numpy=True) for i in range(0, len(texts), 4096)]
+        out = [old.encode(texts[i:i + 4096], batch_size=bs, convert_to_numpy=True) for i in range(0, len(texts), 4096)]  # noqa: F821 (old is deleted only after run() returns)
         return to_int8(np.concatenate(out))
     v_old = run("old  encode bs16", old_encode)
     ref32 = None
@@ -108,7 +108,7 @@ def speed(a):
             enc = DocEncoder(device="cuda", dtype=dtype, token_budget=budget, log=lambda *x, **k: None)
             enc.encode(texts[:64])
             name = f"new  {dtype} {budget} tok/batch"
-            out[name] = run(name, lambda: enc.encode(texts))
+            out[name] = run(name, lambda: enc.encode(texts))  # noqa: F821 (called inside run(), before del enc)
             del enc
             torch.cuda.empty_cache()
     for name, v in out.items():
