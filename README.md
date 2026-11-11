@@ -407,6 +407,7 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 | `app/` | Home app, LLM backends (RKLLM ctypes + Ollama), retrieval, live data, voice, theme |
 | `app/ssm/` | Subaru SSM2: telemetry logger, capability decoding, tests, cable detection, SSM-through-EX probe |
 | `diagent/` | Chart-walking diagnosis app with harness, tools, policy checks and scenario generator |
+| `teamdeck/`, `team/` | Team mode: the Home app with a team (Claude, Gemini, GPT-OSS, local Qwen) as its model; PC service, read-only MCP server, runner ([docs](docs/TEAM_MODE.md)) |
 | `shopdeck/` | No-LLM chart walker (GUI + TUI) |
 | `kb/` | Knowledge-base builders, retriever, embedder, telemetry and community builders, tests |
 | `card_baking/` | Per-DTC card baker (PC GPU): forum/Reddit fix extraction with confirmation and quote checks, then sourced cards |
@@ -444,6 +445,14 @@ Photos (placeholders until proper screenshots and screen recordings):
 | ![The deck in the car, OBDLink EX in hand](docs/photos/deck-with-obdlink.jpg) | ![2002 Forester intake: codes and live data read by the deck (VIN blurred)](docs/photos/forester-intake.jpg) |
 | ![Forester verdict log, 2026-10-31: P0303/P0304 traced to a dead front O2 sensor](docs/photos/forester-verdict-log.jpg) | ![Forester live data over OBD-II: 17 PIDs](docs/photos/forester-live-data.jpg) |
 | ![Maintenance screen for the Forester at 289,160 mi](docs/photos/forester-maintenance.jpg) | ![Power wiring in the case: M12 pack, low-voltage cutoff, buck converters, USB hub](docs/photos/case-power-on.jpg) |
+**Team mode** (Nov 2026): a separate app, teamdeck, with the same screens, where Claude, Gemini, GPT-OSS and the local
+Qwen work each case together with read-only database lookups, and Claude makes the final call. In PC tests it had
+half the unsupported numbers of the local models alone. Details: [docs/TEAM_MODE.md](docs/TEAM_MODE.md).
+
+| | |
+|---|---|
+| ![Team run on the 2002 Forester](docs/photos/team-run-forester.png) | ![Team run on the 2003 Tahoe](docs/photos/team-run-tahoe.png) |
+
 Planned: a vision pass that reads chart pictures into walkable steps, real-time parts prices, customer work orders,
 and more makes' extended live data.
 
