@@ -416,6 +416,7 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 | `cyberdeck_forge/charm_ingest.py` | Reader for a CHARM LMDB archive |
 | `build_subaru_diag_db.py` | NHTSA flat files + RomRaider definitions -> sourced DTC/TSB DB |
 | `docs/BUILD_GUIDE.md` | Step-by-step build: hardware, OS, models, databases, first scan |
+| `docs/DESIGN_HISTORY.md` | How the design evolved: origin, timeline, every idea's versions, dead ends, key decisions |
 
 ## Quick start (if you already have the hardware and databases)
 
@@ -462,6 +463,8 @@ push (`.github/workflows/tests.yml`).
 Built with AI coding tools (Claude Code, plus local Qwen models). I designed the architecture, set the rules (every
 value cites a source, Python computes anything exact, nothing actuates without interlocks), audited the model output,
 and tested everything on real vehicles. Shared in case it helps anyone working on the same cars or boards.
+
+How the design evolved, from the first idea to now, including the dead ends and every key decision: **[docs/DESIGN_HISTORY.md](docs/DESIGN_HISTORY.md)**.
 
 ## Related project
 
