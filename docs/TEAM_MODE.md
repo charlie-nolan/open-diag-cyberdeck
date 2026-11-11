@@ -38,6 +38,8 @@ No paid API keys: Claude runs on a Claude subscription, Gemini and GPT-OSS on a 
 Same cases through Home (local Qwen) and the team: the team averaged 0.8 source-check flags per verdict against
 Home's 1.6, with about 24 manual citations per verdict, in 4-6 minutes per case. On real visits:
 
+**How far along each database is.** In these tests the Subaru database is by far the furthest along: it has the factory service manuals on top of CHARM, 176 pre-baked fix cards for the 1998-2002 Forester and about 70,000 owner threads. The Chevrolet database has pre-baked cards (from the Tahoe bake) and owner threads. The other makes in the test (Dodge, Ford, Honda, Hyundai, Mazda, Nissan, Toyota) have only CHARM and NHTSA data so far: no cards and no community data, so the team worked those cases from the manual alone.
+
 ![Team run on a 2002 Forester](photos/team-run-forester.png)
 ![Team run on a 2003 Tahoe](photos/team-run-tahoe.png)
 ![teamdeck: the Home app's screens with the team as its model](photos/teamdeck-window.png)

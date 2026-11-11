@@ -448,6 +448,8 @@ Photos (placeholders until proper screenshots and screen recordings):
 **Team mode** (Nov 2026): a separate app, teamdeck, with the same screens, where Claude, Gemini, GPT-OSS and the local
 Qwen work each case together with read-only database lookups, and Claude makes the final call. In PC tests it had
 half the unsupported numbers of the local models alone. Details: [docs/TEAM_MODE.md](docs/TEAM_MODE.md).
+The Subaru database is the furthest along (factory manuals, baked cards, owner threads); Chevrolet has cards and owner
+threads; the other makes tested have CHARM and NHTSA data only, so far.
 
 | | |
 |---|---|
