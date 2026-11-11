@@ -156,7 +156,7 @@ I worked the design through with AI assistants as a sounding board and reference
   - v2 (Nov 3): I asked whether the smaller Apache 2800 could work. First answer was "no"; I pushed back on the keyboard size and trackball placement.
   - current (Nov 3): 2800 is workable if the keyboard comes out of its shell (or ~1 mm per side is trimmed), the trackball sits above it, and the M12 pack docks outside. 3800 stays as the no-modification fallback.
 - **Why it changed:** I wanted a smaller deck and questioned the first fit check; verified keyboard dimensions showed it was 0.5 mm over, not hopeless.
-- **Status:** Changed; final case not chosen until the screen's size is known.
+- **Status:** Decided: the final enclosure is the Apache 2800, modified as above.
 - **Options considered and rejected:** touchscreen (the finished deck is keyboard-only), e-ink display.
 
 #### Screen orientation
@@ -539,7 +539,6 @@ I worked the design through with AI assistants as a sounding board and reference
 
 ## Open questions
 
-- Which case: the modified Apache 2800 or the 3800? Depends on the screen's final size.
 - What are the real cutoff voltage and pack capacity, and does the UPS switchover actually hold the board up?
 - Should the deck ever take power from the vehicle's 12 V side, and with what protection?
 - How accurate are full diagnoses on real jobs? (No scorecard yet.)
