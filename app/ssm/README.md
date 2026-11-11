@@ -38,8 +38,10 @@ python3 ssm2_capabilities.py --live     # saves ecu_init_reply.hex, prints suppo
 
 Send back `ecu_init_reply.hex`. That one line pins down exactly what your ECU supports, including whether the roughness (misfire) monitors at 0xCE/0xCF/0xD8/0xD9 are real on a 2002. Later it can be decoded offline with `--init-hex`.
 
-## Why actuators and adjustments stay reference-only
+## Actuator tests and adjustments
 
-They work by writing to ECU memory: test mode connector plus 0xB8 writes to 0x89/0x8A bits. Clear Memory is a write of 0x40 to 0x60. Adjustments permanently change idle and timing trims. That conflicts with the deck's read-only decision, and a wrong bit can run the fuel pump or fan with nobody watching. FreeSSM itself only allows actuator tests with the engine off and the test-mode connector joined. If you ever want them, run FreeSSM itself on the desktop.
+They work by writing to ECU memory: test mode connector plus 0xB8 writes to 0x89/0x8A bits. Clear Memory is a write of 0x40 to 0x60. Adjustments permanently change idle and timing trims. A wrong bit can run the fuel pump or fan with nobody watching, so the deck is read-only by default.
+
+Actuator tests (and clear memory) run only on the deck's TESTS screen, behind interlocks: TEST MODE off at every launch, only the tests this ECU advertises in its init reply, test connector in and engine off, confirm each test, a 30 s auto-stop and a STOP ALL that never asks (see `app/README.md`). They have been run on a 2002 Forester in test mode. Adjustments stay refused in code; if you ever need them, run FreeSSM itself on the desktop.
 
 License note: the JSON is derived from GPL-3 code. That's fine for personal use; if the deck is ever distributed, it would need to be GPL-compatible.

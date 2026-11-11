@@ -39,7 +39,7 @@ TEST MODE is off every time the deck starts. Switching it on asks first, then th
 | CLEAR CODES, ANY CAR | OBD-II mode 04 through the OBDLink EX (also resets readiness monitors) | Engine off |
 | STOP ALL | Ends the test and writes 0x00 to every actuator byte; also switches off actuators that started by themselves at key-on | |
 
-Leaving the TESTS screen, switching TEST MODE off or closing the app stops a running test. The Subaru commands and checks are ported from FreeSSM (GPL-3) in `app/ssm/ssm_tests.py`, which refuses any write that isn't one of this ECU's advertised tests or clear memory. No flashing, adjustments or security access. Tested on simulated ECUs (KKL and EX) only, not on the car yet.
+Leaving the TESTS screen, switching TEST MODE off or closing the app stops a running test. The Subaru commands and checks are ported from FreeSSM (GPL-3) in `app/ssm/ssm_tests.py`, which refuses any write that isn't one of this ECU's advertised tests or clear memory. No flashing, adjustments or security access. Tested on simulated ECUs (KKL and EX), and on a 2002 Forester in test mode, where the fans, relays and pumps switched on and off from the deck.
 
 ## Voice (offline)
 
