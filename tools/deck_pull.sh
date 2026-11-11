@@ -43,7 +43,7 @@ pull() {   # pull <remote path relative to the PC checkout> <local dir>
 
 echo "== app, parts lookup, shopdeck (deck-side config.json kept)"
 rsync -a --exclude __pycache__ --exclude config.json -e ssh \
-    "$PC:$R/app" "$PC:$R/parts_sourcing" "$PC:$R/shopdeck" "$L/" || exit 1
+    "$PC:$R/app" "$PC:$R/parts_sourcing" "$PC:$R/shopdeck" "$PC:$R/teamdeck" "$L/" || exit 1
 pull tools/deck_pull.sh "$L/tools/"
 pull tools/vpic_setup_deck.sh "$L/tools/"
 
