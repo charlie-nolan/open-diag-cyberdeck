@@ -436,6 +436,14 @@ Working: car ID, OBD-II reads through the EX on real cars (a 2003 Tahoe on J1850
 2002 Forester, the two-way (actuator) tests on that Forester in test mode, both apps on the PC and the deck, Home mode,
 and builders for 50+ makes.
 Not yet proven on a car: SSM2 through the EX, and the 4B models on the NPU under load.
+
+Photos (placeholders until proper screenshots and screen recordings):
+
+| | |
+|---|---|
+| ![The deck in the car, OBDLink EX in hand](docs/photos/deck-with-obdlink.jpg) | ![2002 Forester intake: codes and live data read by the deck (VIN blurred)](docs/photos/forester-intake.jpg) |
+| ![Forester verdict log, 2026-10-31: P0303/P0304 traced to a dead front O2 sensor](docs/photos/forester-verdict-log.jpg) | ![Forester live data over OBD-II: 17 PIDs](docs/photos/forester-live-data.jpg) |
+| ![Maintenance screen for the Forester at 289,160 mi](docs/photos/forester-maintenance.jpg) | ![Power wiring in the case: M12 pack, low-voltage cutoff, buck converters, USB hub](docs/photos/case-power-on.jpg) |
 Planned: a vision pass that reads chart pictures into walkable steps, real-time parts prices, customer work orders,
 and more makes' extended live data.
 
