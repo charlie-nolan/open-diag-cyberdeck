@@ -433,8 +433,9 @@ For everything else, see the [build guide](docs/BUILD_GUIDE.md).
 ## Status
 
 Working: car ID, OBD-II reads through the EX on real cars (a 2003 Tahoe on J1850 VPW), SSM2 live data over KKL on a
-2002 Forester, both apps on the PC and the deck, Home mode, and builders for 50+ makes.
-Not yet proven on a car: the two-way tests, SSM2 through the EX, and the 4B models on the NPU under load.
+2002 Forester, the two-way (actuator) tests on that Forester in test mode, both apps on the PC and the deck, Home mode,
+and builders for 50+ makes.
+Not yet proven on a car: SSM2 through the EX, and the 4B models on the NPU under load.
 Planned: a vision pass that reads chart pictures into walkable steps, real-time parts prices, customer work orders,
 and more makes' extended live data.
 
