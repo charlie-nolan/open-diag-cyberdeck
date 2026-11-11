@@ -259,6 +259,8 @@ with all the codes. `/part <name or number>` does the same from Chat.
 4. **Community reports**: what owners tested, ruled out and fixed, extracted from forum and Reddit threads and
    linked back to manual sections (`kb/build_community.py`). They're shown as supporting evidence, never as the
    answer, and every outcome is labelled **"claimed"**: an owner said it fixed the car, nobody verified it.
+   Why it exists, how it differs from the baked cards' filter, and how it was vetted and embedded:
+   [docs/COMMUNITY_DATA.md](docs/COMMUNITY_DATA.md).
 
    **How the threads are read.** Every thread kept by the keyword pass is searchable as raw text. The useful ones
    then get a full read by a local model that pulls out, as structured JSON, the car, the symptoms, each test and
@@ -366,6 +368,9 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
   - **Community:** over a million Reddit and forum threads across 37 makes, with millions of comments (Subaru alone
     is about 88,000 Reddit posts and 767,000 comments). A cheap keyword pass kept 803,000 useful threads, a local
     model read the repair threads for confirmed fixes, and 80,036 Subaru threads are embedded for search.
+    The Subaru community database (merged Nov 11 2026) holds 29,899 checked threads: 149,444 cause mentions,
+    61,381 tests, 33,578 reasoning chains and 493,649 links to manual sections. How it was built and vetted:
+    [docs/COMMUNITY_DATA.md](docs/COMMUNITY_DATA.md).
   - **Government data:** NHTSA TSBs, complaints, recalls and defect investigations for every make (a 2 GB source
     database), plus the NHTSA VIN decoder.
   - **Cards:** 176 baked for the 1998-2002 Forester and 1,686 for the 2003 Tahoe.
