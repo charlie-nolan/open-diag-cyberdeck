@@ -42,7 +42,7 @@ from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, Q
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(1, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssm"))  # ssm_tests, telemetry_logger
-from llm_backend import (OllamaModel, RKLLMModel, mem_available_gb, mem_total_gb, ollama_models,  # noqa: E402
+from llm_backend import (ClaudeModel, OllamaModel, OpenAICompatModel, RKLLMModel, mem_available_gb, mem_total_gb, ollama_models,  # noqa: E402
                          probe_rkllm)
 from retrieval import Retriever as LegacyRetriever  # noqa: E402
 from vehicle_id import MAKES, car_from_rom, decode_vin, kb_path_for, make_from_ssm, nhtsa_decode  # noqa: E402
@@ -63,7 +63,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 DEFAULT_CONFIG = {
     "vehicle": "",  # no default car: pick it in Intake (remembered per session)
-    "backend": "auto",  # auto | rkllm | ollama
+    "backend": "auto",  # auto | rkllm | ollama | openai | claude
+    # backend "openai": any OpenAI-compatible server (LM Studio, llama.cpp, Jan, vLLM, OpenRouter, ...). Its key, if
+    # it needs one, is read from the environment variable named in openai_key_env, never stored here.
+    "openai_url": os.environ.get("CYBERDECK_OPENAI_URL", "http://127.0.0.1:1234/v1"),
+    "openai_key_env": "OPENAI_API_KEY",
+    "openai_fast": "", "openai_deep": "", "openai_think": "",   # model names as the server lists them
+    # backend "claude": the Claude API (pip install anthropic; key in ANTHROPIC_API_KEY or `ant auth login`)
+    "claude_fast": "claude-opus-5-5", "claude_deep": "claude-opus-5-5", "claude_think": "claude-opus-5-5",
+    "claude_effort": {"fast": "low", "deep": "high", "think": "high"},
     # Lists = first file that exists wins, so the Qwen3 exports take over from Qwen2.5 with no config edit.
     "rkllm_lib": [f"{ROOT}/rknn-llm/rkllm-runtime/Linux/librkllm_api/aarch64/librkllmrt.so", "/usr/lib/librkllmrt.so"],
     "fast_model": [f"{ROOT}/models/rkllm/Qwen3-1.7B_W8A8_RK3588.rkllm",
@@ -292,9 +300,15 @@ def fsm_hits(r, text, k=3, chars=900):
         meta = r.db.execute("SELECT doc_id, images FROM section WHERE id=?", (sid,)).fetchone()
         if meta and meta[1]:
             try:
-                figs = [n if charm_pics.is_charm(n) else  # CHARM: fetched from the PC when shown
-                        os.path.join(img_dir, str(meta[0]), os.path.splitext(n)[0] + ".webp")
-                        for n in json.loads(meta[1])]
+                figs = []
+                for n in json.loads(meta[1]):
+                    if charm_pics.is_charm(n):            # CHARM: from the DB or the PC when shown
+                        figs.append(n)
+                        continue
+                    f = os.path.join(img_dir, str(meta[0]), os.path.splitext(n)[0] + ".webp")
+                    if not os.path.isfile(f):             # a one-car DB keeps its figures inside it
+                        f = charm_pics.fsm_figure(kb, CFG["cache_dir"], meta[0], n) or f
+                    figs.append(f)
             except (ValueError, TypeError):
                 figs = []
         out.append((squeeze(r._fmt(path, page, body, chars, kind)), figs))
@@ -522,6 +536,8 @@ def make_retriever(cfg):
         return NullRetriever()
     if kb and os.path.isfile(kb):
         sys.path.insert(0, os.path.dirname(kb))
+        if f"{ROOT}/kb" not in sys.path:    # a one-car DB lives in kb/cars/<car>/: the retriever stays in kb/
+            sys.path.insert(1, f"{ROOT}/kb")
         from kb_retriever import Retriever
         embed = None
         model_dir = find_embed_model(cfg)
@@ -733,6 +749,8 @@ class ModelManager:
         return self._local_label(role)
 
     def _local_label(self, role):
+        if self.backend in ("claude", "openai"):
+            return self.cfg[f"{self.backend}_{role}"] or self.cfg[f"{self.backend}_fast"]
         if self.backend == "rkllm":
             why = self.cfg.get("stand_in", {}).get(role)
             if why:
@@ -838,6 +856,15 @@ class ModelManager:
                     self.cfg.setdefault("stand_in", {})[role] = f"wouldn't load: {str(e).split('(')[0].strip()}"
                     self.cfg[f"{role}_model"] = self.cfg["fast_model"]
                     return self.get(role)
+        elif self.backend == "claude":
+            m = ClaudeModel(self.cfg[f"claude_{role}"], system_prompt=system,
+                            effort=self.cfg["claude_effort"].get(role, "medium"), enable_thinking=think)
+        elif self.backend == "openai":
+            name = self.cfg[f"openai_{role}"] or self.cfg["openai_fast"]
+            if not name:
+                raise RuntimeError('backend "openai" needs a model name in openai_fast (config.json)')
+            m = OpenAICompatModel(name, system_prompt=system, url=self.cfg["openai_url"],
+                                  key_env=self.cfg["openai_key_env"], temperature=temp)
         else:
             m = OllamaModel(self.cfg[f"ollama_{role}"], system_prompt=system, temperature=temp,
                             enable_thinking=think, num_ctx=self.cfg["max_context_len"])
@@ -983,7 +1010,7 @@ class PicWorker(QThread):
         self.names = names
 
     def run(self):
-        have, why = charm_pics.fetch(CFG["pic_url"], CFG["cache_dir"], self.names)
+        have, why = charm_pics.fetch(CFG["pic_url"], CFG["cache_dir"], self.names, db=CFG.get("kb_db"))
         self.done.emit(have, why)
 
 
@@ -1004,7 +1031,7 @@ class ChartWorker(QThread):
         while left and not self.stop_flag.is_set():
             for n in list(left):
                 try:
-                    r = charm_pics.reading(CFG["pic_url"], n)
+                    r = charm_pics.reading(CFG["pic_url"], n, db=CFG.get("kb_db"))
                 except urllib.error.HTTPError as e:
                     self.note.emit(f"The PC's picture server can't read charts (it answered {e.code}; was it started "
                                    "with --no-read?). The pictures above still show.")

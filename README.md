@@ -15,6 +15,17 @@ knowledge database per make (`kb/subaru.db`, `kb/chevrolet.db`, ...), and builde
 > right to use. Want to build one yourself? **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** walks through it
 > from parts list to first scan.
 
+### No Orange Pi? Try it on a laptop with one car
+
+I started this to push the Orange Pi 5 and see what it could do, then experimented with streaming a self-hosted
+open-weight model to it from my desktop, and then, since why not, put Claude, agy and Qwen to work together from
+my PC. The project was built around the Orange Pi 5, and that's a limiting factor now that they're fairly pricey.
+But the streaming versions don't need the Pi: any LLM desktop app, local models on your PC, or an API key will do,
+so the app can run on an ordinary laptop and stream the answers. Build a database for just your own car (manual
+pages and their pictures in one small file), plug in a USB OBD cable, and try it:
+**[docs/SINGLE_CAR_LAPTOP.md](docs/SINGLE_CAR_LAPTOP.md)**. Fair warning: it has only been tested on two older cars,
+and lots of cars, newer ones especially, may not work.
+
 ## Design principles
 
 These ideas have been the core of the project since the first version, and every part of the deck follows from them:
@@ -409,7 +420,7 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 
 | Path | What |
 |---|---|
-| `app/` | Home app, LLM backends (RKLLM ctypes + Ollama), retrieval, live data, voice, theme |
+| `app/` | Home app, LLM backends (RKLLM ctypes, Ollama, OpenAI-compatible, Claude), retrieval, live data, voice, theme |
 | `app/ssm/` | Subaru SSM2: telemetry logger, capability decoding, tests, cable detection, SSM-through-EX probe |
 | `diagent/` | Chart-walking diagnosis app with harness, tools, policy checks and scenario generator |
 | `teamdeck/`, `team/` | Team mode: the Home app with a team (Claude, Gemini, GPT-OSS, local Qwen) as its model; PC service, read-only MCP server, runner ([docs](docs/TEAM_MODE.md)) |
@@ -421,6 +432,7 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 | `tools/` | Full per-make builds, deck sync, CHARM picture server, RKLLM model export, status |
 | `cyberdeck_forge/charm_ingest.py` | Reader for a CHARM LMDB archive |
 | `build_subaru_diag_db.py` | NHTSA flat files + RomRaider definitions -> sourced DTC/TSB DB |
+| `docs/SINGLE_CAR_LAPTOP.md` | One car on any laptop: build one car's DB (`tools/build_car_db.sh`), pick a model backend, plug in a cable |
 | `docs/BUILD_GUIDE.md` | Step-by-step build: hardware, OS, models, databases, first scan |
 | `docs/DESIGN_HISTORY.md` | How the design evolved: origin, timeline, every idea's versions, dead ends, key decisions |
 
