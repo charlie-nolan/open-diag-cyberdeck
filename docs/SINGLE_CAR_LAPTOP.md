@@ -636,11 +636,106 @@ venv/bin/python kb/add_nhtsa.py --help
 
 See section 7c of the [build guide](BUILD_GUIDE.md) for details.
 
-### Forum fixes for your car (advanced)
+### Community fixes from Reddit (optional, advanced)
 
-Real-world fixes extracted from forum and Reddit threads ("what actually fixed it"). This needs a forum dump and a
-GPU running a local model for a few hours. See [COMMUNITY_DATA.md](COMMUNITY_DATA.md),
-`kb/car_db.py community-select --help`, and the build's `--community-work` option.
+This adds what owners of your car actually tested, ruled out and fixed, pulled out of Reddit threads by a local
+model. The app shows it as ideas and supporting evidence, always below the manual. How it's checked and why it
+exists: [COMMUNITY_DATA.md](COMMUNITY_DATA.md).
+
+Be honest with yourself about the cost before starting:
+
+- **Download:** the Reddit archive is a torrent. You only take the subreddits for your make, but that's still
+  usually 1-25 GB.
+- **GPU time:** a model reads every thread. On an RTX 3070 with a 9B model that's about **500 threads per hour**.
+  A popular car can have several thousand matching threads, so plan on an overnight run, or cap it (step 4).
+- **A laptop without a strong GPU can't do the extraction step in a sensible time.** Do steps 1-5 on a desktop
+  with a GPU, then copy the work folder to the laptop for step 6, or build the whole database on the desktop.
+
+You only do this once per car. Every step can be stopped (Ctrl+C) and run again; it carries on where it stopped.
+
+**Step 1: install the extra tools.** In the project folder, with the venv active (section 6):
+
+```bash
+venv/bin/pip install zstandard
+```
+
+You also need `aria2c` to download from the torrent. Ubuntu/Mint: `sudo apt install aria2`. Arch/Manjaro:
+`sudo pacman -S aria2`. Fedora: `sudo dnf install aria2`. macOS: `brew install aria2`.
+
+**Step 2: get the Reddit archive's torrent file.** The archive is Watchful1's per-subreddit Pushshift dump,
+"subreddits24" (Reddit from 2005-06 to the end of 2024, one file per subreddit). It's on Academic Torrents
+(<https://academictorrents.com>, search "subreddits 2024"). Download only the small `.torrent` file and put it here:
+
+```bash
+mkdir -p raw/reddit/pushshift
+mv ~/Downloads/*.torrent raw/reddit/pushshift/
+```
+
+Don't open it in a torrent program: the next step picks only your make's subreddits out of it.
+
+**Step 3: pull your make's subreddits.** Each make has a profile listing its subreddits in
+`chevrolet/profiles/makes/` (for example `honda.json` or `toyota.json`; open yours in a text editor to see the
+list). Then run, with your make's file name:
+
+```bash
+venv/bin/python chevrolet/make_pipeline.py chevrolet/profiles/makes/honda.json reddit-get
+venv/bin/python chevrolet/make_pipeline.py chevrolet/profiles/makes/honda.json reddit
+```
+
+`reddit-get` downloads that make's subreddit files into `raw/reddit/pushshift/`. `reddit` loads them into
+`raw/reddit/reddit_honda.db`, keeping only car-repair threads. Usernames are never stored. If your make has no
+profile, copy the closest one, change `make`, `slug`, `models` and the `subs` list, and save it under your make's
+name. Subaru has no profile because it came first: put the Subaru subreddit files from the same torrent into
+`raw/reddit/pushshift/` and run `venv/bin/python load_pushshift_subaru.py`.
+
+**Step 4: pick your car's threads.** This keeps threads that name your model and a year near yours (or no year):
+
+```bash
+venv/bin/python kb/car_db.py community-select --work-dir community_work/honda_civic_2004 \
+    --make honda --model "Civic" --year 2004 --min-replies 1
+```
+
+It prints how many threads it kept. `--make` is the lowercase make name used in step 3. Useful options:
+
+| Option | What it does |
+|---|---|
+| `--window 2` | Years either side of `--year` to keep (default 2). `--years 2001-2005` sets the range exactly, e.g. to your car's generation |
+| `--min-replies N` | Skip threads with fewer than N replies (nobody answered, so nothing to learn) |
+| `--any-of test,outcome,code` | Keep only threads that mention a test, an outcome or a trouble code: fewer threads, more useful ones |
+| `--budget-hours H --rate R` | Cap the run at about H hours, at R threads per hour on your machine (500 on an RTX 3070). Over the cap, it keeps a random sample |
+
+**Step 5: let a model read the threads (the long step, needs the GPU).** The tested setup is a Qwen3.5-9B model
+(4-bit `Q4_K_M` GGUF file from Hugging Face) on llama.cpp's `llama-server`, reading 4 threads at once. Start the
+server in one terminal and leave it running:
+
+```bash
+llama-server -m /path/to/Qwen3.5-9B-Q4_K_M.gguf -ngl 99 -c 24576 -np 4 --port 8080
+```
+
+Then, in a second terminal, in the project folder:
+
+```bash
+venv/bin/python kb/build_community.py --work-dir community_work/honda_civic_2004 --make honda \
+    --backend llama --parallel 4 --model qwen3.5-9b extract
+```
+
+To see how far it's got, run the same command with `progress` in place of `extract`. If you'd rather use Ollama,
+leave out `--backend llama --parallel 4` and give `--model` an Ollama model tag you've pulled. Small models
+(under about 7B) miss and invent too much for this; every item must quote the thread word for word, and Python
+throws out items whose quote isn't really there.
+
+**Step 6: build the car's database with the community data.** Add `--community-work` with the same folder to
+your normal build command from section 8:
+
+```bash
+tools/build_car_db.sh --make "Honda" --model "Civic" --year 2004 \
+    --manuals "$HOME/Downloads/2004 Honda Civic.zip" --no-charm \
+    --community-work community_work/honda_civic_2004
+```
+
+The build links every test and fix to your manual's own pages and makes them searchable, then reports
+`community-load:` with the time each part took. If the community part fails, the rest of the build still finishes.
+The `community_work` folder holds forum text: keep it private, and delete it when you're done if you like.
 
 ### Bigger and better models
 
