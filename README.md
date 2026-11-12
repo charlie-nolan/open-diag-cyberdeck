@@ -22,7 +22,7 @@ open-weight model to it from my desktop, and then, since why not, put Claude, ag
 my PC. The project was built around the Orange Pi 5, and that's a limiting factor now that they're fairly pricey.
 But the streaming versions don't need the Pi: any LLM desktop app, local models on your PC, or an API key will do,
 so the app can run on an ordinary laptop and stream the answers. Build a database for just your own car (manual
-pages and their pictures in one small file), plug in a USB OBD cable, and try it:
+pages and their pictures in one small file), plug in a USB OBD cable, and try it. The step-by-step guide assumes no experience at all:
 **[docs/SINGLE_CAR_LAPTOP.md](docs/SINGLE_CAR_LAPTOP.md)**. Fair warning: it has only been tested on two older cars,
 and lots of cars, newer ones especially, may not work.
 

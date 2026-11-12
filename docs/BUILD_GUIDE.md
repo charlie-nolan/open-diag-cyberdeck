@@ -340,7 +340,7 @@ deck's models whenever the PC is unreachable. Avoid Home mode while a GPU build 
 
 Testing on a desktop without an NPU: `ollama pull qwen3:1.7b qwen3:4b-instruct-2507-q4_K_M`. The app uses Ollama
 automatically when there's no RKLLM. To use an LLM desktop app or API instead, set `"backend"` to `"openai"` or `"claude"`
-(see [SINGLE_CAR_LAPTOP.md, section 5](SINGLE_CAR_LAPTOP.md#5-pick-where-the-answers-come-from)).
+(see [SINGLE_CAR_LAPTOP.md, section 9](SINGLE_CAR_LAPTOP.md#9-choose-where-the-ai-answers-come-from)).
 
 ## 12. Optional extras
 
