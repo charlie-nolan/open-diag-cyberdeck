@@ -560,7 +560,8 @@ If it says no adapter was found, see [Troubleshooting](#14-troubleshooting).
   so the diagnosis comes from the evidence. Your guess is then checked against that evidence.
 - **Data check:** before any model sees the case, the app checks it in plain code. It flags readings that can't be
   true together (like 0 rpm at highway speed), codes that aren't valid, and parts your car's manual never mentions.
-  If you see flags, rescan or fix the input first.
+  If you see flags, rescan or fix the input first. A real code that your manual simply has no page for is listed
+  separately as a "coverage note", not as a data problem: the app then uses the code's generic definition.
 - **Final Diagnosis:** the ranked likely causes, each with the manual steps to confirm it and the source page cited.
 - **Chat:** ask follow-up questions in plain words. `/torque <part>` and `/fsm <topic>` look things up in your
   manual directly, without the AI.
@@ -616,7 +617,9 @@ tools/build_car_db.sh --make "Honda" --model "Civic" --year 2004 \
     --vision qwen3.6:35b-a3b-q4_K_M
 ```
 
-This needs that vision model in Ollama (`ollama pull <model>`) and, realistically, a desktop with a GPU. In testing
+This needs that vision model in Ollama (`ollama pull <model>`) and, realistically, a desktop with a GPU. If Ollama
+runs on another computer, add `--vision-url http://<that computer>:11434`. `--vision-hours H` stops after H hours;
+run the same command again later and it carries on where it stopped. In testing
 it took about 12 seconds per picture on an RTX 3070, about 2 hours for one car's ~550 charts and tables. Small
 vision models read charts badly. Everything a vision model reads is marked **unverified** in the app, so check it
 against the picture.
