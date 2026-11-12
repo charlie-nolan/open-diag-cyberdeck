@@ -593,6 +593,10 @@ check them.
 
 ## 15. Optional extras
 
+**None of this is needed.** The app is fully usable with just your car's manual, built in section 8. Everything
+below adds more sources on top of the manual. The manual always comes first in the app's answers. Skip this whole
+section if you like, and come back later.
+
 ### Add a factory service manual PDF (step-by-step diagnostic charts)
 
 A factory PDF with real text gives the app diagnostic charts it can walk one step at a time, plus many more torque
@@ -639,7 +643,8 @@ See section 7c of the [build guide](BUILD_GUIDE.md) for details.
 ### Community fixes from Reddit (optional, advanced)
 
 This adds what owners of your car actually tested, ruled out and fixed, pulled out of Reddit threads by a local
-model. The app shows it as ideas and supporting evidence, always below the manual. How it's checked and why it
+model. It's optional: the app works fully without it, from the manual alone. When it's there, the app shows it as
+ideas and supporting evidence, always below the manual. How it's checked and why it
 exists: [COMMUNITY_DATA.md](COMMUNITY_DATA.md).
 
 Be honest with yourself about the cost before starting:
