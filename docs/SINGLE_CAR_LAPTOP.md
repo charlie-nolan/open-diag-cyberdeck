@@ -145,6 +145,12 @@ Edit `app/config.json` and set `kb_dir` to the folder the build printed:
 }
 ```
 
+**On Windows:** `tools/build_car_db.sh` is a bash script, so build the database on Linux (or in WSL) and copy it
+over. The folder the build makes holds a symlink, which doesn't survive a copy to Windows. Instead, make the folder
+yourself and put the database in it under the make's name, for example `kb\cars\honda_civic_2004\honda.db`.
+To try Windows without touching the laptop's own disk, Rufus can install Windows onto a USB SSD ("Windows To Go");
+a plain flash stick is too slow.
+
 Then pick a model backend (next section) and start the app:
 
 ```bash
