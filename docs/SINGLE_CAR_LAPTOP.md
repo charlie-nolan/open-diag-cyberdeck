@@ -47,7 +47,7 @@ fixes are welcome.
 |---|---|
 | A laptop | Linux, Windows or macOS, 8 GB RAM or more. Python 3.11+. |
 | A cable | ELM327-type USB adapter (an OBDLink EX is the tested one), or a KKL/FTDI cable for old K-line cars. |
-| Your car's manual | Easiest source: **[LEMON Manuals](https://lemon-manuals.la/)** has a single-car download for every make and model it covers, so you only grab your own car. A factory service manual PDF works too. |
+| Your car's manual | Recommended: **[LEMON Manuals](https://lemon-manuals.la/)** has a single-car download for every make and model it covers, so you only grab your own car. A factory service manual PDF works too, and adds walkable diagnostic charts. |
 | A model | Any one of: Ollama on the laptop or on a PC, an LLM desktop app with an OpenAI-compatible server (LM Studio, Jan, llama.cpp server), an OpenAI-compatible API, or a Claude API key. |
 
 Keep what you build private. Service manuals are copyrighted; this repository holds code only, and the database
@@ -72,54 +72,60 @@ On Windows use `venv\Scripts\pip` and `venv\Scripts\python`. Voice is an optiona
 
 If you only want to run the app with a database someone already built for you, `requirements.txt` is enough.
 
-## 2. Get the manual and convert it
+## 2. Get the manual
 
-1. Download your car from LEMON Manuals (just your car, not the whole collection), or use a factory PDF you
-   already have.
-2. Convert the PDF to the markdown the builder reads. This keeps the diagnostic chart tables intact and saves the
-   figures next to the text:
+**LEMON Manuals is the recommended source.** Download the single-car package for your car (just your car, not
+the whole collection) and keep the zip; the build reads it directly. A factory service manual PDF works too, on
+its own or next to the LEMON download. CHARM is optional and only kept for older setups.
 
-   ```bash
-   venv/bin/python kb/pdf_to_md.py --pdf /path/to/your_manual.pdf
-   # -> test_batch_out/<manual name>/<manual name>.fixed.md, plus its figures
-   ```
+The build converts factory PDFs itself. To see first whether a PDF converts cleanly (it needs a real text layer;
+scanned pages are not OCR'd):
 
-   Try `--pages 0-40 --out /tmp/try` first to see whether your manual converts cleanly.
+```bash
+venv/bin/python kb/pdf_to_md.py --pdf /path/to/your_manual.pdf --pages 0-40 --out /tmp/try
+```
 
-If your manual is several PDFs, convert each one and build with the biggest (usually the engine/powertrain
-section) first; see `kb/load_manuals.sh` for how multi-file manuals were loaded for the original deck.
+One honest limit: LEMON (and CHARM) diagnostic step charts are pictures, so the app shows them but can't walk them
+step by step the way it walks a factory PDF's text charts. If you have the factory PDF, add it.
 
 ## 3. Build the car's database
 
 ```bash
 tools/build_car_db.sh --make <Make> --model <Model> --year <Year> \
-    --fsm "test_batch_out/<manual>/<manual>.fixed.md" \
-    --chassis <chassis code> --engines <engine code[,engine code]>
+    --manuals /path/to/lemon_download.zip [--manuals /path/to/factory_manual.pdf] --no-charm
 ```
 
-For example, a car with chassis code `XX1` and engine `ABC20`:
+`--manuals` takes a folder (searched recursively), a zip, a PDF or an already converted `.md`, and can be given
+more than once. A LEMON single-car zip works as is. For example:
 
 ```bash
 tools/build_car_db.sh --make Honda --model Civic --year 2004 \
-    --fsm "test_batch_out/2004 Civic/2004 Civic.fixed.md" --chassis XX1 --engines ABC20
+    --manuals ~/Downloads/2004_Honda_Civic.zip --no-charm
 ```
 
-(Those codes are placeholders. Your manual's introduction lists the real ones.)
+`--chassis <code>` and `--engines <code[,code]>` are optional (your manual's introduction lists them); without
+them the pages are attached to the make, model and year only. `--no-charm` skips CHARM even if it's mounted.
 
 What it does, in order, skipping any step whose source you don't have:
 
-1. Loads your manual's pages and diagnostic charts.
-2. Adds CHARM pages if you have CHARM mounted (optional, 1982-2013 cars).
+1. Loads your manuals: converts PDFs, reads LEMON HTML pages and their pictures, loads diagnostic charts.
+2. Adds CHARM pages if you have CHARM mounted and didn't pass `--no-charm` (optional, legacy).
 3. Adds public data if you've downloaded it: NHTSA TSBs, complaints and recalls, and Mechanics StackExchange
    (see section 7c of the [build guide](BUILD_GUIDE.md)).
-4. Removes everything that isn't your car.
-5. Embeds the text for meaning-based search. **On a laptop CPU this is the slow part, roughly 1 to 3 hours.**
+4. Adds forum/Reddit fixes: copied from `kb/<make>.db` if you have one, or, with `--community-work DIR`, from a
+   fresh extraction for just this car (`kb/car_db.py community-select`, then `kb/build_community.py extract`;
+   this needs a GPU to be practical).
+5. Removes everything that isn't your car.
+6. Embeds the text for meaning-based search. **On a laptop CPU this is the slow part, roughly 1 to 3 hours.**
    Add `--no-embed` to skip it and use keyword search only; you can run the build again later to add vectors.
-6. Stores the manual's figures **inside the database**, so there's no picture server and nothing else to copy.
-7. Prints where the database is and the one setting the app needs.
+7. Stores the manual's figures **inside the database**, so there's no picture server and nothing else to copy.
+8. Prints where the database is and the one setting the app needs.
 
 Useful options: `--dry-run` prints every step without running it, `--device cuda` embeds on an NVIDIA GPU,
-`--no-images` leaves the pictures out, `--charm-images DIR` adds CHARM pictures from a CHARM images LMDB.
+`--no-images` leaves the pictures out, `--charm-images DIR` adds CHARM pictures from a CHARM images LMDB,
+`--bench CSV` times every step.
+
+How long each step takes, and how it scales with pages, sections and hardware: [BUILD_ESTIMATES.md](BUILD_ESTIMATES.md).
 
 The result is `kb/cars/<make>_<model>_<year>.db` plus a folder `kb/cars/<make>_<model>_<year>/` that the app
 reads. For reference, the test build of the 2002 Forester came out at 52 MB of text and vectors (against

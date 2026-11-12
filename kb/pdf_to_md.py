@@ -196,6 +196,8 @@ def figure_rects(page, tables, icons=()):
             continue                               # a table's own ruling lines
         if any(abs(pymupdf.Rect(t.bbox) & r) > 0.6 * abs(r) for t in tables):
             continue
+        if rules_only(page, r):                    # ruled rows find_tables didn't take: text, not a picture
+            continue
         rects.append(r)
     merged = []
     for r in sorted(rects, key=lambda r: (r.y0, r.x0)):
@@ -206,6 +208,91 @@ def figure_rects(page, tables, icons=()):
         else:
             merged.append(pymupdf.Rect(r))
     return merged
+
+
+RULED_TEXT_WORDS = 30
+
+
+def rules_only(page, r):
+    """A drawing cluster made only of straight lines / hairline boxes that holds a lot of text is the ruling of a
+    table (rows drawn, columns not: find_tables finds no table). Saving it as a picture dropped its text: the step
+    rows of whole diagnostic charts (2002 Forester FSM, P0442 steps 2-6). Diagrams have curves, fills or little text."""
+    for dr in page.get_drawings():
+        dr_r = pymupdf.Rect(dr["rect"])
+        if not (dr_r & r) or abs(dr_r & r) < 0.5 * abs(dr_r) and not dr_r.is_empty:
+            continue
+        if dr.get("fill") is not None and not (dr_r.width < 2.5 or dr_r.height < 2.5):
+            return False
+        for it in dr["items"]:
+            if it[0] == "l":
+                continue
+            if it[0] == "re" and (it[1].width < 2.5 or it[1].height < 2.5):
+                continue
+            return False
+    words = [w for w in page.get_text("words", clip=r)]
+    return len(words) >= RULED_TEXT_WORDS
+
+
+class _Row:
+    def __init__(self, cells):
+        self.cells = cells
+
+
+class RuledTable:
+    """A table whose rows are ruled but whose columns are not (find_tables needs both). Rows come from the
+    full-width rules, columns from the vertical white gaps no word crosses. Same .bbox/.rows shape as a PyMuPDF
+    table, so table_md (and its step-chart rule) handles it like any other table."""
+
+    def __init__(self, bbox, rows):
+        self.bbox, self.rows = bbox, rows
+
+
+def ruled_table(page, r, min_gap=4):
+    H = page.rect.height
+    ys = set()
+    for dr in page.get_drawings():
+        for it in dr["items"]:
+            if it[0] == "l" and abs(it[1].y - it[2].y) < 1:
+                x0, x1, y = min(it[1].x, it[2].x), max(it[1].x, it[2].x), it[1].y
+            elif it[0] == "re" and it[1].height < 2.5:
+                x0, x1, y = it[1].x0, it[1].x1, it[1].y0
+            else:
+                continue
+            if HEADER_BAND < y < H - FOOTER_BAND and min(x1, r.x1) - max(x0, r.x0) > 0.5 * r.width:
+                ys.add(round(y, 1))
+    ys = sorted(ys)
+    if len(ys) < 3:
+        return None
+    area = pymupdf.Rect(r.x0, ys[0], r.x1, ys[-1])
+    words = page.get_text("words", clip=area)
+    if not words:
+        return None
+    x0, x1 = int(area.x0), int(area.x1) + 1
+    cov = [0] * (x1 - x0 + 1)
+    for w in words:
+        for x in range(max(int(w[0]), x0), min(int(w[2]), x1) + 1):
+            cov[x - x0] += 1
+    bounds, run = [], 0
+    for i, c in enumerate(cov):
+        if c == 0:
+            run += 1
+            continue
+        if run >= min_gap and i - run > 0:
+            bounds.append(x0 + i - run / 2)
+        run = 0
+    cols = [area.x0] + bounds + [area.x1]
+    # a gap inside one cell (an indented line) makes a column no word starts in: merge it into its left neighbour
+    body = [w for w in words if (w[1] + w[3]) / 2 >= ys[1]] or words    # the header row may sit off-grid
+    starts = [w[0] for w in body]
+    cols = [c for i, c in enumerate(cols) if i in (0, len(cols) - 1)
+            or any(c <= x < cols[i + 1] for x in starts)]
+    if len(cols) < 3:
+        return None
+    rows = []
+    for ya, yb in zip(ys, ys[1:]):
+        if any(ya <= (w[1] + w[3]) / 2 < yb for w in words):
+            rows.append(_Row([pymupdf.Rect(ca, ya, cb, yb) for ca, cb in zip(cols, cols[1:])]))
+    return RuledTable(tuple(area), rows) if len(rows) >= 2 else None
 
 
 def chart_icons(page):
@@ -268,6 +355,16 @@ def page_md(doc, pno, out_dir, images, state):
         tables = [t for t in page.find_tables().tables if t.row_count >= 1 and t.col_count >= 2]
     except Exception:
         tables = []
+    if not tables:                                 # rows ruled, columns not: read it as a table, not a picture
+        try:
+            for r in page.cluster_drawings():
+                r = pymupdf.Rect(r)
+                if r.width >= 60 and r.height >= 40 and rules_only(page, r):
+                    rt = ruled_table(page, r)
+                    if rt and not any(pymupdf.Rect(t.bbox).intersects(pymupdf.Rect(rt.bbox)) for t in tables):
+                        tables.append(rt)
+        except Exception:
+            pass
     icons = chart_icons(page)
     if icons:
         state["icon_charts"] = True

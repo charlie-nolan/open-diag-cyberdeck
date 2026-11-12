@@ -25,6 +25,19 @@ the pieces that had no one-car form, using the existing scripts as libraries (no
             images/ folder: the factory-manual figures (grayscale WebP, like kb/ship_images.py) from the converted
             manual's folder, the CHARM page pictures from the CHARM images LMDB (re-encoded to WebP only when wide
             or big), and any chart readings already made (kb/charm_reads.db). Each source is skipped when missing.
+  community-select  Pick one car's forum/Reddit threads from the raw scrape for a fresh extraction: runs
+            build_community.py's pass 0 (prefilter) into <work-dir>/_prefilter/, then keeps threads whose scrape tags,
+            title/opening post or sub/forum name name the model (kb_retriever's aliases) and that mention no year, or
+            a year within --year +- --window. Optional --min-replies/--any-of (the extraction's own filters) and a time
+            budget (--budget-hours x --rate threads/h): over budget, a seeded random sample. Writes
+            <work-dir>/<make>.work.db (the extraction's work DB) and <work-dir>/select.json (counts).
+            Then: build_community.py --work-dir <work-dir> --make <make> extract  (any backend/model).
+  community-load  build_community.py's pass 2 (tables, manual links against THIS DB, vectors) on <work-dir>, then
+            the car's comm_* rows into this DB (same model/year rule as `community`). Nothing in kb/ is written.
+  html-manual  Load a folder of HTML manual pages for one car (a LEMON Manuals single-car download: the zip or its
+            extracted folder; also any CHARM-style page folder) with the builder's own CHARM page parser (charm_text,
+            charm_parts, charm_specs_labor, CHARM_DTC_RE, labor_from_sections). Breadcrumbs give the page path; listing
+            pages are skipped; the pages' pictures go into the DB's picture table under CHARM-style keys.
   check     Row counts vs the make DB for the same car, and a few retriever searches.
 
 Every source DB is opened read-only (file:...?mode=ro).
@@ -250,7 +263,7 @@ COMM_KINDS = {"outcome": ("comm_outcome", "thread_id"), "ruled_out": ("comm_rule
               "chain": ("comm_chain", "id"), "symptom": ("comm_symptom", "id")}
 
 
-def cmd_community(a):
+def cmd_community(a, remap=True):
     c = open_rw(a.db)
     load_vec(c)
     c.execute("ATTACH DATABASE ? AS s", (ro(a.src),))
@@ -259,11 +272,14 @@ def cmd_community(a):
         return
     copy_schema(c, "comm_")
     names = model_names(a.model)
+    make = os.path.splitext(os.path.basename(a.db))[0].replace("_", " ").upper()   # built as <make>.db
+    names = names + [f"{make} {n}" for n in names]          # extracted records also write "<Make> <Model>"
     q = ",".join("?" * len(names))
     y = int(a.year)
+    y0, y1 = (int(x) for x in a.years.split("-")) if getattr(a, "years", None) else (y - a.window, y + a.window)
     c.execute("CREATE TEMP TABLE th (id INTEGER PRIMARY KEY)")
-    c.execute(f"INSERT INTO th SELECT id FROM s.comm_thread WHERE upper(model) IN ({q}) AND "
-              f"(year IS NULL OR year BETWEEN ? AND ?)", names + [y - a.window, y + a.window])
+    c.execute(f"INSERT INTO th SELECT id FROM s.comm_thread WHERE upper(trim(model)) IN ({q}) AND "
+              f"(year IS NULL OR year BETWEEN ? AND ?)", names + [y0, y1])
     n = {"comm_thread": copy_rows(c, "comm_thread", "WHERE x.id IN (SELECT id FROM th)")}
     for t in [r[0] for r in c.execute("SELECT name FROM main.sqlite_master WHERE type='table' AND name LIKE 'comm_%'")]:
         if t in ("comm_thread", "comm_meta", "comm_count", "comm_link") or not has_table(c, t, "s"):
@@ -273,13 +289,16 @@ def cmd_community(a):
     if has_table(c, "comm_meta", "s"):
         copy_rows(c, "comm_meta")
         c.execute("INSERT OR REPLACE INTO comm_meta VALUES ('one_car', ?)",
-                  (json.dumps({"model": a.model, "year": y, "window": a.window}),))
+                  (json.dumps({"model": a.model, "year": y, "years": [y0, y1],
+                               "source": "make DB" if remap else "fresh extraction"}),))
     if has_table(c, "comm_count", "s"):
         n["comm_count"] = copy_rows(c, "comm_count", f"WHERE x.model IS NULL OR upper(x.model) IN ({q})", names)
     if has_table(c, "comm_link", "s"):
-        smap = section_map(c)
         c.execute("CREATE TEMP TABLE m (old INTEGER PRIMARY KEY, new INTEGER)")
-        c.executemany("INSERT INTO m VALUES (?,?)", smap.items())
+        if remap:     # make DB: its section ids -> this DB's by page text hash
+            c.executemany("INSERT INTO m VALUES (?,?)", section_map(c).items())
+        else:         # fresh tables step: links were made against this DB already
+            c.execute("INSERT INTO m SELECT id, id FROM main.section")
         for kind, (tab, key) in COMM_KINDS.items():
             if not has_table(c, tab):
                 continue
@@ -292,6 +311,118 @@ def cmd_community(a):
         n["comm_doc_vec"] = copy_vectors(c, "comm_doc_vec", "SELECT id FROM main.comm_doc")
     c.commit()
     print("community:", ", ".join(f"{k} {v}" for k, v in n.items()))
+
+
+# ------------------------------------------------------------------ community from the raw scrape (fresh extraction)
+def _bc(work_dir, make, log=None):
+    """build_community.py as a library, its work/output folders pointed at work_dir (nothing in kb/ is written)."""
+    bc = importlib.import_module("build_community")
+    bc.WORK = bc.OUT = os.path.abspath(work_dir)
+    bc.LOG = log or os.path.join(os.path.dirname(HERE), "logs", f"community_{make}_{os.path.basename(bc.WORK)}.log")
+    os.makedirs(bc.WORK, exist_ok=True)
+    return bc
+
+
+def _word_re(names):
+    import re
+    alts = sorted({re.escape(n.lower()).replace(r"\ ", r"[\s_-]*") for n in names}, key=len, reverse=True)
+    return re.compile(r"(?<![a-z0-9])(?:" + "|".join(alts) + r")(?![a-z0-9])")
+
+
+def _years_in(text):
+    import re
+    return {int(y) for y in re.findall(r"(?<![0-9])((?:19|20)[0-9]{2})(?![0-9])", text or "")}
+
+
+def cmd_community_select(a):
+    import random
+    make = a.make.lower()
+    names = model_names(a.model)
+    wre = _word_re(names)
+    y0, y1 = a.year - a.window, a.year + a.window
+    if a.years:                      # explicit range, e.g. the car's generation: 1998-2002
+        y0, y1 = (int(x) for x in a.years.split("-"))
+    stage = os.path.join(os.path.abspath(a.work_dir), "_prefilter")
+    bc = _bc(stage, make, a.log)
+    w0 = bc.work_db(make)
+    t0 = time.time()
+    if a.reprefilter or not w0.execute("SELECT 1 FROM thread LIMIT 1").fetchone():
+        if not bc.sources(make):
+            sys.exit(f"community-select: build_community.py finds no Reddit/forum dump for '{make}'")
+        bc.step_prefilter(make)
+    t_pre = time.time() - t0
+    total = w0.execute("SELECT count(*) FROM thread").fetchone()[0]
+    keep, why = [], {"model_tag": 0, "model_text": 0, "model_sub": 0, "no_year": 0, "year_in_window": 0}
+    for src, tid, sub, title, segs, tags in w0.execute("SELECT src, tid, sub, title, segs, tags FROM thread"):
+        tg = json.loads(tags or "{}")
+        op = (json.loads(segs)[0]["t"] if segs else "") or ""
+        hit = None
+        if tg.get("models") and wre.search(str(tg["models"]).lower()):
+            hit = "model_tag"
+        elif wre.search(f"{title or ''}\n{op}".lower()):
+            hit = "model_text"
+        elif sub and wre.search(sub.lower().replace("_", " ")):
+            hit = "model_sub"
+        if not hit:
+            continue
+        ys = _years_in(str(tg.get("years") or "")) or _years_in(f"{title or ''}\n{op}")
+        if ys and not any(y0 <= y <= y1 for y in ys):
+            continue
+        why[hit] += 1
+        why["year_in_window" if ys else "no_year"] += 1
+        keep.append((src, tid))
+    # the extraction's own filters (build_community.thread_filter), so the budget counts what would really run
+    ns = argparse.Namespace(pilot=False, min_replies=a.min_replies, any_of=a.any_of)
+    where, args = bc.thread_filter(ns)
+    w0.execute("CREATE TEMP TABLE k (src TEXT, tid TEXT, PRIMARY KEY (src, tid))")
+    w0.executemany("INSERT OR IGNORE INTO k VALUES (?,?)", keep)
+    runnable = w0.execute(f"SELECT t.src, t.tid FROM thread t JOIN k ON k.src=t.src AND k.tid=t.tid WHERE {where}",
+                          args).fetchall()
+    budget = int(a.budget_hours * a.rate) if a.budget_hours and a.rate else 0
+    chosen = runnable
+    if budget and len(runnable) > budget:
+        chosen = random.Random(a.seed).sample(sorted(runnable), budget)
+    out = os.path.abspath(a.work_dir)
+    bc.WORK = out
+    w = bc.work_db(make)
+    if w.execute("SELECT count(*) FROM extract").fetchone()[0] and not a.force:
+        sys.exit(f"community-select: {out}/{make}.work.db already has extractions; --force replaces the selection")
+    w.execute("DELETE FROM thread")
+    w.execute("ATTACH DATABASE ? AS p", (os.path.join(stage, f"{make}.work.db"),))   # our own staging copy
+    w.execute("CREATE TEMP TABLE c (src TEXT, tid TEXT, PRIMARY KEY (src, tid))")
+    w.executemany("INSERT INTO c VALUES (?,?)", chosen)
+    w.execute("INSERT INTO thread SELECT t.* FROM p.thread t JOIN c ON c.src=t.src AND c.tid=t.tid")
+    w.execute("INSERT OR REPLACE INTO sub_score SELECT * FROM p.sub_score")
+    w.commit()
+    info = {"make": make, "model": a.model, "names": names, "year": a.year, "years": [y0, y1],
+            "min_replies": a.min_replies, "any_of": a.any_of, "seed": a.seed, "prefilter_kept": total,
+            "model_and_year_match": len(keep), "match_reasons": why, "after_extract_filters": len(runnable),
+            "budget_threads": budget or None, "selected": len(chosen), "sampled": len(chosen) < len(runnable),
+            "prefilter_s": round(t_pre, 1)}
+    with open(os.path.join(out, "select.json"), "w") as f:
+        json.dump(info, f, indent=1)
+    print("community-select:", json.dumps(info))
+
+
+def cmd_community_load(a):
+    """Pass 2 on a fresh extraction, linked to THIS DB's pages, then the car's rows into it."""
+    make = a.make.lower()
+    db = os.path.abspath(a.db)
+    if os.path.splitext(os.path.basename(db))[0] != make:
+        sys.exit(f"community-load: the DB must be named {make}.db while building (tables links through it)")
+    bc = _bc(a.work_dir, make, a.log)
+    if not os.path.isfile(os.path.join(bc.WORK, f"{make}.work.db")):
+        sys.exit(f"community-load: no {bc.WORK}/{make}.work.db (run community-select and the extraction first)")
+    bc.KB = os.path.dirname(db)          # links(): the manual sections searched are this DB's
+    t0 = time.time()
+    bc.step_tables(make, argparse.Namespace(pilot=False, vec=False))
+    t1 = time.time()
+    if a.device != "none":
+        bc.step_embed(make, a.device)
+    t2 = time.time()
+    a.src = bc.cdb_path(make)
+    cmd_community(a, remap=False)
+    print(f"community-load: tables {t1 - t0:.0f} s, embed {t2 - t1:.0f} s, copy {time.time() - t2:.0f} s")
 
 
 # ------------------------------------------------------------------ telemetry
@@ -450,7 +581,7 @@ def cmd_images(a):
     n = {"fsm": 0, "fsm missing": 0, "charm": 0, "charm missing": 0, "readings": 0}
     size = 0
     # factory-manual figures: <fsm-dir>/<doc title>/<name>, as the PDF converter wrote them
-    fsm_dir = os.path.expanduser(a.fsm_dir)
+    fsm_dirs = [os.path.expanduser(d) for d in (a.fsm_dir or [])]
     for doc_id, title in c.execute("SELECT id, title FROM doc WHERE kind='fsm'").fetchall():
         names = set()
         for (imgs,) in c.execute("SELECT images FROM section WHERE doc_id=? AND images IS NOT NULL", (doc_id,)):
@@ -459,7 +590,8 @@ def cmd_images(a):
             key = fsm_picture_key(doc_id, name)
             if c.execute("SELECT 1 FROM picture WHERE key=?", (key,)).fetchone():
                 continue
-            src = os.path.join(fsm_dir, title, name)
+            src = next((p for p in (os.path.join(d, title, name) for d in fsm_dirs) if os.path.isfile(p)),
+                       os.path.join(fsm_dirs[0] if fsm_dirs else "", title, name))
             if not os.path.isfile(src):
                 n["fsm missing"] += 1
                 continue
@@ -477,6 +609,8 @@ def cmd_images(a):
     keys = set()
     for (imgs,) in c.execute("SELECT images FROM section WHERE images LIKE '%/images/%'"):
         keys.update(x for x in json.loads(imgs) if x.startswith("/images/"))
+    all_keys = set(keys)
+    keys = {k for k in keys if not c.execute("SELECT 1 FROM picture WHERE key=?", (k,)).fetchone()}  # stored already
     lmdb_dir = os.path.expanduser(a.lmdb) if a.lmdb else ""
     if keys and lmdb_dir and os.path.isfile(os.path.join(lmdb_dir, "data.mdb")):
         import io
@@ -512,6 +646,7 @@ def cmd_images(a):
               "the app will fetch them from a picture server instead, if one is set")
     # chart readings the PC's vision model already made (optional)
     reads = os.path.expanduser(a.reads_db)
+    keys = all_keys
     if keys and os.path.isfile(reads):
         c.execute("ATTACH DATABASE ? AS r", (ro(reads),))
         c.execute("CREATE TEMP TABLE k (key TEXT PRIMARY KEY)")
@@ -524,6 +659,155 @@ def cmd_images(a):
     total = c.execute("SELECT coalesce(sum(length(data)),0) FROM picture").fetchone()[0]
     print("images:", ", ".join(f"{k} {v}" for k, v in n.items()), f"| added {size / 1e6:.0f} MB, "
           f"{total / 1e6:.0f} MB of pictures in the DB")
+
+
+
+# ------------------------------------------------------------------ HTML manual folder (LEMON download, CHARM-style pages)
+def _html_root(path, scratch):
+    """A .zip is extracted into scratch; returns the folder that holds pages/ (or the HTML files)."""
+    import zipfile
+    path = os.path.abspath(os.path.expanduser(path))
+    if path.lower().endswith(".zip"):
+        dest = os.path.join(scratch, os.path.splitext(os.path.basename(path))[0])
+        if not os.path.isdir(dest):
+            with zipfile.ZipFile(path) as z:
+                for m in z.namelist():                     # no absolute or ../ paths out of dest
+                    if m.startswith("/") or ".." in m.split("/"):
+                        sys.exit(f"html-manual: unsafe path in zip: {m}")
+                z.extractall(dest)
+        path = dest
+    for root, dirs, files in os.walk(path):
+        if "pages" in dirs and any(f.endswith(".html") for f in os.listdir(os.path.join(root, "pages"))):
+            return root
+    return path
+
+
+def cmd_html_manual(a):
+    import glob
+    import hashlib
+    import urllib.parse
+    from bs4 import BeautifulSoup
+    b = importlib.import_module("build_subaru_kb")
+    t0 = time.time()
+    root = _html_root(a.path, a.scratch or os.path.join(os.path.dirname(os.path.abspath(a.db)), "html_src"))
+    files = sorted(glob.glob(os.path.join(root, "pages", "*.html"))) or sorted(
+        f for f in glob.glob(os.path.join(root, "**", "*.html"), recursive=True))
+    if not files:
+        sys.exit(f"html-manual: no HTML pages under {root}")
+    c = open_rw(a.db)
+    c.executescript(PICTURE_SCHEMA)
+    title = a.title or os.path.basename(root.rstrip("/"))
+    if c.execute("SELECT 1 FROM doc WHERE title=?", (title,)).fetchone():
+        sys.exit(f"html-manual: '{title}' is already in {a.db}")
+    doc_id = c.execute("INSERT INTO doc(kind,title,file_name,license) VALUES (?,?,?,?)",
+                       (a.kind, title, os.path.basename(a.path.rstrip("/")), a.license)).lastrowid
+    st = dict(files=len(files), listing=0, empty=0, image_only=0, pages=0, new=0, specs=0, dtc=0, pictures=0,
+              pictures_missing=0, picture_mb=0.0)
+    vids, by_hash, pics = {}, {}, {}
+
+    def vehicle(engine):
+        if engine not in vids:
+            row = c.execute("SELECT id FROM vehicle WHERE model=? AND year=? AND engine IS ?",
+                            (a.model, a.year, engine)).fetchone()
+            vids[engine] = row[0] if row else c.execute(
+                "INSERT INTO vehicle(model,chassis,year,engine,market) VALUES (?,?,?,?,?)",
+                (a.model, a.chassis or None, a.year, engine, a.market)).lastrowid
+        return vids[engine]
+
+    for fp in files:
+        raw = open(fp, encoding="utf-8", errors="replace").read()
+        if "id='expand-all'" in raw[:4000] or 'id="expand-all"' in raw[:4000]:
+            st["listing"] += 1                              # a list of links, no content
+            continue
+        soup = BeautifulSoup(raw, "lxml")
+        crumbs = [x.get_text(" ", strip=True) for x in soup.select(".breadcrumb-part")]
+        model_full = None
+        if len(crumbs) >= 4 and crumbs[2] == str(a.year):   # Home > Make > Year > Model ... (LEMON/CHARM layout)
+            model_full, crumbs = crumbs[3], crumbs[4:]
+        elif not crumbs:
+            h1 = soup.find("h1")
+            crumbs = [h1.get_text(" ", strip=True) if h1 else os.path.splitext(os.path.basename(fp))[0]]
+        for t in soup.select(".header, .footer, .theme-colors"):
+            t.decompose()
+        main = soup.select_one(".main") or soup
+        for h in main.find_all("h1"):
+            h.decompose()
+        imgs = []
+        for i in main.find_all("img", src=True):
+            src = i["src"]
+            if "/icons/" in src or src.endswith(".svg"):
+                continue
+            rel = os.path.normpath(os.path.join(os.path.dirname(fp), urllib.parse.unquote(src)))
+            key = "/images/" + os.path.splitext(os.path.relpath(rel, os.path.join(root, "images")))[0] + "/"
+            imgs.append(key)
+            pics.setdefault(key, rel)
+        imgs = imgs[:20]
+        body, rows = b.charm_text(main)
+        if len(body) < 25 and not any(len(r) >= 2 for r in rows):
+            st["image_only" if imgs else "empty"] += 1
+            continue
+        st["pages"] += 1
+        engine = None
+        if model_full:
+            engine = b.charm_vehicle(model_full)[1]
+        vid = vehicle(engine)
+        section = next((x for x in reversed(crumbs) if x.lower() in ("labor times", "parts", "specifications",
+                                                                      "parts information")), "")
+        ptitle = crumbs[-1] if crumbs else title
+        path = " > ".join(crumbs)
+        head = " > ".join(crumbs[-2:])
+        for n, part in enumerate(b.charm_parts(body), 1):
+            text = f"{head}\n{part}" if n == 1 else f"{head} (continued, part {n})\n{part}"
+            h = hashlib.blake2b(text.encode(), digest_size=8).digest()
+            sid = by_hash.get(h)
+            if sid is None:
+                sid = c.execute("INSERT INTO section(doc_id,chapter,topic,fsm_code,title,path,part,page,body,images,"
+                                "body_hash) VALUES (?,?,?,NULL,?,?,?,NULL,?,?,?)",
+                                (doc_id, crumbs[0] if crumbs else None, crumbs[-2] if len(crumbs) > 1 else None,
+                                 ptitle, path, n, text, json.dumps(imgs) if imgs and n == 1 else None, h)).lastrowid
+                by_hash[h] = sid
+                st["new"] += 1
+                if n == 1:
+                    st["specs"] += b.charm_specs_labor(c, sid, section, rows, st)
+            c.execute("INSERT OR IGNORE INTO section_vehicle VALUES (?,?)", (vid, sid))
+            m = b.CHARM_DTC_RE.match(ptitle)
+            if m and n == 1:
+                c.execute("INSERT OR IGNORE INTO dtc(code) VALUES (?)", (m.group(1),))
+                c.execute("INSERT OR IGNORE INTO dtc_procedure VALUES (?,?,?)", (m.group(1), vid, sid))
+                st["dtc"] += 1
+    c.commit()
+    st["labor"] = b.labor_from_sections(c)
+    c.execute("DELETE FROM spec_fts")
+    c.execute("INSERT INTO spec_fts(rowid, component, context) SELECT p.id, p.component, "
+              "coalesce(s.topic,'') || ' ' || s.title FROM spec p JOIN section s ON s.id=p.section_id")
+    c.execute("INSERT INTO section_fts(section_fts) VALUES ('rebuild')")
+    if not a.no_images:
+        for key, fp in sorted(pics.items()):
+            if c.execute("SELECT 1 FROM picture WHERE key=?", (key,)).fetchone():
+                continue
+            if not os.path.isfile(fp):
+                st["pictures_missing"] += 1
+                continue
+            data = open(fp, "rb").read()
+            fmt, w, h = os.path.splitext(fp)[1].lstrip(".").lower(), None, None
+            try:
+                import io
+                from PIL import Image
+                with Image.open(io.BytesIO(data)) as im:
+                    w, h = im.width, im.height
+                if w > a.max_px or len(data) > a.max_bytes:
+                    data, w, h = _webp(data, a.max_px, 82, gray=False)
+                    fmt = "webp"
+            except Exception:
+                pass
+            c.execute("INSERT INTO picture VALUES (?,?,?,?,?)", (key, data, fmt, w, h))
+            st["pictures"] += 1
+            st["picture_mb"] += len(data) / 1e6
+    st["picture_mb"] = round(st["picture_mb"], 1)
+    st["seconds"] = round(time.time() - t0, 1)
+    c.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (f"html_manual:{title}", json.dumps(st)))
+    c.commit()
+    print("html-manual:", ", ".join(f"{k} {v}" for k, v in st.items()))
 
 
 # ------------------------------------------------------------------ check
@@ -550,10 +834,11 @@ def cmd_check(a):
                                      f"WHERE vehicle_id IN ({q}))", v).fetchone()[0],
             "dtc_procedure (car)": c.execute(f"SELECT count(*) FROM dtc_procedure WHERE vehicle_id IN ({q})", v).fetchone()[0],
             "dtc": c.execute("SELECT count(*) FROM dtc").fetchone()[0],
-            "ssm_param": c.execute("SELECT count(*) FROM ssm_param").fetchone()[0],
             "dtc_card (car)": c.execute(f"SELECT count(*) FROM dtc_card WHERE upper(model) IN ({nq}) AND ? BETWEEN year_min "
                                         f"AND year_max", names + [int(a.year)]).fetchone()[0],
         }
+        if has_table(c, "ssm_param"):
+            out["ssm_param"] = c.execute("SELECT count(*) FROM ssm_param").fetchone()[0]
         for kind, n in c.execute(f"SELECT kind, count(*) FROM knowledge WHERE (upper(model) IN ({nq}) AND ? BETWEEN "
                                  f"coalesce(year_min,0) AND coalesce(year_max,year_min,9999)) OR model IS NULL OR model='' "
                                  f"GROUP BY kind", names + [int(a.year)]):
@@ -563,7 +848,7 @@ def cmd_check(a):
                 if t == "comm_thread":
                     y = int(a.year)
                     out[t + " (car)"] = c.execute(f"SELECT count(*) FROM comm_thread WHERE upper(model) IN ({nq}) AND "
-                                                  f"(year IS NULL OR year BETWEEN ? AND ?)", names + [y - 2, y + 2]).fetchone()[0]
+                                                  f"(year IS NULL OR year BETWEEN ? AND ?)", names + [y - a.window, y + a.window]).fetchone()[0]
                 else:
                     out[t + " (car)"] = c.execute(f"SELECT count(*) FROM {t} WHERE (model IS NULL OR upper(model) IN ({nq})) "
                                                   f"AND ? BETWEEN coalesce(year_min,0) AND coalesce(year_max,9999)",
@@ -575,11 +860,18 @@ def cmd_check(a):
 
     a_new = counts(new)
     a_src = counts(src) if src else {}
+    report = {"db": a.db, "mb": round(os.path.getsize(a.db) / 1e6, 1), "counts": a_new, "make_db_counts": a_src,
+              "tables": {t: new.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for (t,) in new.execute(
+                  "SELECT name FROM sqlite_master WHERE type='table' AND sql NOT LIKE 'CREATE VIRTUAL%' AND name NOT "
+                  "LIKE '%_fts_%' AND name NOT LIKE '%vec_%' AND name NOT LIKE 'sqlite_%'")}, "searches": {}}
     w = max(len(k) for k in a_new)
     print(f"  {'':{w}}  {'new':>8}  {'make DB':>8}")
     for k in a_new:
         print(f"  {k:{w}}  {a_new[k]:>8}  {a_src.get(k, ''):>8}")
     if a.no_search:
+        if a.json:
+            with open(a.json, "w") as f:
+                json.dump(report, f, indent=1)
         return
     # retriever: open the DB under the make's file name (a symlink dir), as the app does
     app_db = a.app_db or a.db
@@ -592,7 +884,7 @@ def cmd_check(a):
         t0 = time.time()
         r = Retriever(app_db, model=a.model, year=a.year, embed=emb)
         print(f"  retriever opened {app_db} in {time.time() - t0:.1f} s (vectors {'on' if r.embed else 'off'})")
-        for qtext in QUERIES:
+        for qtext in (a.queries.split("|") if a.queries else QUERIES):
             t0 = time.time()
             ids = r.search_ids(qtext, k=3)
             paths = [p for (p,) in (new.execute("SELECT path FROM section WHERE id=?", (i,)).fetchone() or ("?",)
@@ -600,20 +892,66 @@ def cmd_check(a):
             print(f"  [{time.time() - t0:4.1f}s] {qtext!r}:")
             for p in paths:
                 print(f"      - {p[:110]}")
+            report["searches"][qtext] = {"seconds": round(time.time() - t0, 2), "paths": paths}
     except Exception as e:
         print(f"  retriever FAILED: {type(e).__name__}: {e}")
+        report["retriever_error"] = f"{type(e).__name__}: {e}"
+    if a.json:
+        with open(a.json, "w") as f:
+            json.dump(report, f, indent=1)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("extras", "copy-docs", "community", "telemetry", "trim", "reuse-vectors", "images", "check"):
+    for name in ("extras", "copy-docs", "html-manual", "community", "community-select", "community-load", "telemetry", "trim",
+                 "reuse-vectors", "images", "check"):
         p = sub.add_parser(name)
+        if name == "community-select":
+            p.add_argument("--work-dir", required=True, help="new folder for this car's extraction work DB")
+            p.add_argument("--make", required=True, help="make DB name build_community.py uses (e.g. the kb/<make>.db name)")
+            p.add_argument("--model", required=True)
+            p.add_argument("--year", type=int, required=True)
+            p.add_argument("--window", type=int, default=2, help="years either side of --year (threads with no year stay)")
+            p.add_argument("--years", help="explicit year range A-B instead of --window (e.g. the car's generation)")
+            p.add_argument("--min-replies", type=int, default=0)
+            p.add_argument("--any-of", default="", help="pass-0 flags, e.g. test,outcome,code")
+            p.add_argument("--budget-hours", type=float, default=0, help="time budget for the extraction (0: no cap)")
+            p.add_argument("--rate", type=float, default=0, help="threads/hour the extraction runs at on this machine")
+            p.add_argument("--seed", type=int, default=20261112)
+            p.add_argument("--reprefilter", action="store_true", help="re-run pass 0 even if _prefilter has threads")
+            p.add_argument("--force", action="store_true")
+            p.add_argument("--log")
+            continue
         p.add_argument("--db", required=True, help="the one-car DB being built")
+        if name == "html-manual":
+            p.add_argument("--path", required=True, help="the .zip or the extracted folder")
+            p.add_argument("--model", required=True)
+            p.add_argument("--year", type=int, required=True)
+            p.add_argument("--chassis")
+            p.add_argument("--market", default="USDM")
+            p.add_argument("--title", help="doc title (default: the folder name)")
+            p.add_argument("--kind", default="charm", help="doc kind for the retriever (CHARM-style pages: charm)")
+            p.add_argument("--license", default="as downloaded; personal use")
+            p.add_argument("--scratch", help="where a zip is extracted (default: next to --db)")
+            p.add_argument("--no-images", action="store_true")
+            p.add_argument("--max-px", type=int, default=1600)
+            p.add_argument("--max-bytes", type=int, default=400_000)
+            continue
+        if name == "community-load":
+            p.add_argument("--work-dir", required=True)
+            p.add_argument("--make", required=True)
+            p.add_argument("--model", required=True)
+            p.add_argument("--year", type=int, required=True)
+            p.add_argument("--window", type=int, default=2)
+            p.add_argument("--years", help="explicit year range A-B instead of --window")
+            p.add_argument("--device", default="auto", help="vectors: auto|cuda|cpu|none")
+            p.add_argument("--log")
+            continue
         if name == "images":
-            root = os.path.dirname(HERE)
-            p.add_argument("--fsm-dir", default=os.path.join(root, "test_batch_out"),
-                           help="folder holding one folder per converted manual (named after the manual's title)")
+            p.add_argument("--fsm-dir", action="append",
+                           help="folder holding one folder per converted manual (named after the manual's title); "
+                                "repeat for several (default test_batch_out)")
             p.add_argument("--lmdb", default=os.environ.get("CHARM_IMAGES", ""),
                            help="the CHARM images LMDB folder (holds data.mdb); default $CHARM_IMAGES")
             p.add_argument("--reads-db", default=os.path.join(HERE, "charm_reads.db"))
@@ -627,14 +965,20 @@ def main():
             p.add_argument("--src", help="the make DB to copy from (opened read-only)")
             p.add_argument("--window", type=int, default=2 if name == "community" else 0,
                            help="years either side of --year to keep (community default 2, others 0)")
+        if name == "community":
+            p.add_argument("--years", help="explicit year range A-B instead of --window")
         if name == "copy-docs":
             p.add_argument("--kinds", default="charm", help="doc kinds to copy, e.g. charm or charm,fsm")
         if name == "check":
             p.add_argument("--app-db", help="the same DB under its make's file name (for the retriever's make rules)")
             p.add_argument("--keywords-only", action="store_true")
             p.add_argument("--no-search", action="store_true")
+            p.add_argument("--queries", help="search checks, separated by |")
+            p.add_argument("--json", help="also write counts, table sizes and search results here")
     a = ap.parse_args()
-    {"extras": cmd_extras, "copy-docs": cmd_copy_docs, "community": cmd_community, "telemetry": cmd_telemetry,
+    if a.cmd == "images" and not a.fsm_dir:
+        a.fsm_dir = [os.path.join(os.path.dirname(HERE), "test_batch_out")]
+    {"html-manual": cmd_html_manual, "community-select": cmd_community_select, "community-load": cmd_community_load, "extras": cmd_extras, "copy-docs": cmd_copy_docs, "community": cmd_community, "telemetry": cmd_telemetry,
      "trim": cmd_trim, "reuse-vectors": cmd_reuse_vectors, "images": cmd_images, "check": cmd_check}[a.cmd](a)
 
 
