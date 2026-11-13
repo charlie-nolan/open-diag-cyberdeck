@@ -94,6 +94,9 @@ Use ONLY the numbered sources given. Every cause and step lists the source ids i
 - fsm_steps: the manual's diagnostic checks in order, each 'check' written out as a short sentence saying what to check
   and how (e.g. "Check the harness between the sensor and the ECM for continuity"). Never just a step number or
   step code like "3" or "10AH2".
+- Wording: these are owner reports, not proof. Say "reported fixed by N owners" or "the most often reported fix";
+  never "confirmed fix", "#1", "top cause" or "most common confirmed fix". The manual's procedure decides the order of
+  work; the card only says how often owners reported each fix.
 - Plain, short sentences."""
 
 VERIFY_SYSTEM = """You check one cause listed on a car diagnostic card for a trouble code against the sources it cites.
@@ -338,7 +341,7 @@ def render(code, desc, card, sources, specs, labor):
         item["sources"] = [i for i in item["sources"] if i in by_id]
     out = [f"{code}: {desc}", card["summary"], ""]
     if card["causes"]:
-        out.append("Likely causes, most common first:")
+        out.append("Owner-reported causes, most often reported first (not the manual's order):")
         for n, c in enumerate(card["causes"], 1):
             mark = "" if c.get("support", "yes") == "yes" else " (partly supported)"
             out.append(f"{n}. {c['cause']}{mark} [{', '.join(c['sources'])}]")
@@ -394,7 +397,7 @@ def step_bake(a):
     vids = vehicle_ids(kb, a.model, y0, y1, a.engine)
     out = sqlite3.connect(os.path.expanduser(a.out))
     out.executescript(CARD_SCHEMA_SQL)
-    llm = LLM(a.url, temperature=0.2, max_tokens=2000)
+    llm = LLM(a.url, temperature=0.2, max_tokens=2000, model=a.server_model)
     if not llm.ping():
         sys.exit(f"llama-server not answering at {a.url} (start serve_cards.sh first)")
 
@@ -479,6 +482,8 @@ def main():
     ap.add_argument("--knowledge-k", type=int, default=5)
     ap.add_argument("--url", default="http://127.0.0.1:8081")
     ap.add_argument("--model-name", default="Qwen3.6-35B-A3B-Q4_K_M", help="recorded with each card")
+    ap.add_argument("--server-model", help="model name to ask the server for (Ollama: e.g. qwen3.6:35b-a3b-q4_K_M; "
+                                           "llama-server serves one model and ignores it)")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--force", action="store_true", help="rebuild cards that already exist")
     ap.add_argument("--no-verify", action="store_true", help="skip the source check (faster, less safe)")

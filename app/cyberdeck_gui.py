@@ -42,7 +42,7 @@ from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, Q
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(1, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssm"))  # ssm_tests, telemetry_logger
-from llm_backend import (OllamaModel, RKLLMModel, mem_available_gb, mem_total_gb, ollama_models,  # noqa: E402
+from llm_backend import (ClaudeModel, OllamaModel, OpenAICompatModel, RKLLMModel, mem_available_gb, mem_total_gb, ollama_models,  # noqa: E402
                          probe_rkllm)
 from retrieval import Retriever as LegacyRetriever  # noqa: E402
 from vehicle_id import MAKES, car_from_rom, decode_vin, kb_path_for, make_from_ssm, nhtsa_decode  # noqa: E402
@@ -53,6 +53,7 @@ import drive_file
 import live_data
 import maintenance
 import procedures
+import sanity_check  # DATA CHECK: impossible/contradictory case data, in Python, before the models
 import obd_all  # every OBD-II PID the car offers, through the EX
 import telemetry_ref  # live readings vs the car's manual zones (kb telem_* tables, kb/build_telemetry.py)
 import voice  # noqa: E402
@@ -63,7 +64,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 DEFAULT_CONFIG = {
     "vehicle": "",  # no default car: pick it in Intake (remembered per session)
-    "backend": "auto",  # auto | rkllm | ollama
+    "backend": "auto",  # auto | rkllm | ollama | openai | claude
+    # backend "openai": any OpenAI-compatible server (LM Studio, llama.cpp, Jan, vLLM, OpenRouter, ...). Its key, if
+    # it needs one, is read from the environment variable named in openai_key_env, never stored here.
+    "openai_url": os.environ.get("CYBERDECK_OPENAI_URL", "http://127.0.0.1:1234/v1"),
+    "openai_key_env": "OPENAI_API_KEY",
+    "openai_fast": "", "openai_deep": "", "openai_think": "",   # model names as the server lists them
+    # backend "claude": the Claude API (pip install anthropic; key in ANTHROPIC_API_KEY or `ant auth login`)
+    "claude_fast": "claude-opus-5-5", "claude_deep": "claude-opus-5-5", "claude_think": "claude-opus-5-5",
+    "claude_effort": {"fast": "low", "deep": "high", "think": "high"},
     # Lists = first file that exists wins, so the Qwen3 exports take over from Qwen2.5 with no config edit.
     "rkllm_lib": [f"{ROOT}/rknn-llm/rkllm-runtime/Linux/librkllm_api/aarch64/librkllmrt.so", "/usr/lib/librkllmrt.so"],
     "fast_model": [f"{ROOT}/models/rkllm/Qwen3-1.7B_W8A8_RK3588.rkllm",
@@ -86,6 +95,7 @@ DEFAULT_CONFIG = {
     "home_think": "qwen3-next:80b-a3b-thinking-q4_K_M",
     "home_context_len": 16384,
     "keep_both_loaded": "auto",  # auto = both if >= 12 GB RAM, else swap on demand
+    "verdict_blind_first": True,  # FINAL DIAGNOSIS in two passes: evidence only, then the opinions (OPINION_FIELDS)
     "kb_dir": f"{ROOT}/kb",  # one knowledge DB per make: kb/subaru.db, kb/chevrolet.db ... picked in Intake
     "vin_db": f"{ROOT}/kb/vin.db",  # optional: NHTSA vPIC makes for every WMI (see VIN_DECODING.md)
     "rom_db": f"{ROOT}/kb/romid.db",  # optional: Subaru ECU id -> year/model (vehicle_id.py --build-romdb)
@@ -292,9 +302,15 @@ def fsm_hits(r, text, k=3, chars=900):
         meta = r.db.execute("SELECT doc_id, images FROM section WHERE id=?", (sid,)).fetchone()
         if meta and meta[1]:
             try:
-                figs = [n if charm_pics.is_charm(n) else  # CHARM: fetched from the PC when shown
-                        os.path.join(img_dir, str(meta[0]), os.path.splitext(n)[0] + ".webp")
-                        for n in json.loads(meta[1])]
+                figs = []
+                for n in json.loads(meta[1]):
+                    if charm_pics.is_charm(n):            # CHARM: from the DB or the PC when shown
+                        figs.append(n)
+                        continue
+                    f = os.path.join(img_dir, str(meta[0]), os.path.splitext(n)[0] + ".webp")
+                    if not os.path.isfile(f):             # a one-car DB keeps its figures inside it
+                        f = charm_pics.fsm_figure(kb, CFG["cache_dir"], meta[0], n) or f
+                    figs.append(f)
             except (ValueError, TypeError):
                 figs = []
         out.append((squeeze(r._fmt(path, page, body, chars, kind)), figs))
@@ -483,8 +499,9 @@ def case_context(r, text, budget=2500, scraped=True, verified_only=False):
         if c:  # likely causes only: the card's "manual procedure outline" was summarised from cut-off text
             c = c.split("Manual procedure outline:", 1)[0].strip()
             cards.append(c[:max(200, budget // (6 * len(codes)))])
-    cards = (["[REPORTED CAUSES: forum and TSB fixes counted for this car; secondary to the manual]"] + cards
-             if cards else [])
+    cards = (["[REPORTED CAUSES: owner-reported forum and TSB fixes counted for this car. Supporting evidence only, "
+              "ranked by how often owners reported them, not by the manual. The manual's procedure above decides the "
+              "order of work]"] + cards if cards else [])
     # the codes' own names find the right manual page when the question's words don't ("explain deeper")
     query = " ".join([text] + [d.split(":", 1)[-1] for d in defs])
     # a page about one of the case's own codes is already covered by its procedure above
@@ -499,6 +516,27 @@ def case_context(r, text, budget=2500, scraped=True, verified_only=False):
             out.append(part)
             used += len(part) + 2
     return "\n\n".join(out + ([comm] if comm else []))
+
+
+def cited_pages(ctx, plan):
+    """The FSM DATA blocks a first-pass plan used: every code's diagnostic procedure and definition, plus each other
+    block whose heading words (or a number from its text) the plan repeats. Pass 2 of the blind verdict reads these
+    instead of all of FSM DATA."""
+    import faithfulness                     # its block splitter (the deck's prompts tag each block "[...]")
+    plan_l = (plan or "").lower()
+    plan_nums = set(re.findall(r"\d+(?:\.\d+)?", plan_l))
+    keep = []
+    for label, text in faithfulness.pages(ctx or "")[1:]:
+        lab = label.lower()
+        if lab.startswith(("manual diagnostic procedure", "dtc", "codes together", "manual text for", "picture read")):
+            keep.append(text.strip())
+            continue
+        words = {w for w in re.findall(r"[a-z]{5,}", lab)} - {"repair", "diagnosis", "testing", "inspection",
+                                                               "description", "operation", "manual"}
+        nums = {n for n in re.findall(r"\d+\.\d+|\d{2,}", text) if not re.fullmatch(r"(19|20)\d\d", n)}  # not years
+        if sum(w in plan_l for w in words) >= 2 or len(nums & plan_nums) >= 2:
+            keep.append(text.strip())
+    return "\n\n".join(keep) or "(none cited)"
 
 
 def _fit(text, room):
@@ -522,6 +560,8 @@ def make_retriever(cfg):
         return NullRetriever()
     if kb and os.path.isfile(kb):
         sys.path.insert(0, os.path.dirname(kb))
+        if f"{ROOT}/kb" not in sys.path:    # a one-car DB lives in kb/cars/<car>/: the retriever stays in kb/
+            sys.path.insert(1, f"{ROOT}/kb")
         from kb_retriever import Retriever
         embed = None
         model_dir = find_embed_model(cfg)
@@ -572,6 +612,15 @@ CHART_READS_MAX = 6000   # chart readings in the case (PC models only, after the
 MAINT_PAGE = 6           # the Maintenance screen's place in the page stack (shown second in the nav bar)
 # A test drive is added after the case (its own room). On the PC models there's room for more readings.
 DRIVE_KEY = {"key": lambda: "drive_log_short"}   # the app points it at "drive_log" while the PC models answer
+
+
+# Intake fields that hold opinions, not evidence: guesses, another shop's idea, earlier unconfirmed diagnoses.
+# The blind first pass of FINAL DIAGNOSIS ("verdict_blind_first") leaves these out; pass 2 weighs them on the evidence.
+# Decided by field, never by words in the text. (key, label for pass 2)
+OPINION_FIELDS = (("suspect", "Suspect / known defects (the owner's or another shop's idea)"),
+                  ("earlier_visits", "Earlier visits and their verdicts (deck's records; verdicts not confirmed by a test)"),
+                  ("saved_debate", "Saved debate (competing explanations weighed, unresolved)"),
+                  ("saved_wildcard", "Saved wildcard ideas (long shots the mechanic wanted kept)"))
 
 
 class Session:
@@ -662,7 +711,12 @@ class Session:
         readings = telemetry_ref.normalize(telemetry_ref.from_live_text(text, src), src)
         return telemetry_ref.summary(telemetry_ref.judge(readings, car), budget=budget, car=car) if readings else ""
 
-    def case_summary(self):
+    def opinions(self):
+        """The OPINION_FIELDS that are filled in, labelled; '' when there are none."""
+        return "\n".join(f"{label}: {self.get(k)}" for k, label in OPINION_FIELDS if (self.get(k) or "").strip())
+
+    def case_summary(self, exclude=()):
+        """exclude: keys left out (the blind first pass leaves out OPINION_FIELDS)."""
         drive = self.get(DRIVE_KEY["key"]()) or self.get("drive_log")
         live_label = "Live data (last reading of the test drive below)" if drive else "Live data"
         keys = [("vehicle", "Vehicle"), ("dtcs", "DTCs"), ("telemetry", live_label), ("symptoms", "Symptoms"),
@@ -676,6 +730,7 @@ class Session:
             keys.insert(3, ("mode06", "Mode 06 on-board tests that failed"))
         if self.get("past_readings"):   # the car's record file: the same values at earlier visits
             keys.insert(3, ("past_readings", "Same readings at this car's earlier visits (deck's records)"))
+        keys = [(k, label) for k, label in keys if k not in exclude]
         out = "\n".join(f"{label}: {(live_data.for_prompt(self.get(k)) if k == 'telemetry' else self.get(k)) or '(none)'}"
                         for k, label in keys)
         meaning = live_data.explain(self.get("telemetry"))
@@ -685,9 +740,9 @@ class Session:
         zones = self.telemetry_zones()   # TELEMETRY: only when the make DB has telem_* tables
         if zones:
             out += "\nLive data against this car's manual (zones and status worked out by the deck):\n" + zones
-        if self.get("saved_debate"):
+        if self.get("saved_debate") and "saved_debate" not in exclude:
             out += "\nSaved debate (competing explanations weighed, unresolved):\n" + self.get("saved_debate")
-        if self.get("saved_wildcard"):
+        if self.get("saved_wildcard") and "saved_wildcard" not in exclude:
             out += ("\nSaved wildcard ideas (long shots the mechanic wanted kept; unproven, weigh against the "
                     "evidence):\n" + self.get("saved_wildcard"))
         if len(out) > CASE_MAX_CHARS:  # with the manual text and history it must still fit 4096 tokens
@@ -733,6 +788,8 @@ class ModelManager:
         return self._local_label(role)
 
     def _local_label(self, role):
+        if self.backend in ("claude", "openai"):
+            return self.cfg[f"{self.backend}_{role}"] or self.cfg[f"{self.backend}_fast"]
         if self.backend == "rkllm":
             why = self.cfg.get("stand_in", {}).get(role)
             if why:
@@ -838,6 +895,15 @@ class ModelManager:
                     self.cfg.setdefault("stand_in", {})[role] = f"wouldn't load: {str(e).split('(')[0].strip()}"
                     self.cfg[f"{role}_model"] = self.cfg["fast_model"]
                     return self.get(role)
+        elif self.backend == "claude":
+            m = ClaudeModel(self.cfg[f"claude_{role}"], system_prompt=system,
+                            effort=self.cfg["claude_effort"].get(role, "medium"), enable_thinking=think)
+        elif self.backend == "openai":
+            name = self.cfg[f"openai_{role}"] or self.cfg["openai_fast"]
+            if not name:
+                raise RuntimeError('backend "openai" needs a model name in openai_fast (config.json)')
+            m = OpenAICompatModel(name, system_prompt=system, url=self.cfg["openai_url"],
+                                  key_env=self.cfg["openai_key_env"], temperature=temp)
         else:
             m = OllamaModel(self.cfg[f"ollama_{role}"], system_prompt=system, temperature=temp,
                             enable_thinking=think, num_ctx=self.cfg["max_context_len"])
@@ -983,7 +1049,7 @@ class PicWorker(QThread):
         self.names = names
 
     def run(self):
-        have, why = charm_pics.fetch(CFG["pic_url"], CFG["cache_dir"], self.names)
+        have, why = charm_pics.fetch(CFG["pic_url"], CFG["cache_dir"], self.names, db=CFG.get("kb_db"))
         self.done.emit(have, why)
 
 
@@ -1004,7 +1070,7 @@ class ChartWorker(QThread):
         while left and not self.stop_flag.is_set():
             for n in list(left):
                 try:
-                    r = charm_pics.reading(CFG["pic_url"], n)
+                    r = charm_pics.reading(CFG["pic_url"], n, db=CFG.get("kb_db"))
                 except urllib.error.HTTPError as e:
                     self.note.emit(f"The PC's picture server can't read charts (it answered {e.code}; was it started "
                                    "with --no-read?). The pictures above still show.")
@@ -2577,7 +2643,9 @@ class CyberdeckApp(QMainWindow):
         extra = ", ".join(x for x in (v["engine"], v["trans"], f"{v['miles']} mi" if v["miles"] else "") if x)
         self.session.set("vehicle", desc + (f" ({extra})" if extra else ""))
         self.lbl_title.setText(self._title_text())
-        codes = re.findall(r"\b[PBCU]\d{4}\b", self.bub_dtcs.text().upper())
+        # "(pending)" / "(history)" etc. stay with their code, so the models see the status the scan tool gave
+        codes = [f"{c} ({st})" if st else c for c, st in sanity_check.parse_codes(self.bub_dtcs.text())
+                 if re.fullmatch(r"[PBCU]\d{4}", c)]
         self.session.set("dtcs", ", ".join(dict.fromkeys(codes)))
         self.session.set("telemetry", self.in_live.text().strip())
         # TELEMETRY: which reader wrote the live line (ssm / obd01); unknown once it's typed or edited by hand
@@ -3158,7 +3226,12 @@ class CyberdeckApp(QMainWindow):
                     break
                 hist.insert(0, turn)
                 used += len(turn)
-            prompt = (f"CASE:\n{self.session.case_summary()}\n\nFSM DATA (the [MANUAL DIAGNOSTIC PROCEDURE] and [DTC] "
+            dc = self._data_check()
+            if dc and dc != getattr(self, "_shown_dc", ""):     # shown once per change, not every turn
+                self._shown_dc = dc
+                self._say(self.txt_chat, dc, T.AMBER)
+            prompt = ((f"{dc}\n\n" if dc else "") +
+                      f"CASE:\n{self.session.case_summary()}\n\nFSM DATA (the [MANUAL DIAGNOSTIC PROCEDURE] and [DTC] "
                       "entries are the manual's diagnostic tree for this car's codes: use it as your guide to where the "
                       "mechanic is and what to check next, from what's already been checked. Manual text comes first "
                       "and wins; [REPORTED CAUSES] and [COMMUNITY REPORTS] are fixes owners confirmed on real cars, "
@@ -3215,7 +3288,7 @@ class CyberdeckApp(QMainWindow):
     def _rejected_causes(self):
         """Causes the baked card's source check threw out, for this case's codes and car (and why).
         Read fresh from the kb every time: a rebake replaces the cards. Only /wildcard uses these."""
-        codes = [c for c in re.split(r"[,;\s]+", self.session.get("dtcs") or "") if c]
+        codes = list(dict.fromkeys(re.findall(r"\b[PBCU]\d{4}\b", self.session.get("dtcs") or "")))
         kb = CFG.get("kb_db") or ""
         if not codes or not os.path.isfile(kb):
             return []
@@ -3708,6 +3781,19 @@ class CyberdeckApp(QMainWindow):
 
     VERDICT_FIELDS = ("WHY HERE", "FOR", "AGAINST", "TEST", "REPAIR", "PARTS")
 
+    def _data_check(self):
+        """The DATA CHECK block (app/sanity_check.py) for the top of the prompts; '' when the case data shows no
+        problem. Never stops a request: a failure here just means no block."""
+        try:
+            case = {k: self.session.get(k) for k in ("dtcs", "telemetry", "symptoms", "history", "ruled_out",
+                                                     "suspect", "intake_note")}
+            case["dtcs_raw"] = self.bub_dtcs.text()
+            ref = sanity_check.find_ref_db(CFG.get("kb_db"), CFG.get("make"))
+            return sanity_check.block(sanity_check.check(case, self.retriever, ref))
+        except Exception as e:
+            print(f"data check failed: {type(e).__name__}: {e}", file=sys.stderr)
+            return ""
+
     def act_verdict(self):
         if self._busy():
             return
@@ -3716,9 +3802,17 @@ class CyberdeckApp(QMainWindow):
         on_pc = self.mgr.home and not self.mgr.pc_why
         most = 5 if on_pc else 3            # the deck's 4096-token models can't write 5 full issues
         maint = self.session.get("maint_selected")
+        dc = self._data_check()
+        top = f"{dc}\n\n" if dc else ""
+        flagged = dc.startswith("DATA CHECK")   # real data problems, not only coverage notes
+        # Blind first pass (config "verdict_blind_first", default on): pass 1 sees the evidence only, without the
+        # OPINION_FIELDS; pass 2 gets its ranking plus the opinions and says whether the evidence supports them.
+        opinions = self.session.opinions()
+        blind = bool(CFG.get("verdict_blind_first", True) and opinions)
+        case1 = self.session.case_summary(exclude=[k for k, _ in OPINION_FIELDS]) if blind else case
 
         def go(ctx):
-            prompt = (f"CASE:\n{case}\n\nFSM DATA:\n{ctx or '(none)'}\n\n"
+            prompt = (f"{top}CASE:\n{case1}\n\nFSM DATA:\n{ctx or '(none)'}\n\n"
                       "Write a ranked work plan for this car. Cover every code in the case.\n"
                       f"- Up to {most} ISSUES, only as many as the evidence supports; one is right when one cause "
                       "explains everything. Separate faults (or a second part that also has to be bought) are separate "
@@ -3726,8 +3820,14 @@ class CyberdeckApp(QMainWindow):
                       "- Order: the likeliest and cheapest/easiest to confirm first. Say why each one sits where it does.\n"
                       "- Every idea the mechanic states in their notes gets its own issue with the evidence for and "
                       "against it, even if you rank it low.\n"
-                      "- A part he says he replaced or checked is never issue 1. List it last, as a recheck, only if "
-                      "the evidence still points at it, and say why.\n"
+                      "- A part they say they replaced or checked is never issue 1. List it last, as a recheck, only "
+                      "if the evidence still points at it, and say why.\n"
+                      "- [REPORTED CAUSES] and [COMMUNITY REPORTS] are supporting evidence, ranked below the manual: an "
+                      "owner-reported cause is never ISSUE 1 unless the manual's procedure or the case's own readings "
+                      "point there too, and then cite that step or reading.\n"
+                      + ("- DATA CHECK flags are present above: ISSUE 1 must be confirming or correcting the flagged "
+                         "data (a rescan, the right car, the real equipment), and no other issue may rest on a flagged "
+                         "reading or code.\n" if flagged else "") +
                       "- Use only the case, live data and manual text above, and quote the real numbers. Never write "
                       "part numbers or prices: the deck adds them from its database.\n\n"
                       "Write exactly this format:\n"
@@ -3744,9 +3844,46 @@ class CyberdeckApp(QMainWindow):
                       + ("=== ALSO DO: maintenance ===\nREPAIR: <the approved maintenance jobs>\nPARTS: <part names>\n"
                          if maint else "") +
                       "Keep each issue under 120 words.")
+            fmt = prompt[prompt.index("Write exactly this format:"):]
+            # pass 2: the same case with the opinions, the first-pass plan, a short job (no re-ranking on opinion)
+            full = f"{top}CASE:\n{case}\n\nFSM DATA:\n{ctx or '(none)'}\n\n"
+
+            def pass2_prompt(plan):
+                # only the pages pass 1 used (the code procedures always): pass 2 re-read all of them before and took
+                # as long as pass 1. The source check still runs against every page (check_against=full).
+                short = f"{top}CASE:\n{case}\n\nFSM DATA (the pages your first pass used):\n{cited_pages(ctx, plan)}\n\n"
+                return (short + "YOUR FIRST-PASS PLAN (written from the evidence only, before the opinions below were "
+                        "shown):\n" + plan.strip() + "\n\nOPINIONS LEFT OUT OF THE FIRST PASS (guesses and earlier "
+                        "diagnoses, not test results):\n" + opinions + "\n\n"
+                        "For each opinion, say whether the evidence in the CASE and FSM DATA supports it, and the test "
+                        "that would settle it. Reorder only for evidence (a code, a reading, a test result or a manual "
+                        "page), or to put the manual's earlier or cheaper step first; never because someone suspects "
+                        "it, and name what moved it. An opinion the plan doesn't cover gets its own issue, ranked by "
+                        "its evidence. Then write the final plan.\n"
+                        "Start with one line per opinion:\nOPINION CHECK: <opinion> - <supported / not supported / "
+                        "untested>: <the evidence, and the test>\nthen " + fmt[0].lower() + fmt[1:])
+
+            def pass1_done(plan):
+                if "[LLM error" in plan or not plan.strip():
+                    return
+                self._blind_pass1 = plan.strip()
+                self.txt_verdict.clear()
+                self._say(self.txt_verdict, "[*] Pass 1 (evidence only) done. Pass 2: weighing the left-out opinions "
+                          "against the evidence...", T.MUTED)
+                w = self.worker
+                go2 = lambda: self._run("deep", pass2_prompt(plan), self.txt_verdict, self._verdict_done,
+                                        max_new_tokens=2200 if on_pc else 900)
+                if w is not None and w.isRunning():
+                    w.finished.connect(go2)
+                else:
+                    go2()
             self._reset_verdict_tabs()
             self.txt_verdict.clear()
-            self._say(self.txt_verdict, "[*] Synthesizing all evidence...", T.MUTED)
+            if dc:
+                self._say(self.txt_verdict, dc, T.AMBER)
+            self._say(self.txt_verdict, "[*] Synthesizing all evidence..." + (
+                " Pass 1 of 2: evidence only, the Suspect field and other opinions left out." if blind else ""), T.MUTED)
+            self._blind_pass1 = ""
             if self.chk_think.isChecked():
                 # 11-01: the thinking model writing the plan from scratch did worse than the plain one and
                 # looped on doubts. Now THINK HARDER = the plain model writes the plan, then the thinking model
@@ -3757,7 +3894,10 @@ class CyberdeckApp(QMainWindow):
                     self.txt_verdict.clear()
                     self._say(self.txt_verdict, "[*] Draft written. Thinking model is now checking it against the "
                               "evidence (its reasoning streams below; only its final plan is kept)...", T.MUTED)
-                    review = (prompt + "\n\nDRAFT PLAN (written from the same data by another technician):\n" + draft.strip()
+                    review = ((full + prompt[prompt.index("Write a ranked work plan"):] if blind else prompt)
+                              + "\n\nDRAFT PLAN (written from the same data by another technician"
+                              + (", before it saw the Suspect field and other opinions" if blind else "")
+                              + "):\n" + draft.strip()
                               + "\n\nCheck the draft against the CASE and FSM DATA above. Keep every part of it that the "
                               "evidence supports. Change the ranking, a test or an issue only where the case or the "
                               "manual shows it is wrong or missing something, and say what evidence made you change it. "
@@ -3773,9 +3913,10 @@ class CyberdeckApp(QMainWindow):
                 self._draft_verdict = ""
                 self._run("deep", prompt, self.txt_verdict, draft_done)
             else:
-                self._run("deep", prompt, self.txt_verdict, self._verdict_done, max_new_tokens=2200 if on_pc else 900)
+                self._run("deep", prompt, self.txt_verdict, pass1_done if blind else self._verdict_done,
+                          max_new_tokens=2200 if on_pc else 900)
 
-        self._lookup(case, 6000 if on_pc else 3500, go)
+        self._lookup(case1, 6000 if on_pc else 3500, go)
 
     def _reset_verdict_tabs(self):
         """Back to the one streaming tab (the issue tabs and summary of the last verdict go)."""

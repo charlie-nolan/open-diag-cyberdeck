@@ -255,7 +255,6 @@ class SubaruTests:
 
 def open_subaru(adapter, port, variant_name="", cache_dir=None):
     """Connect to the engine ECU for tests. Returns (SubaruTests, variant used) or raises Refused."""
-    import glob
     import os
     from cables import candidates
     if adapter == "kkl":
@@ -273,8 +272,9 @@ def open_subaru(adapter, port, variant_name="", cache_dir=None):
         raise NoLink(f"No SSM answer on the K-line (tried {', '.join(ports)} twice). Key ON? KKL cable plugged in?")
     import ex_ssm2_probe as ex_mod
     port = port or candidates("ex")[0]
-    if not glob.glob("/dev/ttyUSB*"):
-        raise NoLink("No /dev/ttyUSB* found. Is the OBDLink EX plugged in?")
+    from cables import all_ports, no_cable_note
+    if not all_ports():
+        raise NoLink(no_cable_note())
     log_path = os.path.join(cache_dir or ".", "ex_ssm_tests.log")
     ex = ex_mod.STNSSM2(port, ex_mod.Log(log_path))
     if not ex.open():

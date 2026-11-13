@@ -7,7 +7,6 @@ Read-only Subaru SSM2 for the Intake tab, through either cable:
 ECUCaps + read_dtcs give the trouble codes the ECU itself says it supports; TelemetryPoller's table
 decodes the live values. Only 0xBF (init) and 0xA8 (read) are ever sent. Nothing here writes to the ECU.
 """
-import glob
 import os
 import sys
 
@@ -81,10 +80,10 @@ def read_ssm_ex(port, session_db, cache_dir, variant_name=""):
         from telemetry_logger import TelemetryPoller
     except ImportError as e:
         return "", "", f"SSM code missing ({e}). pip install pyserial; app/ssm/ must be present.", ""
-    from cables import candidates
+    from cables import all_ports, candidates, no_cable_note
     port = port or candidates("ex")[0]
-    if not glob.glob("/dev/ttyUSB*") and not port.startswith("/dev/ttyACM"):
-        return "", "", "No /dev/ttyUSB* found. Is the OBDLink EX plugged in?", ""
+    if not all_ports():
+        return "", "", no_cable_note(), ""
     os.makedirs(cache_dir, exist_ok=True)
     log = ex_mod.Log(os.path.join(cache_dir, "ex_ssm_last.log"))
     ex = ex_mod.STNSSM2(port, log)

@@ -4,6 +4,9 @@ How to build an Open Diagnostic Cyberdeck from scratch: the hardware, the Pi's O
 databases, and your first scan. It follows the order the original deck was built in. Expect a weekend for the
 hardware and software, and days of unattended PC time for the full databases. Each step says which machine it runs on.
 
+> **Just want to try it on one car?** You don't need any of the hardware below. [SINGLE_CAR_LAPTOP.md](SINGLE_CAR_LAPTOP.md)
+> builds a database for one car and runs the app on any laptop with a model you already have.
+
 > **About the times and speeds in this guide:** they were all measured on the original hardware: a Ryzen 9 5900X,
 > 62 GB RAM and an RTX 3070 (8 GB) on the PC, and a 16 GB Orange Pi 5 on the deck. Yours will vary with your CPU,
 > GPU, VRAM, RAM and disks. A bigger GPU can be several times faster, and CPU-only builds can take many times longer.
@@ -154,6 +157,7 @@ git clone https://github.com/charlie-nolan/open-diag-cyberdeck.git ~/open-diag-c
 cd ~/open-diag-cyberdeck
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt            # deck
+venv/bin/pip install -r requirements-voice.txt      # optional: voice (section 9)
 venv/bin/pip install -r requirements-build.txt      # PC only: builders (torch, sentence-transformers, ...)
 cp app/config.example.json app/config.json          # edit later (section 13)
 ```
@@ -200,7 +204,7 @@ procedure, the factory PDF is preferred.
 |---|---|---|
 | **Subaru factory service manuals (PDF)** | Subaru's own FSMs, which owners share freely online. The original deck uses ten: Forester 1999, 2000, 2001, 2002 and 2004; Impreza 2002; Legacy/Outback 2004, 2005, 2008 and 2009. Their file names are listed in `kb/load_manuals.sh`. | 7a: put the PDFs in `manual_pdfs/`, convert with `pdf_to_md.py`, load with `load_manuals.sh` |
 | **Operation CHARM** | An archive of service information for most makes up to the early 2010s (text plus a separate picture archive). | 7b: `tools/build_charm_all.sh` / `tools/make_full.sh` |
-| **LEMON Manuals** (optional) | Free manuals for about 10,000 US/Canada vehicles, 1960-2025, distributed as a ~1.1 TB torrent. Useful for newer cars CHARM doesn't cover. | Download only the vehicles you need from the torrent. Where they're PDFs, convert and load them like 7a (`pdf_to_md.py --pdf <file>`, then `build_subaru_kb.py --db <make>.db fsm ...`). Their pages are then cited as manual pages next to CHARM. A dedicated LEMON loader with its own citation tag isn't built yet. |
+| **LEMON Manuals** (optional) | Free manuals for about 10,000 US/Canada vehicles, 1960-2025, distributed as a ~1.1 TB torrent. Useful for newer cars CHARM doesn't cover. | [lemon-manuals.la](https://lemon-manuals.la/) offers a single-car download for each make and model, so take only the vehicles you need. Where they're PDFs, convert and load them like 7a (`pdf_to_md.py --pdf <file>`, then `build_subaru_kb.py --db <make>.db fsm ...`). Their pages are then cited as manual pages next to CHARM. A dedicated LEMON loader with its own citation tag isn't built yet. |
 
 These manuals are copyrighted. Use them for your own repairs, keep the built databases to yourself, and don't
 redistribute either.
@@ -335,7 +339,8 @@ Make Ollama listen on your tailnet address (set `OLLAMA_HOST` in its service), t
 deck's models whenever the PC is unreachable. Avoid Home mode while a GPU build is running on the PC.
 
 Testing on a desktop without an NPU: `ollama pull qwen3:1.7b qwen3:4b-instruct-2507-q4_K_M`. The app uses Ollama
-automatically when there's no RKLLM.
+automatically when there's no RKLLM. To use an LLM desktop app or API instead, set `"backend"` to `"openai"` or `"claude"`
+(see [SINGLE_CAR_LAPTOP.md, section 9](SINGLE_CAR_LAPTOP.md#9-choose-where-the-ai-answers-come-from)).
 
 ## 12. Optional extras
 
@@ -360,6 +365,10 @@ Nothing personal is hard-coded. Set these in your shell (or in `app/config.json`
 | `CYBERDECK_DECK` | `tools/push_home_models_to_deck.sh` | The deck's address |
 | `CYBERDECK_ARCHIVE` | builders, `tools/*.sh` | A big drive for raw downloads and large builds (default `~/cyberdeck_archive`) |
 | `CYBERDECK_SCRATCH` | `tools/run_general_kb.sh` | Fast scratch space (default `~/cyberdeck_scratch`) |
+| `CYBERDECK_OPENAI_URL` | app | An OpenAI-compatible server for `"backend": "openai"` (default `http://127.0.0.1:1234/v1`) |
+| `OPENAI_API_KEY` | app | Key for that server, if it needs one (the variable's name is the `openai_key_env` setting) |
+| `ANTHROPIC_API_KEY` | app | Key for `"backend": "claude"` |
+| `CHARM_IMAGES` | `tools/build_car_db.sh`, `kb/car_db.py images` | Folder of the CHARM images LMDB, to store CHARM pictures in a one-car DB |
 
 Every other app setting (model paths, context length, voice, cable, DB paths) is in `DEFAULT_CONFIG` at the top of
 `app/cyberdeck_gui.py`. Override any of them in `app/config.json`.
