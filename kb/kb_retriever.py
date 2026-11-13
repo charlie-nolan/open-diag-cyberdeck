@@ -423,7 +423,7 @@ class Retriever:
         for tq in dict.fromkeys(tiers):
             for r in self.db.execute(
                     "SELECT p.id, p.component, p.value_si, p.tol_si, p.value_us, p.tol_us, p.unit_us, s.title, s.topic, "
-                    "s.page, d.kind FROM spec_fts f JOIN spec p ON p.id=f.rowid JOIN section s ON s.id=p.section_id "
+                    "s.page, d.kind, p.raw FROM spec_fts f JOIN spec p ON p.id=f.rowid JOIN section s ON s.id=p.section_id "
                     f"JOIN doc d ON d.id=s.doc_id WHERE spec_fts MATCH ?{vf} "
                     "ORDER BY d.kind='charm', bm25(spec_fts, 3.0, 1.0) LIMIT ?", [tq] + args + [limit]):
                 if r[0] not in seen:
@@ -437,7 +437,7 @@ class Retriever:
         rows.sort(key=lambda r: (r[9] == "charm",
                                  -len(pw & set(re.findall(r"[a-z0-9]{3,}", f"{r[7] or ''} {r[6] or ''}".lower())))))
         out = []
-        for comp, nm, nm_tol, us, us_tol, us_unit, title, topic, page, kind in rows:
+        for comp, nm, nm_tol, us, us_tol, us_unit, title, topic, page, kind, raw in rows:
             vals = []
             if nm is not None:
                 vals.append(f"{nm:g}" + (f"±{nm_tol:g}" if nm_tol else "") + " N·m")
@@ -446,6 +446,8 @@ class Retriever:
             value = f"{vals[0]} ({vals[1]})" if len(vals) == 2 else vals[0] if vals else "?"
             where = f"{topic}, {title}" if topic and topic != title else title
             src = "CHARM" if kind == "charm" else f"FSM p.{page}"
+            if (raw or "").startswith("image "):   # kb/car_db.py vision rows: check the picture if it matters
+                src = "manual picture, read by vision model, unverified"
             out.append(f"[{src}, {where}] {comp}: {value}")
         return out
 

@@ -29,7 +29,11 @@ forums and your hardware will move every number.
 | Embedding, CPU (fp32, 24 threads, PC busy) | same 2,000 sections: ~810 s, 7.8 GB RAM | ~2-2.5 rows/s, ~400 s per 1,000 sections |
 | Community pass 0 (prefilter, CPU) | 103,422 raw threads (421 MB): 103 s | ~1 ms per thread |
 | Community extraction (9B on GPU, 4 slots) | 1,912 threads, 2.89M tokens in, 2.02M out: 3.9 h | ~7.1 s per thread (~500 threads/h); 145 output tok/s aggregate; ~1,500 in / ~1,050 out tokens per thread |
-| Everything else (NHTSA, diag, cards, telemetry, trim, finish) | | ~10 s total |
+| Vision step (`--vision`, qwen3.6:35b-a3b-q4_K_M on Ollama, RTX 3070) | LEMON car: 556 pictures (391 charts, 165 spec tables) in 1.75 h; factory DB: 120 more in 15 min; 0 errors | ~11 s per picture (charts ~11.5 s, spec tables ~3-11 s, DTC charts ~13 s); ~1,650 tokens in (the picture) / ~250 out per picture |
+| Embedding the vision text (`embed --missing`, GPU) | ~260 new sections | ~7 s |
+| Card baking (`--bake-cards`, same 35B on Ollama) | 3 codes in 2.6 min | ~25-90 s per code, ~53 s average |
+| Raw threads (`--threads`, copy from an existing threads file) | 4,650 threads + vectors, 30 MB | seconds |
+| Everything else (NHTSA, diag, cards, telemetry, trim, scope, finish) | | ~10 s total |
 
 Whole build once the inputs are ready (manual converted, community extracted), GPU embedding:
 
@@ -50,6 +54,9 @@ build_min   ≈ pdf_pages × 0.2 s / 60
 
 community_h ≈ threads × out_tokens_per_thread / (aggregate_gen_tok_s × 3600)
             ≈ threads × 1,050 / (145 × 3600)        # PC above: ~7 s per thread
+
+vision_h    ≈ charts_and_spec_pictures × 11 s / 3600 # `kb/car_db.py vision --estimate` counts them for you
+cards_h     ≈ codes × 55 s / 3600                    # codes with a manual procedure or forum fixes
 ```
 
 - **A different GPU:** measure your 9B Q4 generation speed with 4 parallel slots (or one slot × ~2.5 as a guess).
@@ -70,16 +77,32 @@ community_h ≈ threads × out_tokens_per_thread / (aggregate_gen_tok_s × 3600)
 |---|---|---|
 | Source | PDF with a real text layer (2,073 pages, 37.8 MB) | HTML pages + images (7,701 files, 96 MB zip) |
 | Manual sections | 4,749 | 3,117 |
-| Torque/spec rows | 454 | 14 |
+| Torque/spec rows | 454 (527 with `--vision`) | 14 (87 with `--vision`) |
 | Labor rows | 1,454 | 1,454 |
 | DTCs with a diagnostic procedure | 117 | 117 |
-| Walkable diagnostic step trees | 74 (486 steps) | 0 |
+| Walkable diagnostic step trees | 74 (486 steps); 78 with `--vision` | 0; **92 with `--vision`** |
 | Pictures stored in the DB | 7,615 | 4,487 |
 | Search: top-3 hits shared over 15 check queries | 26 of 45 shared; the extra hits were factory procedure pages | |
 
-Why the gaps: LEMON's diagnostic step charts are pictures, so the app can show them but can't walk them step by
-step the way it walks a factory PDF's text charts. LEMON torque values sit in page prose and pictures, so the
-spec table only picks up the few that are in text tables.
+Why the gaps: LEMON's diagnostic step charts are pictures, so without `--vision` the app can show them but can't walk
+them step by step the way it walks a factory PDF's text charts. LEMON torque values sit in page prose and pictures,
+so the spec table only picks up the few that are in text tables. `--vision` closes most of this. Everything it reads
+is marked unverified in the app, so check the picture before trusting a number.
 
 In 20 simulated diagnosis cases the database changed a model's lead in only a few cases; the bigger difference
 was the model, not the manual source.
+
+A second round of the same 20 cases added the data check, the blind first pass (the Suspect field hidden from the
+first pass) and the vision text. Results, graded against written expectations (0-2 per case, 40 max, graded by
+Claude, so indicative only):
+
+| Answering model | Before | After |
+|---|---|---|
+| Qwen3-Next 80B (local, Ollama), factory + LEMON DB | 26 | 29 |
+| Qwen3-Next 80B, LEMON-only DB | 24 | 27 |
+| Claude Opus 5.5, factory + LEMON DB | 39 | 37 |
+| Claude Opus 5.5, LEMON-only DB | 38 | 37 |
+
+The local model gained the most where the owner's guess had been steering it. Two passes cost time: the local
+80B's Final Diagnosis took 2.4-3.4x as long (about 2.5-4.5 minutes on the PC above). Set
+`"verdict_blind_first": false` for one pass.

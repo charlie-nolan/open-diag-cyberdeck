@@ -38,6 +38,17 @@ the pieces that had no one-car form, using the existing scripts as libraries (no
             extracted folder; also any CHARM-style page folder) with the builder's own CHARM page parser (charm_text,
             charm_parts, charm_specs_labor, CHARM_DTC_RE, labor_from_sections). Breadcrumbs give the page path; listing
             pages are skipped; the pages' pictures go into the DB's picture table under CHARM-style keys.
+  vision    Read the DB's diagnostic charts and spec tables with a vision model (Ollama; optional, GPU): pictures are
+            classed by their page (kb/charm_images.py rules, plus "on a page linked to a trouble code"), DTC charts
+            first (skipping codes the manual already gives as text steps), then spec tables, then other charts.
+            Readings go to picture_read (model named, numbers tesseract can't see listed as unverified); each page's
+            readings become one marked-unverified section (chart steps in the table form app/procedures.py walks,
+            linked to the page's codes) and spec-table readings become spec rows. Resumable; --log CSV per picture.
+  threads   Optional: this car's raw owner threads + vectors from an existing kb/<make>.threads.db into
+            <car db>.threads.db (what /wildcard reads). Nothing is scraped or extracted.
+  scope     Optional: car_dtc (the codes this car's manual knows, with where each came from) and telemetry
+            definitions trimmed to this car (OBDb model repo, capability scope, SSM ECU ids); trimmed rows kept
+            in <car db>.make_tables.db.
   check     Row counts vs the make DB for the same car, and a few retriever searches.
 
 Every source DB is opened read-only (file:...?mode=ro).
@@ -901,11 +912,519 @@ def cmd_check(a):
             json.dump(report, f, indent=1)
 
 
+
+# ------------------------------------------------------------------ vision: read the DB's charts and spec tables
+VISION_PROMPT = (
+    "This is a picture from a vehicle service manual. If it is a diagnostic chart or flowchart, transcribe it "
+    "exactly. For each numbered step write:\n### Step N\nCheck: <the check, word for word>\nYES: <what the YES "
+    "branch says or the step it goes to>\nNO: <same for NO>\nKeep every number and unit exactly as printed. YES/NO "
+    "may be shown as icons, arrows or column positions: report the branch only if it is visible, else write 'not "
+    "shown'. If it is a table, transcribe it as a markdown table. If it is not a chart or table (a wiring diagram, "
+    "connector view, photo or drawing), reply with one line starting 'NOT A CHART:' saying what it shows, then list "
+    "the printed labels and numbers. Do not add steps or advice. Write [illegible] for anything you can't read.")
+VISION_MARK = "[PICTURE READ"          # first line of every section this step writes (app/procedures.py keeps it)
+VISION_SCHEMA = """
+CREATE TABLE IF NOT EXISTS picture_section (section_id INTEGER PRIMARY KEY, src_section_id INTEGER NOT NULL,
+  kind TEXT NOT NULL, keys TEXT NOT NULL);
+"""
+_NUM_RE = None
+
+
+def _vision_numbers(s):
+    import re
+    global _NUM_RE
+    _NUM_RE = _NUM_RE or re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?(?![\w.])")
+    return {n.replace(",", ".") for n in _NUM_RE.findall(s or "")}
+
+
+def vision_classes(c):
+    """[(key, kind, section_id, path)] for the DB's stored pictures, one row per picture (its first page).
+    kind: dtc_chart (on a page the DB links to a trouble code), spec_table, chart, or another kb/charm_images.py
+    class. Only the picture's page heading and size are used (charm_images.kind_of), plus the DTC link."""
+    from charm_images import kind_of
+    dtc_pages = {r[0] for r in c.execute("SELECT DISTINCT section_id FROM dtc_procedure")}
+    dims = {k: (w, h) for k, w, h in c.execute("SELECT key, width, height FROM picture")}
+    done_sec = {r[0] for r in c.execute("SELECT section_id FROM picture_section")}
+    out, seen = [], set()
+    for sid, doc_id, path, imgs, dkind in c.execute(
+            "SELECT s.id, s.doc_id, s.path, s.images, d.kind FROM section s JOIN doc d ON d.id=s.doc_id "
+            "WHERE s.images IS NOT NULL AND s.images != '[]' ORDER BY s.id"):
+        if sid in done_sec:
+            continue
+        for name in json.loads(imgs):
+            key = name if name.startswith("/images/") else fsm_picture_key(doc_id, name)
+            if key in seen or key not in dims:
+                continue
+            seen.add(key)
+            k = kind_of(path, *dims[key])
+            if sid in dtc_pages and k in ("chart", "other"):
+                k = "dtc_chart"
+            out.append((key, k, sid, path))
+    return out
+
+
+def _walkable_codes(c):
+    """Trouble codes whose procedure parses into numbered steps (app/procedures.py), on this DB."""
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "app"))
+    import procedures
+
+    class R:
+        db = c
+    out = set()
+    for (code,) in c.execute("SELECT DISTINCT code FROM dtc_procedure").fetchall():
+        p = procedures.fetch(R, code)
+        if p and p["steps"]:
+            out.add(code)
+    return out
+
+
+def _read_one(data, a):
+    """(state, text, unverified numbers or None, checked, prompt tokens, output tokens, seconds)."""
+    import base64
+    import io
+    import shutil
+    import subprocess
+    import tempfile
+    import urllib.request
+    from PIL import Image
+    t0 = time.time()
+    with Image.open(io.BytesIO(data)) as im:
+        if im.width < 200 or im.height < 120:
+            return "skipped", "too small to be a chart (icon or arrow)", None, False, 0, 0, 0.0
+        im = im.convert("RGB")
+        if im.width < 1000:      # small line art reads better at about 2x
+            f = min(2.0, 1000 / im.width)
+            im = im.resize((round(im.width * f), round(im.height * f)), Image.LANCZOS)
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as t:
+            im.save(t, "PNG")
+            png = t.name
+    try:
+        tess = ""
+        if shutil.which("tesseract"):    # numbers the model writes that tesseract can't find are marked unverified
+            tess = subprocess.run(["tesseract", png, "-", "--psm", "3"], capture_output=True, text=True,
+                                  timeout=120).stdout
+        payload = {"model": a.model, "stream": False, "think": False, "keep_alive": "10m",
+                   "messages": [{"role": "user", "content": VISION_PROMPT,
+                                 "images": [base64.b64encode(open(png, "rb").read()).decode()]}],
+                   "options": {"temperature": 0, "num_ctx": a.num_ctx, "num_predict": 6000}}
+        req = urllib.request.Request(f"{a.url.rstrip('/')}/api/chat", data=json.dumps(payload).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=900) as r:
+            out = json.loads(r.read())
+        if out.get("error"):
+            raise RuntimeError(out["error"])
+        text = out.get("message", {}).get("content", "").strip()
+        bad = sorted(_vision_numbers(text) - _vision_numbers(tess), key=float) if tess.strip() else None
+        return ("done", text, bad, bool(tess.strip()), out.get("prompt_eval_count") or 0, out.get("eval_count") or 0,
+                round(time.time() - t0, 1))
+    finally:
+        os.unlink(png)
+
+
+def reading_steps(text):
+    """{step: (step, check, yes, no)} from one chart reading: the reader's markdown step table rows
+    ('| 1 | CHECK ... | Is ...? | Go to step 2. | ... |') win; else its '### Step N / Check / YES / NO' blocks."""
+    import re
+    table, blocks, cur = {}, {}, None
+    for line in (text or "").splitlines():
+        s = line.strip()
+        if s.startswith("|"):
+            cells = [re.sub(r"<br\s*/?>", "; ", x).replace("**", "").strip() for x in s.strip("|").split("|")]
+            if len(cells) >= 5 and cells[0].isdigit():
+                table.setdefault(int(cells[0]), tuple(cells[1:5]))
+            continue
+        m = re.match(r"#{2,4}\s*Step\s+(\d+)", s, re.I)
+        if m:
+            cur = int(m.group(1))
+            blocks.setdefault(cur, {"check": "", "yes": "", "no": ""})
+            continue
+        m = re.match(r"(Check|YES|NO)\s*:\s*(.*)", s, re.I)
+        if m and cur is not None:
+            blocks[cur][m.group(1).lower()] = m.group(2).strip()
+    if table:
+        return table
+    return {n: (f"Step {n}", b["check"], b["yes"], b["no"]) for n, b in blocks.items() if b["check"]}
+
+
+def _vision_specs(text, path):
+    """(component, nm, us, unit_us, raw) torque rows from one spec-table reading, with the builder's own parsers:
+    unit-in-header tables (table_specs), 'Part | 30 +- 5 Nm (22 ft lb)' rows (charm_torque), sentences
+    (PROSE_TORQUE_RE) and Subaru's 'N·m (kgf-m, ft-lb)' (TORQUE_RE)."""
+    import re
+    b = importlib.import_module("build_subaru_kb")
+    lines = [ln.strip() for ln in (text or "").split("\n")]
+    rows = list(b.table_specs(lines, path))
+    used = {r[4] for r in rows}
+    # Subaru style: a header "N·m (kgf·m, ft·lb)" once, then values "22 (2.2, 16)" in rows or callouts ("T1: 22 (2.2, 16)")
+    triple = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s*\(\s*\d+(?:\.\d+)?\s*,\s*(\d+(?:\.\d+)?)\s*\)")
+    header = False
+    for ln in lines:
+        if re.search(r"N\s*[·.]?\s*m\s*\(\s*kgf?\s*[·.\-]?\s*m\s*,\s*ft\s*[·.\-]?\s*lb", ln, re.I):
+            header = True
+            if not triple.search(ln.split("ft", 1)[-1]):
+                continue
+        if not header or not triple.search(ln) or b.TORQUE_RE.search(ln) or \
+                re.match(r"(?:#|check\s*:|yes\s*:|no\s*:)", ln, re.I):   # the chart form repeats the table
+            continue
+        cells = [x.strip() for x in ln.strip("|").split("|")] if "|" in ln else [ln]
+        for cell in cells[1:] if len(cells) > 1 else cells:
+            m = triple.search(cell)
+            if not m:
+                continue
+            label = cells[0] if len(cells) > 1 else re.sub(r"\s*:?\s*" + re.escape(m.group(0)) + r".*$", "", cell).strip()
+            label = re.sub(r"N\s*[·.]?\s*m\s*\(.*?\)", "", label).strip(" :")
+            if re.fullmatch(r"T\d*", label or "T"):            # a callout on the drawing: what the drawing shows (the
+                d = re.search(r"NOT A CHART:.*?\b(?:of|shows?|showing)\s+(?:an?\s+|the\s+)?(.+?)"   # reader's own line)
+                              r"(?:\s+with\b|\s+and\b|\s+including\b|[.,;(]|$)", text or "", re.I | re.M)
+                what = d.group(1).strip() if d and len(d.group(1)) < 80 else b._page_subject(path)
+                label = f"{what} ({label or 'T'} on the picture; {b._page_subject(path)})"
+            rows.append((label[:200], float(m.group(1)), float(m.group(2)), "ft-lb", ln[:400]))
+            used.add(ln[:400])
+            break
+    for ln in lines:
+        if not ln or ln[:400] in used or not re.search(r"\d", ln):
+            continue
+        cells = [x.strip() for x in ln.strip("|").split("|")] if "|" in ln else [ln]
+        if all(re.fullmatch(r":?-{2,}:?", x) for x in cells if x):
+            continue
+        m = b.TORQUE_RE.search(ln)
+        if m:
+            comp = cells[0] if len(cells) > 1 and not b.TORQUE_RE.search(cells[0]) else b._page_subject(path)
+            rows.append((comp[:200], float(m.group(1)), float(m.group(3)), "ft-lb", ln[:400]))
+            continue
+        pm = list(b.PROSE_TORQUE_RE.finditer(ln))
+        if pm:
+            for m in pm:
+                unit = "in-lb" if re.match(r"(lb\s*in|in\s*lb)", m.group("unit"), re.I) else "ft-lb"
+                what = b._TIGHTEN_LEAD.sub("", (m.group("what") or "").strip()).strip(" ,;:")
+                rows.append((b._qualify(what, path), float(m.group("nm")), float(m.group("us")), unit, ln[:400]))
+            continue
+        if len(cells) >= 2 and cells[0] and not re.match(r"^[\d.\s]+$", cells[0]):
+            nm, _, us, _, unit = b.charm_torque(" | ".join(cells[1:]))
+            if nm is not None or us is not None:
+                rows.append((cells[0][:200], nm, us, unit, ln[:400]))
+    return rows
+
+
+def _drop_vision_sections(c):
+    old = [r[0] for r in c.execute("SELECT section_id FROM picture_section")]
+    has_vec = has_table(c, "section_vec") and load_vec(c)
+    for sid in old:
+        row = c.execute("SELECT title, path, body FROM section WHERE id=?", (sid,)).fetchone()
+        if row:
+            c.execute("INSERT INTO section_fts(section_fts, rowid, title, path, body) VALUES ('delete',?,?,?,?)",
+                      (sid, *row))
+        for t in ("dtc_procedure", "section_vehicle"):
+            c.execute(f"DELETE FROM {t} WHERE section_id=?", (sid,))
+        if has_vec:
+            c.execute("DELETE FROM section_vec WHERE id=?", (sid,))
+        c.execute("DELETE FROM section WHERE id=?", (sid,))
+    c.execute("DELETE FROM picture_section")
+    return len(old)
+
+
+def vision_apply(c, classes):
+    """Turn the DB's readings into searchable text: one new section per page (same doc, chapter, topic, title;
+    path + ' > read from pictures'), linked to the page's trouble codes and vehicles, its first line marking it
+    unverified. Chart readings become the step table app/procedures.py walks. Spec-table readings also become
+    spec rows (raw 'image <key>: ...', which kb_retriever labels as a manual picture read by a vision model).
+    Re-runnable: this step's earlier sections and rows are replaced."""
+    import hashlib
+    import re
+    dropped = _drop_vision_sections(c)
+    reads = {k: (t, m) for k, t, m in c.execute(
+        "SELECT key, text, model FROM picture_read WHERE state='done' AND text IS NOT NULL")}
+    by_page = {}
+    for key, kind, sid, path in classes:
+        if key in reads and kind in ("dtc_chart", "chart", "spec_table") and (
+                not reads[key][0].lstrip().upper().startswith("NOT A CHART")
+                or kind == "spec_table" and re.search(r"N\s*[·.]?\s*m|ft\s*[·.\-]?\s*lb", reads[key][0])):
+            by_page.setdefault(sid, []).append((key, kind))
+    # spec rows
+    c.execute("DELETE FROM spec WHERE raw LIKE 'image %'")
+    n_spec = 0
+    paths = dict(c.execute("SELECT id, path FROM section"))
+    for sid, keys in by_page.items():
+        for key, kind in keys:
+            if kind != "spec_table":
+                continue
+            for comp, nm, us, unit, raw in _vision_specs(reads[key][0], paths.get(sid, "")):
+                c.execute("INSERT INTO spec(section_id,kind,component,value_si,tol_si,unit_si,value_us,tol_us,unit_us,"
+                          "raw) VALUES (?,?,?,?,NULL,?,?,NULL,?,?)",
+                          (sid, "torque", comp, nm, "N·m" if nm is not None else None, us, unit,
+                           f"image {key}: {raw}"[:400]))
+                n_spec += 1
+    if has_table(c, "spec_fts"):
+        c.execute("DELETE FROM spec_fts")
+        c.execute("INSERT INTO spec_fts(rowid, component, context) SELECT p.id, p.component, "
+                  "coalesce(s.topic,'') || ' ' || s.title FROM spec p JOIN section s ON s.id=p.section_id")
+    # one text section per page
+    n_sec = n_steps_pages = 0
+    for sid, keys in by_page.items():
+        src = c.execute("SELECT doc_id, chapter, topic, title, path, page FROM section WHERE id=?", (sid,)).fetchone()
+        models = sorted({reads[k][1] or "?" for k, _ in keys})
+        steps, parts = {}, []
+        for key, kind in keys:
+            text = reads[key][0]
+            if kind in ("dtc_chart", "chart"):
+                for n, row in reading_steps(text).items():
+                    steps.setdefault(n, row)
+            parts.append(f"(picture {key})\n{text}")
+        head = (f"{VISION_MARK}: text read from this page's pictures by vision model {', '.join(models)}; "
+                "unverified, check the picture before trusting a number]")
+        body = head + "\n"
+        if steps:
+            n_steps_pages += 1
+            body += "| No. | Step | Check | Yes | No |\n| --- | --- | --- | --- | --- |\n" + "\n".join(
+                "| " + " | ".join([str(n)] + [x.replace("|", "/").replace("\n", " ") for x in steps[n]]) + " |"
+                for n in sorted(steps))
+            other = [p for (k, kd), p in zip(keys, parts) if kd == "spec_table"]
+            body += ("\n" + "\n\n".join(other)) if other else ""
+        else:
+            body += "\n\n".join(parts)
+        doc_id, chapter, topic, title, path, page = src
+        bh = hashlib.sha1(f"vision {sid}\n{body}".encode()).digest()
+        cur = c.execute("INSERT INTO section(doc_id, chapter, topic, fsm_code, title, path, part, page, body, images, "
+                        "body_hash) VALUES (?,?,?,NULL,?,?,1,?,?,?,?)",
+                        (doc_id, chapter, topic, title, f"{path} > read from pictures (vision model, unverified)",
+                         page, body, json.dumps([k for k, _ in keys]), bh))
+        new = cur.lastrowid
+        c.execute("INSERT INTO section_fts(rowid, title, path, body) SELECT id, title, path, body FROM section "
+                  "WHERE id=?", (new,))
+        c.execute("INSERT OR IGNORE INTO section_vehicle(section_id, vehicle_id) SELECT ?, vehicle_id "
+                  "FROM section_vehicle WHERE section_id=?", (new, sid))
+        c.execute("INSERT OR IGNORE INTO dtc_procedure SELECT code, vehicle_id, ? FROM dtc_procedure WHERE section_id=?",
+                  (new, sid))
+        c.execute("INSERT INTO picture_section VALUES (?,?,?,?)",
+                  (new, sid, "chart" if steps else "text", json.dumps([k for k, _ in keys])))
+        n_sec += 1
+    c.commit()
+    return {"sections_replaced": dropped, "sections": n_sec, "pages_with_steps": n_steps_pages, "spec_rows": n_spec}
+
+
+def cmd_vision(a):
+    """Read the DB's diagnostic charts and spec tables with a vision model (Ollama), store the text in
+    picture_read (model named, numbers tesseract can't see listed as unverified), then vision_apply."""
+    c = open_rw(a.db)
+    c.executescript(PICTURE_SCHEMA + VISION_SCHEMA)
+    if not has_table(c, "picture"):
+        sys.exit("vision: this DB has no stored pictures (run the images step first)")
+    trees0 = _walkable_codes(c)
+    specs0 = c.execute("SELECT count(*) FROM spec").fetchone()[0]
+    classes = vision_classes(c)
+    have = {r[0] for r in c.execute("SELECT key FROM picture_read WHERE state IN ('done','skipped')")}
+    # codes whose procedure the manual already gives as text steps: their pictures are copies or wiring
+    code_pages = {}
+    for code, sid in c.execute("SELECT code, section_id FROM dtc_procedure"):
+        code_pages.setdefault(sid, set()).add(code)
+    order = {k: i for i, k in enumerate(x.strip() for x in a.kinds.split(","))}
+    todo = [x for x in classes if x[1] in order and x[0] not in have
+            and not (x[1] == "dtc_chart" and not a.all and code_pages.get(x[2], set()) <= trees0
+                     and code_pages.get(x[2]))]
+    todo.sort(key=lambda x: (order[x[1]], x[2]))
+    if a.limit:
+        todo = todo[:a.limit]
+    by_kind = {}
+    for x in todo:
+        by_kind[x[1]] = by_kind.get(x[1], 0) + 1
+    est = len(todo) * a.sec_per_pic / 3600
+    print(f"vision: {len(classes)} pictures, {len(have)} read before; to read now: "
+          + ", ".join(f"{k} {v}" for k, v in by_kind.items()) + f" = {len(todo)} (~{est:.1f} h at {a.sec_per_pic:g} s each)"
+          + (f"; stops after {a.max_hours:g} h" if a.max_hours else ""), flush=True)
+    if a.estimate:
+        return
+    if todo and not a.model and not a.apply_only:
+        sys.exit("vision: --model is required to read pictures (or --estimate / --apply-only)")
+    log = None
+    if a.log and todo and not a.apply_only:
+        new = not os.path.isfile(a.log)
+        log = open(a.log, "a")
+        if new:
+            log.write("key,kind,state,seconds,prompt_tokens,output_tokens,chars,model\n")
+    t_start, n, errors = time.time(), 0, 0
+    for key, kind, sid, path in ([] if a.apply_only else todo):
+        if a.max_hours and time.time() - t_start > a.max_hours * 3600:
+            print(f"vision: time budget reached after {n} pictures", flush=True)
+            break
+        data = c.execute("SELECT data FROM picture WHERE key=?", (key,)).fetchone()[0]
+        try:
+            state, text, bad, checked, pt, ot, secs = _read_one(data, a)
+        except Exception as e:
+            errors += 1
+            print(f"  {key}: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+            if errors >= 5 and n == 0:
+                sys.exit("vision: 5 failures before any read; is the model server up?")
+            continue
+        c.execute("INSERT OR REPLACE INTO picture_read VALUES (?,?,?,?,?,?)",
+                  (key, state, text, None if bad is None else json.dumps(bad), int(checked), a.model))
+        c.commit()
+        n += 1
+        if log:
+            log.write(f"{key},{kind},{state},{secs},{pt},{ot},{len(text or '')},{a.model}\n")
+            log.flush()
+        if n % 10 == 0:
+            el = time.time() - t_start
+            print(f"  {n}/{len(todo)} read, {el / n:.1f} s each, ~{(len(todo) - n) * el / n / 60:.0f} min left",
+                  flush=True)
+    res = vision_apply(c, classes)
+    trees1 = _walkable_codes(c)
+    res.update(read_now=n, errors=errors, walkable_codes_before=len(trees0), walkable_codes_after=len(trees1),
+               spec_rows_before=specs0, spec_rows_after=c.execute("SELECT count(*) FROM spec").fetchone()[0],
+               left_unread=len(todo) - n if not a.apply_only else len(todo))
+    c.execute("INSERT OR REPLACE INTO meta VALUES ('vision', ?)", (json.dumps(res),))
+    c.commit()
+    print("vision:", ", ".join(f"{k} {v}" for k, v in res.items()), flush=True)
+    if res["sections"]:
+        print("vision: the new sections have no vectors yet: run build_subaru_kb.py --db <db> embed --missing", flush=True)
+
+
+
+# ------------------------------------------------------------------ threads: this car's raw owner threads (optional)
+def cmd_threads(a):
+    """This car's raw Reddit/forum threads, with their vectors, from an existing kb/<make>.threads.db (the file
+    build_community.py raw + rawembed made) into <car db>.threads.db, the file app/community_ref.raw_threads reads
+    next to the car DB (/wildcard). Same model (kb_retriever's aliases) and a year within --window (or --years), or
+    no year. Nothing is scraped or extracted: without the source file this step does nothing."""
+    import re
+    src = os.path.expanduser(a.src)
+    if not os.path.isfile(src):
+        print(f"threads: no {src}; skipped (optional: the app works without it)")
+        return
+    out = a.out or (a.db[:-3] if a.db.endswith(".db") else a.db) + ".threads.db"
+    if os.path.exists(out):
+        os.remove(out)
+    if a.years:
+        y0, y1 = (int(x) for x in a.years.split("-"))
+    else:
+        y0, y1 = a.year - a.window, a.year + a.window
+    names = {n.upper() for n in model_names(a.model)}
+    s = sqlite3.connect(ro(src), uri=True)
+    keep = []
+    for i, tm, ty in s.execute("SELECT id, tag_models, tag_years FROM raw_thread"):
+        if not names & {m.strip().upper() for m in (tm or "").split(",") if m.strip()}:
+            continue
+        ys = [int(y) for y in re.findall(r"\d{4}", ty or "")]
+        if ys and not any(y0 <= y <= y1 for y in ys):
+            continue
+        keep.append(i)
+    s.close()
+    c = open_rw(out)
+    has_vec = load_vec(c)
+    c.execute("ATTACH DATABASE ? AS s", (ro(src),))
+    for name, sql in c.execute("SELECT name, sql FROM s.sqlite_master WHERE type='table' AND name IN "
+                               "('raw_meta','raw_thread','raw_thread_fts','raw_thread_vec')").fetchall():
+        if name == "raw_thread_vec" and not has_vec:
+            continue
+        c.execute(sql)
+    c.execute("CREATE TEMP TABLE k (id INTEGER PRIMARY KEY)")
+    c.executemany("INSERT INTO k VALUES (?)", [(i,) for i in keep])
+    c.execute("INSERT INTO raw_meta SELECT * FROM s.raw_meta")
+    c.execute("INSERT INTO raw_thread SELECT t.* FROM s.raw_thread t JOIN k ON k.id=t.id")
+    c.execute("INSERT INTO raw_thread_fts(raw_thread_fts) VALUES ('rebuild')")
+    nv = 0
+    if has_vec and c.execute("SELECT 1 FROM s.sqlite_master WHERE name='raw_thread_vec'").fetchone():
+        c.execute("INSERT INTO raw_thread_vec(id, embedding) SELECT v.id, v.embedding FROM s.raw_thread_vec v "
+                  "WHERE v.id IN (SELECT id FROM k)")
+        nv = c.execute("SELECT count(*) FROM raw_thread_vec").fetchone()[0]
+    c.execute("INSERT OR REPLACE INTO raw_meta VALUES ('one_car', ?)",
+              (json.dumps({"model": a.model, "years": [y0, y1], "from": os.path.basename(src)}),))
+    c.commit()
+    c.execute("DETACH DATABASE s")
+    c.execute("VACUUM")
+    c.close()
+    print(f"threads: {len(keep)} threads ({nv} with vectors) -> {out} ({os.path.getsize(out) / 1e6:.0f} MB)")
+
+
+# ------------------------------------------------------------------ scope: the car's own codes and telemetry (optional)
+CAR_DTC_SCHEMA = """
+CREATE TABLE IF NOT EXISTS car_dtc (code TEXT PRIMARY KEY, description TEXT, page INTEGER NOT NULL DEFAULT 0,
+  named INTEGER NOT NULL DEFAULT 0, ssm INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL) WITHOUT ROWID;
+"""
+
+
+def cmd_scope(a):
+    """car_dtc: the codes this car's own manual knows (a diagnostic page for this car, or named on one of its
+    pages), each with where that came from; the make-wide dtc table stays for definitions. Telemetry definitions
+    trimmed to this car: OBDb signals of this model's repo and the make-wide one, capability rows of this model and
+    year (or none), SSM parameters that are generic or belong to this car's ECU ids (--ecu-ids, else
+    kb/romid.db's ids for this model and year; unknown ids: SSM parameters kept whole). Every trimmed row goes to
+    <car db>.make_tables.db first, so nothing is lost."""
+    import re
+    c = open_rw(a.db)
+    c.executescript(CAR_DTC_SCHEMA)
+    names = model_names(a.model)
+    q = ",".join("?" * len(names))
+    veh = [r[0] for r in c.execute(f"SELECT id FROM vehicle WHERE upper(model) IN ({q}) AND year=?", names + [a.year])]
+    vq = ",".join("?" * len(veh)) or "NULL"
+    rows = {}
+    for (code,) in c.execute(f"SELECT DISTINCT code FROM dtc_procedure WHERE vehicle_id IN ({vq})", veh):
+        rows.setdefault(code, {"page": 1, "named": 0})
+    code_re = re.compile(r"\b[PBCU][0-3][0-9A-F]{3}\b")
+    for (body,) in c.execute(f"SELECT s.body FROM section s WHERE s.id IN (SELECT section_id FROM section_vehicle "
+                             f"WHERE vehicle_id IN ({vq})) AND s.id NOT IN (SELECT section_id FROM "
+                             "picture_section)" if has_table(c, "picture_section") else
+                             f"SELECT s.body FROM section s WHERE s.id IN (SELECT section_id FROM section_vehicle "
+                             f"WHERE vehicle_id IN ({vq}))", veh):
+        ranges = set(re.findall(r"\b([PBCU][0-3][0-9A-F]{3})\s*[-–]\s*([PBCU][0-3][0-9A-F]{3})\b", body or ""))
+        bounds = {x for pair in ranges for x in pair}          # "P0340 - P0505" is a range heading, not a code
+        for code in set(code_re.findall(body or "")) - bounds:
+            rows.setdefault(code, {"page": 0, "named": 0})["named"] = 1
+    desc = dict(c.execute("SELECT code, description FROM dtc")) if has_table(c, "dtc") else {}
+    ssm = {r[0] for r in c.execute("SELECT DISTINCT code FROM dtc_ssm")} if has_table(c, "dtc_ssm") else set()
+    c.execute("DELETE FROM car_dtc")
+    for code, r in sorted(rows.items()):
+        src = "diagnostic page for this car" if r["page"] else "named on this car's manual pages"
+        c.execute("INSERT INTO car_dtc VALUES (?,?,?,?,?,?)",
+                  (code, desc.get(code), r["page"], r["named"], int(code in ssm), src))
+    n_codes = len(rows)
+    # telemetry trims, each copied to the side file first
+    side = (a.db[:-3] if a.db.endswith(".db") else a.db) + ".make_tables.db"
+    c.execute("ATTACH DATABASE ? AS m", (side,))
+    trims = []
+    model_l = [n.lower() for n in names]
+    if has_table(c, "telem_source_map"):
+        origins = [o for (o,) in c.execute("SELECT DISTINCT origin FROM telem_source_map WHERE source='obdb'")]
+        drop = []
+        for o in origins:
+            m = re.match(r"OBDb ([^@]+)@", o or "")
+            repo = (m.group(1) if m else "").lower()
+            parts = repo.split("-", 1)
+            if len(parts) == 2 and parts[1].replace("-", " ") not in [x.replace("-", " ") for x in model_l]:
+                drop.append(o)
+        if drop:
+            trims.append(("telem_source_map", "source='obdb' AND origin IN (%s)" % ",".join("?" * len(drop)), drop))
+    if has_table(c, "telem_capability"):
+        trims.append(("telem_capability", f"(model IS NOT NULL AND upper(model) NOT IN ({q})) OR "
+                      "(year_min IS NOT NULL AND year_min > ?) OR (year_max IS NOT NULL AND year_max < ?)",
+                      names + [a.year, a.year]))
+    ecu = [x.strip() for x in (a.ecu_ids or "").split(",") if x.strip()]
+    if not ecu and os.path.isfile(os.path.expanduser(a.rom_db)):
+        r = sqlite3.connect(ro(a.rom_db), uri=True)
+        ecu = [e for (e,) in r.execute(f"SELECT ecuid FROM rom WHERE upper(model) IN ({q}) AND year=?",
+                                       names + [str(a.year)])]
+        r.close()
+    ssm_note = "kept whole (this car's ECU ids unknown: pass --ecu-ids)"
+    if ecu and has_table(c, "ssm_param"):
+        trims.append(("ssm_param", "ecu_id != '' AND ecu_id NOT IN (%s)" % ",".join("?" * len(ecu)), ecu))
+        ssm_note = f"generic + ECU ids {','.join(ecu)}"
+    res = {"car_dtc": n_codes, "car_dtc_with_page": sum(r["page"] for r in rows.values()), "ssm_param": ssm_note}
+    for table, where, args in trims:
+        if not has_table(c, table, "m"):
+            c.execute(f"CREATE TABLE m.{table} AS SELECT * FROM main.{table} WHERE 0")
+        c.execute(f"INSERT INTO m.{table} SELECT * FROM main.{table} WHERE {where}", args)
+        n = c.execute(f"DELETE FROM main.{table} WHERE {where}", args).rowcount
+        res[table] = f"-{n}, {c.execute(f'SELECT count(*) FROM main.{table}').fetchone()[0]} left"
+    c.execute("INSERT OR REPLACE INTO meta VALUES ('scope', ?)", (json.dumps(res),))
+    c.commit()
+    c.execute("DETACH DATABASE m")
+    print("scope:", ", ".join(f"{k} {v}" for k, v in res.items()), f"| trimmed rows in {side}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("extras", "copy-docs", "html-manual", "community", "community-select", "community-load", "telemetry", "trim",
-                 "reuse-vectors", "images", "check"):
+                 "reuse-vectors", "images", "vision", "threads", "scope", "check"):
         p = sub.add_parser(name)
         if name == "community-select":
             p.add_argument("--work-dir", required=True, help="new folder for this car's extraction work DB")
@@ -959,6 +1478,32 @@ def main():
             p.add_argument("--quality", type=int, default=60)
             p.add_argument("--charm-max-px", type=int, default=1600, help="CHARM pictures wider than this get shrunk")
             p.add_argument("--charm-max-bytes", type=int, default=400_000)
+        elif name in ("threads", "scope"):
+            p.add_argument("--model", required=True)
+            p.add_argument("--year", type=int, required=True)
+            if name == "threads":
+                p.add_argument("--src", required=True, help="an existing kb/<make>.threads.db")
+                p.add_argument("--out", help="default: <car db>.threads.db")
+                p.add_argument("--window", type=int, default=2)
+                p.add_argument("--years", help="explicit year range A-B instead of --window")
+            else:
+                p.add_argument("--ecu-ids", help="this car's ECU ids (comma list), else kb/romid.db's")
+                p.add_argument("--rom-db", default=os.path.join(HERE, "romid.db"))
+        elif name == "vision":
+            p.add_argument("--model", help="Ollama vision model, e.g. qwen3.6:35b-a3b-q4_K_M")
+            p.add_argument("--url", default=os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"),
+                           help="Ollama URL (default $OLLAMA_URL or local)")
+            p.add_argument("--kinds", default="dtc_chart,spec_table,chart",
+                           help="picture classes to read, in this order (dtc_chart, spec_table, chart, wiring, ...)")
+            p.add_argument("--all", action="store_true",
+                           help="also read DTC charts of codes whose procedure is already walkable text")
+            p.add_argument("--limit", type=int, default=0)
+            p.add_argument("--max-hours", type=float, default=0, help="stop reading after this long (resume later)")
+            p.add_argument("--sec-per-pic", type=float, default=20, help="for the estimate only")
+            p.add_argument("--num-ctx", type=int, default=16384)
+            p.add_argument("--estimate", action="store_true", help="count and estimate, read nothing")
+            p.add_argument("--apply-only", action="store_true", help="read nothing; rebuild sections/specs from readings")
+            p.add_argument("--log", help="CSV: per-picture seconds and tokens (appended)")
         elif name != "extras":
             p.add_argument("--model")
             p.add_argument("--year", type=int)
@@ -979,7 +1524,9 @@ def main():
     if a.cmd == "images" and not a.fsm_dir:
         a.fsm_dir = [os.path.join(os.path.dirname(HERE), "test_batch_out")]
     {"html-manual": cmd_html_manual, "community-select": cmd_community_select, "community-load": cmd_community_load, "extras": cmd_extras, "copy-docs": cmd_copy_docs, "community": cmd_community, "telemetry": cmd_telemetry,
-     "trim": cmd_trim, "reuse-vectors": cmd_reuse_vectors, "images": cmd_images, "check": cmd_check}[a.cmd](a)
+     "trim": cmd_trim, "reuse-vectors": cmd_reuse_vectors, "images": cmd_images, "vision": cmd_vision,
+     "threads": cmd_threads, "scope": cmd_scope,
+     "check": cmd_check}[a.cmd](a)
 
 
 if __name__ == "__main__":

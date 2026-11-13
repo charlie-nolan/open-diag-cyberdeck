@@ -5,7 +5,9 @@
 #   tools/build_car_db.sh --make <Make> --model <Model> --year <YYYY> \
 #       [--manuals <folder|zip|pdf|md>]... [--fsm <manual .md> [--title "<manual>"]] [--chassis <code>] [--engines <code[,code]>] \
 #       [--no-charm] [--community-work DIR] [--out-name NAME] [--bench CSV] \
-#       [--device cpu|cuda] [--reuse-vectors] [--no-embed] [--charm-images DIR] [--no-images] [--keep-work] [--dry-run]
+#       [--device cpu|cuda] [--reuse-vectors] [--no-embed] [--charm-images DIR] [--no-images] [--keep-work] [--dry-run] \
+#       [--vision MODEL [--vision-url URL] [--vision-hours H]] [--threads [--threads-src FILE]] [--scope [--ecu-ids IDS]] \
+#       [--bake-cards MODEL [--cards-work FILE] [--cards-url URL]]
 #
 # --manuals takes what a person downloaded: a folder (searched recursively) or a .zip holding factory-manual PDFs
 #   (converted with kb/pdf_to_md.py, text layer, no OCR), converted .md files (a <name>.fixed.md wins over <name>.md),
@@ -15,6 +17,14 @@
 # --community-work DIR: community rows from a fresh extraction (kb/car_db.py community-select + build_community.py
 #   extract) instead of copying them from kb/<make>.db.
 # --bench CSV: every step runs under tools/bench_run.py (wall, CPU, max RSS, MB in/out; GPU samples on GPU steps).
+# --vision MODEL: optional, off by default, needs a GPU: an Ollama vision model (e.g. qwen3.6:35b-a3b-q4_K_M; URL from
+#   --vision-url or $OLLAMA_URL, default local) reads the DB's diagnostic charts and spec tables (kb/car_db.py vision).
+# --threads: optional, this car's raw owner threads + vectors from an existing kb/<make>.threads.db (or --threads-src)
+#   into kb/cars/<car>.threads.db, for /wildcard. Nothing is scraped. --scope: optional, car_dtc (this car's codes)
+#   and telemetry definitions trimmed to this car; trimmed rows kept in kb/cars/<car>.make_tables.db.
+# --bake-cards MODEL: optional, GPU, hours: per-code diagnostic cards (card_baking/bake_cards.py) from the manual plus an
+#   existing forum-fix work DB (kb/bake_work_<make>.db or --cards-work; none: manual and TSBs only), on an Ollama (or
+#   llama-server) model at --cards-url (default the vision URL). Cards already in the DB are kept; resumable.
 #
 # Steps (each skipped with one line when its source is missing):
 #   a0 manuals   --manuals: PDFs -> kb/pdf_to_md.py; .md -> fsm; HTML manual -> kb/car_db.py html-manual
@@ -34,6 +44,8 @@
 #                from kb/<make>.db, then embeds only the rest; --no-embed: keyword search only)
 #   i2 images    kb/car_db.py images: manual figures + CHARM pictures + chart readings stored inside the DB
 #                (CHARM pictures need the images LMDB: --charm-images <dir with data.mdb>; --no-images skips)
+#   i3 vision    --vision only: kb/car_db.py vision (DTC charts, then spec tables, then other charts; resumable;
+#                per-picture seconds/tokens in <out>.vision.csv), then embed --missing for the new sections
 #   j finish     build_subaru_kb.py finish
 #   k ann        skipped: one car is far under the 100k rows where the retriever uses the ANN sidecar
 #   l app view   kb/cars/<slug>/<make>.db symlink: point the app's "kb_dir" at that folder
@@ -47,10 +59,12 @@ export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
 
 MAKE="" MODEL="" YEAR="" FSM="" CHASSIS="" ENGINES="" TITLE="" DEVICE=cpu REUSE=0 EMBED=1 DRY=0 KEEP=0 IMAGES=1
 CHARM=1 COMM_WORK="" COMM_YEARS="" OUT_NAME="" BENCH="" MANUALS=()
+VISION="" VISION_URL=${OLLAMA_URL:-http://127.0.0.1:11434} VISION_HOURS=0 THREADS=0 THREADS_SRC="" SCOPE=0 ECU_IDS=""
+BAKE="" CARDS_WORK="" CARDS_URL=""
 CHARM_DIR=${CHARM_DIR:-$HOME/mnt/charm}
 CHARM_IMAGES=${CHARM_IMAGES:-}
 FSM_DIR=${FSM_DIR:-$CK/test_batch_out}
-usage() { sed -n '2,18p' "$0"; exit "${1:-1}"; }
+usage() { sed -n '2,27p' "$0"; exit "${1:-1}"; }
 while [ $# -gt 0 ]; do
     case "$1" in
         --make) MAKE=$2; shift 2;; --model) MODEL=$2; shift 2;; --year) YEAR=$2; shift 2;;
@@ -60,6 +74,10 @@ while [ $# -gt 0 ]; do
         --reuse-vectors) REUSE=1; shift;; --no-embed) EMBED=0; shift;; --dry-run) DRY=1; shift;;
         --keep-work) KEEP=1; shift;; -h|--help) usage 0;;
         --manuals) MANUALS+=("$2"); shift 2;; --no-charm) CHARM=0; shift;; --community-work) COMM_WORK=$2; shift 2;;
+        --threads) THREADS=1; shift;; --threads-src) THREADS=1; THREADS_SRC=$2; shift 2;;
+        --scope) SCOPE=1; shift;; --ecu-ids) ECU_IDS=$2; shift 2;;
+        --bake-cards) BAKE=$2; shift 2;; --cards-work) CARDS_WORK=$2; shift 2;; --cards-url) CARDS_URL=$2; shift 2;;
+        --vision) VISION=$2; shift 2;; --vision-url) VISION_URL=$2; shift 2;; --vision-hours) VISION_HOURS=$2; shift 2;;
         --out-name) OUT_NAME=$2; shift 2;; --bench) BENCH=$2; shift 2;; --community-years) COMM_YEARS=$2; shift 2;; *) echo "unknown option $1"; usage;;
     esac
 done
@@ -241,6 +259,30 @@ step trim
 run "$PY" "$H" trim --db "$DB" --model "$MODEL" --year "$YEAR" || { say "trim FAILED"; exit 1; }
 lap trim
 
+# h2. optional: the car's own codes and telemetry definitions (--scope)
+if [ "$SCOPE" = 1 ]; then
+    step scope
+    run "$PY" "$H" scope --db "$DB" --model "$MODEL" --year "$YEAR" ${ECU_IDS:+--ecu-ids "$ECU_IDS"} || say "scope FAILED (carrying on)"
+    lap scope
+else
+    skip scope "no --scope (make-wide code and telemetry tables kept)"
+fi
+
+# h3. optional: this car's raw owner threads from an existing threads file (--threads)
+if [ "$THREADS" = 1 ]; then
+    TSRC=${THREADS_SRC:-$CK/kb/$mk.threads.db}
+    step threads "$TSRC"
+    if [ -f "$TSRC" ]; then
+        run "$PY" "$H" threads --db "$DB" --model "$MODEL" --year "$YEAR" --src "$TSRC" --out "$WORK/$mk.threads.db" \
+            ${COMM_YEARS:+--years "$COMM_YEARS"} || say "threads FAILED (carrying on)"
+    else
+        say "threads: no $TSRC (optional; the app works without it)"
+    fi
+    lap threads
+else
+    skip threads "no --threads"
+fi
+
 # i. embed
 step embed; [ "$DEVICE" = cuda ] && STEP_GPU=1
 if [ "$EMBED" = 1 ]; then
@@ -266,6 +308,36 @@ else
     skip images "--no-images"
 fi
 
+# i3. vision (optional): read the DB's charts and spec tables with a vision model
+if [ -n "$VISION" ] && [ "$IMAGES" = 1 ]; then
+    step vision; STEP_GPU=1
+    run "$PY" "$H" vision --db "$DB" --model "$VISION" --url "$VISION_URL" --max-hours "$VISION_HOURS" \
+        --log "${OUT%.db}.vision.csv" || say "vision FAILED (carrying on)"
+    if [ "$EMBED" = 1 ]; then
+        run "$PY" "$B" --db "$DB" embed --device "$DEVICE" --missing || say "embed of picture text FAILED (keyword search still works)"
+    fi
+    lap vision
+else
+    skip vision "no --vision (picture charts stay pictures)"
+fi
+
+# i4. cards (optional): bake per-code cards for this car on a local model
+if [ -n "$BAKE" ]; then
+    step bake-cards; STEP_GPU=1
+    CW=${CARDS_WORK:-$CK/kb/bake_work_$mk.db}
+    [ -f "$CW" ] || say "bake-cards: no forum-fix work DB at $CW: cards from the manual and TSBs only"
+    CO=$WORK/cards_baked.db
+    [ "$DRY" = 0 ] && [ -n "$CARDS" ] && [ ! -f "$CO" ] && cp "$CARDS" "$CO"     # cards already made are kept
+    run "$PY" "$CK/card_baking/bake_cards.py" --kb "$DB" --kb-dir "$CK/kb" --work "$CW" --out "$CO" --make "$MAKE" \
+        --model "$MODEL" --years "$YEAR-$YEAR" --url "${CARDS_URL:-$VISION_URL}" --server-model "$BAKE" --model-name "$BAKE" \
+        && run "$PY" "$B" --db "$DB" cards "$CO" \
+        && { [ "$EMBED" = 0 ] || run "$PY" "$B" --db "$DB" embed --device "$DEVICE" --missing --only dtc_card; } \
+        || say "bake-cards FAILED (carrying on; the DB keeps the cards it had)"
+    lap bake-cards
+else
+    skip bake-cards "no --bake-cards (optional)"
+fi
+
 # j. finish
 step finish
 run "$PY" "$B" --db "$DB" finish || { say "finish FAILED"; exit 1; }
@@ -278,6 +350,11 @@ if [ "$DRY" = 0 ]; then
     mv "$DB" "$OUT"
     mkdir -p "$CARS/$SLUG"
     ln -sfn "../$SLUG.db" "$CARS/$SLUG/$mk.db"
+    [ -f "$WORK/$mk.make_tables.db" ] && mv "$WORK/$mk.make_tables.db" "$CARS/$SLUG.make_tables.db"
+    if [ -f "$WORK/$mk.threads.db" ]; then
+        mv "$WORK/$mk.threads.db" "$CARS/$SLUG.threads.db"
+        ln -sfn "../$SLUG.threads.db" "$CARS/$SLUG/$mk.threads.db"     # app/community_ref.raw_threads looks here
+    fi
     [ "$KEEP" = 1 ] || rm -rf "$WORK"
 fi
 say "done: $OUT ($( [ -f "$OUT" ] && du -h "$OUT" | cut -f1)), total $(( $(date +%s) - T0 )) s"

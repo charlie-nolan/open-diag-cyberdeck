@@ -394,7 +394,7 @@ def step_bake(a):
     vids = vehicle_ids(kb, a.model, y0, y1, a.engine)
     out = sqlite3.connect(os.path.expanduser(a.out))
     out.executescript(CARD_SCHEMA_SQL)
-    llm = LLM(a.url, temperature=0.2, max_tokens=2000)
+    llm = LLM(a.url, temperature=0.2, max_tokens=2000, model=a.server_model)
     if not llm.ping():
         sys.exit(f"llama-server not answering at {a.url} (start serve_cards.sh first)")
 
@@ -479,6 +479,8 @@ def main():
     ap.add_argument("--knowledge-k", type=int, default=5)
     ap.add_argument("--url", default="http://127.0.0.1:8081")
     ap.add_argument("--model-name", default="Qwen3.6-35B-A3B-Q4_K_M", help="recorded with each card")
+    ap.add_argument("--server-model", help="model name to ask the server for (Ollama: e.g. qwen3.6:35b-a3b-q4_K_M; "
+                                           "llama-server serves one model and ignores it)")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--force", action="store_true", help="rebuild cards that already exist")
     ap.add_argument("--no-verify", action="store_true", help="skip the source check (faster, less safe)")

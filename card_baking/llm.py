@@ -51,17 +51,24 @@ def _field(v, s):
 
 
 class LLM:
-    def __init__(self, url="http://127.0.0.1:8080", temperature=0.2, max_tokens=1024, timeout=600):
+    def __init__(self, url="http://127.0.0.1:8080", temperature=0.2, max_tokens=1024, timeout=600, model=None,
+                 num_ctx=16384):
+        """model: set it to use an Ollama server (its native /api/chat: the model by name, context num_ctx, thinking
+        off, JSON schema output). Unset: llama-server's OpenAI-compatible endpoint, as before."""
         self.url = url.rstrip("/") + "/v1/chat/completions"
-        self.temperature, self.max_tokens, self.timeout = temperature, max_tokens, timeout
+        self.temperature, self.max_tokens, self.timeout, self.model = temperature, max_tokens, timeout, model
+        self.num_ctx = num_ctx
 
     def ping(self):
         base = self.url.rsplit("/v1/", 1)[0]
-        try:
-            with urllib.request.urlopen(base + "/health", timeout=5) as r:
-                return r.status == 200
-        except (urllib.error.URLError, OSError):
-            return False
+        for path in ("/health", "/v1/models"):     # llama-server, then any OpenAI-compatible server (Ollama)
+            try:
+                with urllib.request.urlopen(base + path, timeout=5) as r:
+                    if r.status == 200:
+                        return True
+            except (urllib.error.URLError, OSError):
+                pass
+        return False
 
     def json(self, system, user, schema, max_tokens=None, retries=3):
         """Returns (parsed_json, usage_dict)."""
@@ -72,16 +79,27 @@ class LLM:
             "response_format": {"type": "json_schema", "json_schema": {"name": "out", "schema": schema}},
             "chat_template_kwargs": {"enable_thinking": False},
         }
+        url = self.url
+        if self.model:   # Ollama: its /v1 keeps a 4k default context and thinks first; the native API sets both
+            url = self.url.rsplit("/v1/", 1)[0] + "/api/chat"
+            body = {"model": self.model, "messages": body["messages"], "stream": False, "think": False,
+                    "format": schema, "options": {"temperature": self.temperature, "num_ctx": self.num_ctx,
+                                                  "num_predict": max_tokens or self.max_tokens}}
         data = json.dumps(body).encode()
         err = None
         for attempt in range(retries):
             try:
-                req = urllib.request.Request(self.url, data=data, headers={"Content-Type": "application/json"})
+                req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
                 with urllib.request.urlopen(req, timeout=self.timeout) as r:
                     out = json.load(r)
-                text = out["choices"][0]["message"]["content"]
-                return conform(json.loads(text), schema), out.get("usage", {})
+                if self.model:
+                    text = out["message"]["content"]
+                    usage = {"prompt_tokens": out.get("prompt_eval_count"), "completion_tokens": out.get("eval_count")}
+                else:
+                    text = out["choices"][0]["message"]["content"]
+                    usage = out.get("usage", {})
+                return conform(json.loads(text), schema), usage
             except (urllib.error.URLError, OSError, KeyError, TypeError, ValueError) as e:
                 err = e
                 time.sleep(2 * (attempt + 1))
-        raise RuntimeError(f"llama-server call failed after {retries} tries: {err}")
+        raise RuntimeError(f"model server call failed after {retries} tries: {err}")
