@@ -499,8 +499,9 @@ def case_context(r, text, budget=2500, scraped=True, verified_only=False):
         if c:  # likely causes only: the card's "manual procedure outline" was summarised from cut-off text
             c = c.split("Manual procedure outline:", 1)[0].strip()
             cards.append(c[:max(200, budget // (6 * len(codes)))])
-    cards = (["[REPORTED CAUSES: forum and TSB fixes counted for this car; secondary to the manual]"] + cards
-             if cards else [])
+    cards = (["[REPORTED CAUSES: owner-reported forum and TSB fixes counted for this car. Supporting evidence only, "
+              "ranked by how often owners reported them, not by the manual. The manual's procedure above decides the "
+              "order of work]"] + cards if cards else [])
     # the codes' own names find the right manual page when the question's words don't ("explain deeper")
     query = " ".join([text] + [d.split(":", 1)[-1] for d in defs])
     # a page about one of the case's own codes is already covered by its procedure above
@@ -515,6 +516,27 @@ def case_context(r, text, budget=2500, scraped=True, verified_only=False):
             out.append(part)
             used += len(part) + 2
     return "\n\n".join(out + ([comm] if comm else []))
+
+
+def cited_pages(ctx, plan):
+    """The FSM DATA blocks a first-pass plan used: every code's diagnostic procedure and definition, plus each other
+    block whose heading words (or a number from its text) the plan repeats. Pass 2 of the blind verdict reads these
+    instead of all of FSM DATA."""
+    import faithfulness                     # its block splitter (the deck's prompts tag each block "[...]")
+    plan_l = (plan or "").lower()
+    plan_nums = set(re.findall(r"\d+(?:\.\d+)?", plan_l))
+    keep = []
+    for label, text in faithfulness.pages(ctx or "")[1:]:
+        lab = label.lower()
+        if lab.startswith(("manual diagnostic procedure", "dtc", "codes together", "manual text for", "picture read")):
+            keep.append(text.strip())
+            continue
+        words = {w for w in re.findall(r"[a-z]{5,}", lab)} - {"repair", "diagnosis", "testing", "inspection",
+                                                               "description", "operation", "manual"}
+        nums = {n for n in re.findall(r"\d+\.\d+|\d{2,}", text) if not re.fullmatch(r"(19|20)\d\d", n)}  # not years
+        if sum(w in plan_l for w in words) >= 2 or len(nums & plan_nums) >= 2:
+            keep.append(text.strip())
+    return "\n\n".join(keep) or "(none cited)"
 
 
 def _fit(text, room):
@@ -3782,6 +3804,7 @@ class CyberdeckApp(QMainWindow):
         maint = self.session.get("maint_selected")
         dc = self._data_check()
         top = f"{dc}\n\n" if dc else ""
+        flagged = dc.startswith("DATA CHECK")   # real data problems, not only coverage notes
         # Blind first pass (config "verdict_blind_first", default on): pass 1 sees the evidence only, without the
         # OPINION_FIELDS; pass 2 gets its ranking plus the opinions and says whether the evidence supports them.
         opinions = self.session.opinions()
@@ -3797,8 +3820,14 @@ class CyberdeckApp(QMainWindow):
                       "- Order: the likeliest and cheapest/easiest to confirm first. Say why each one sits where it does.\n"
                       "- Every idea the mechanic states in their notes gets its own issue with the evidence for and "
                       "against it, even if you rank it low.\n"
-                      "- A part he says he replaced or checked is never issue 1. List it last, as a recheck, only if "
-                      "the evidence still points at it, and say why.\n"
+                      "- A part they say they replaced or checked is never issue 1. List it last, as a recheck, only "
+                      "if the evidence still points at it, and say why.\n"
+                      "- [REPORTED CAUSES] and [COMMUNITY REPORTS] are supporting evidence, ranked below the manual: an "
+                      "owner-reported cause is never ISSUE 1 unless the manual's procedure or the case's own readings "
+                      "point there too, and then cite that step or reading.\n"
+                      + ("- DATA CHECK flags are present above: ISSUE 1 must be confirming or correcting the flagged "
+                         "data (a rescan, the right car, the real equipment), and no other issue may rest on a flagged "
+                         "reading or code.\n" if flagged else "") +
                       "- Use only the case, live data and manual text above, and quote the real numbers. Never write "
                       "part numbers or prices: the deck adds them from its database.\n\n"
                       "Write exactly this format:\n"
@@ -3820,14 +3849,17 @@ class CyberdeckApp(QMainWindow):
             full = f"{top}CASE:\n{case}\n\nFSM DATA:\n{ctx or '(none)'}\n\n"
 
             def pass2_prompt(plan):
-                return (full + "YOUR FIRST-PASS PLAN (written from the evidence only, before the opinions below were "
+                # only the pages pass 1 used (the code procedures always): pass 2 re-read all of them before and took
+                # as long as pass 1. The source check still runs against every page (check_against=full).
+                short = f"{top}CASE:\n{case}\n\nFSM DATA (the pages your first pass used):\n{cited_pages(ctx, plan)}\n\n"
+                return (short + "YOUR FIRST-PASS PLAN (written from the evidence only, before the opinions below were "
                         "shown):\n" + plan.strip() + "\n\nOPINIONS LEFT OUT OF THE FIRST PASS (guesses and earlier "
                         "diagnoses, not test results):\n" + opinions + "\n\n"
                         "For each opinion, say whether the evidence in the CASE and FSM DATA supports it, and the test "
-                        "that would settle it. Keep the first-pass ranking. Move an issue only when evidence (a code, a "
-                        "reading, a test result or a manual page) justifies it, never because someone suspects it, and "
-                        "name that evidence. An opinion the plan doesn't cover gets its own issue, ranked by its "
-                        "evidence. Then write the final plan.\n"
+                        "that would settle it. Reorder only for evidence (a code, a reading, a test result or a manual "
+                        "page), or to put the manual's earlier or cheaper step first; never because someone suspects "
+                        "it, and name what moved it. An opinion the plan doesn't cover gets its own issue, ranked by "
+                        "its evidence. Then write the final plan.\n"
                         "Start with one line per opinion:\nOPINION CHECK: <opinion> - <supported / not supported / "
                         "untested>: <the evidence, and the test>\nthen " + fmt[0].lower() + fmt[1:])
 

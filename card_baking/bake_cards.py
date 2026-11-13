@@ -94,6 +94,9 @@ Use ONLY the numbered sources given. Every cause and step lists the source ids i
 - fsm_steps: the manual's diagnostic checks in order, each 'check' written out as a short sentence saying what to check
   and how (e.g. "Check the harness between the sensor and the ECM for continuity"). Never just a step number or
   step code like "3" or "10AH2".
+- Wording: these are owner reports, not proof. Say "reported fixed by N owners" or "the most often reported fix";
+  never "confirmed fix", "#1", "top cause" or "most common confirmed fix". The manual's procedure decides the order of
+  work; the card only says how often owners reported each fix.
 - Plain, short sentences."""
 
 VERIFY_SYSTEM = """You check one cause listed on a car diagnostic card for a trouble code against the sources it cites.
@@ -338,7 +341,7 @@ def render(code, desc, card, sources, specs, labor):
         item["sources"] = [i for i in item["sources"] if i in by_id]
     out = [f"{code}: {desc}", card["summary"], ""]
     if card["causes"]:
-        out.append("Likely causes, most common first:")
+        out.append("Owner-reported causes, most often reported first (not the manual's order):")
         for n, c in enumerate(card["causes"], 1):
             mark = "" if c.get("support", "yes") == "yes" else " (partly supported)"
             out.append(f"{n}. {c['cause']}{mark} [{', '.join(c['sources'])}]")

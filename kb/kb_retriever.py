@@ -134,6 +134,29 @@ MODEL_ALIASES = {
 VEC_ALL_CARS_MAX = 200000    # rows searched with no year/model filter; keyword search still runs above this
 
 
+# The baked cards say "confirmed fix", "most common confirmed fix", "#1 cause": the bake's words for owner reports.
+# Models read that as proof and led with it over the manual (sim v3). Same meaning, neutral words: how often owners
+# reported a fix. Wording only, no cause is named or changed.
+_NEUTRAL = [
+    (r"\b(?:the\s+)?(?:#\s*1|number one|top)\s+(?:most\s+)?(?:confirmed\s+|common\s+)?(fix|cause)\b", r"the most often reported \1"),
+    (r"\b(?:the\s+)?most\s+(?:common(?:ly)?|frequent(?:ly)?)\s+confirmed\s+(fix|cause)", r"the most often reported \1"),
+    (r"\b(?:the\s+)?most\s+confirmed\s+(fix|cause)", r"the most often reported \1"),
+    (r"\b(?:the\s+)?most\s+(?:common|frequent)\s+(fix|cause)", r"the most often reported \1"),
+    (r"\bconfirmed\s+by\s+(\d+)", r"reported fixed by \1"),
+    (r"\b(\d+)\s+owners?\s+confirmed\s+this\s+fix", r"\1 owner report(s) of this fix"),
+    (r"\bconfirmed\s+(fix(?:es)?)\b", r"owner-reported \1"),
+    (r"\((\d+)\s+confirmed\)", r"(\1 owner reports)"),
+    (r"Likely causes, most common first:", "Owner-reported causes, most often reported first (not the manual's order):"),
+]
+
+
+def neutral_card(text):
+    """A card's wording with "confirmed / #1 / most common fix" said as owner reports (see _NEUTRAL)."""
+    for pat, sub in _NEUTRAL:
+        text = re.sub(pat, sub, text or "", flags=re.I)
+    return text
+
+
 class Retriever:
     def __init__(self, db_path, model=None, year=None, engine=None, embed=None):
         db_path = os.path.expanduser(db_path)
@@ -252,7 +275,7 @@ class Retriever:
             row = self.db.execute(sql + " ORDER BY year_max - year_min LIMIT 1", args).fetchone()
         except sqlite3.OperationalError:      # DB built before the cards step existed
             return ""
-        return f"[CARD] {row[0]}" if row else ""
+        return f"[CARD] {neutral_card(row[0])}" if row else ""
 
     # What kind of page a question wants. Problem descriptions want the manual's symptom / trouble tables and
     # diagnostic procedures; repair jobs want removal / installation pages. This says nothing about causes.
