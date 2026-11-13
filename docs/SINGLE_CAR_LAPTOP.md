@@ -628,6 +628,39 @@ it took about 12 seconds per picture on an RTX 3070, about 2 hours for one car's
 vision models read charts badly. Everything a vision model reads is marked **unverified** in the app, so check it
 against the picture.
 
+### Narrow the trouble codes and live-data definitions to your car (`--scope`)
+
+Add `--scope` to the build. It writes a `car_dtc` table: the codes your car's own manual knows, each marked with
+where that came from ("diagnostic page for this car" or "named on this car's manual pages"). If you built from a
+project-wide make database, it also trims the live-data definitions (OBD signals, Subaru SSM parameters) down to your
+model, year and engine computer. Nothing is deleted: every trimmed row is kept in a side file,
+`kb/cars/<car>.make_tables.db`. For Subaru, the engine computer ids come from `kb/romid.db`; to give them yourself,
+add `--ecu-ids ID1,ID2`. No model or GPU is needed, and it takes seconds.
+
+### Owner threads for /wildcard (`--threads`)
+
+Only useful if you already have a make's raw thread file, `kb/<make>.threads.db`, from the community steps above
+(or from the project's full build). Add `--threads` and the build copies your car's threads and their search vectors
+into `kb/cars/<car>.threads.db`, next to your database, where the app's `/wildcard` finds them. Nothing is downloaded
+or scraped. To use a thread file somewhere else, add `--threads-src /path/to/<make>.threads.db`. For the test
+Forester (2000-2004 threads) this was 4,650 threads, 30 MB.
+
+### Diagnostic cards (`--bake-cards`, needs a GPU, hours)
+
+A card is a one-page summary per trouble code: the manual's test steps plus the fixes owners confirmed. To make
+them, add `--bake-cards <model>` with an Ollama model you've pulled, for example:
+
+```bash
+tools/build_car_db.sh --make "Honda" --model "Civic" --year 2004 \
+    --manuals "$HOME/Downloads/2004 Honda Civic.zip" --no-charm \
+    --bake-cards qwen3.6:35b-a3b-q4_K_M
+```
+
+It uses forum fixes from `kb/bake_work_<make>.db` if you have one (or `--cards-work /path/to/file`); without one, the
+cards are built from the manual and service bulletins only. The model is reached at `--cards-url` (default: the same
+address as `--vision-url`). In testing it took about a minute per code on an RTX 3070, so a car with 100+ codes
+is an overnight job. It's resumable, and cards already in the database are kept.
+
 ### Public recall and complaint data (NHTSA)
 
 NHTSA publishes recalls, technical service bulletins and owner complaints. To include them, download and index the
