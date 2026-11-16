@@ -348,6 +348,16 @@ class Retriever:
             args = list(self.vehicle_ids)
         return self._vec_search("section_vec", vf, args, text, n)
 
+    def _picture_dtc_sections(self):
+        """Ids of vision-read sections linked to a trouble code (cached); empty without kb/car_db.py vision."""
+        if not hasattr(self, "_pic_dtc"):
+            try:
+                self._pic_dtc = {r[0] for r in self.db.execute(
+                    "SELECT DISTINCT p.section_id FROM picture_section p JOIN dtc_procedure d ON d.section_id=p.section_id")}
+            except sqlite3.Error:
+                self._pic_dtc = set()
+        return self._pic_dtc
+
     def search_ids(self, text, k=3):
         first = self._code_sections(text)
         text = self._strip_car(text)
@@ -375,8 +385,14 @@ class Retriever:
         if first:
             q_ = ",".join("?" * len(first))
             bodies.update(self.db.execute(f"SELECT id, body FROM section WHERE id IN ({q_})", first).fetchall())
+        rest = [i for i in sorted(score, key=score.get, reverse=True) if i not in first]
+        # A trouble-code chart read from the manual's pictures (kb/car_db.py vision) leads only for a case that has
+        # that code (then it is in `first`); otherwise it goes after the other pages.
+        pic = self._picture_dtc_sections()
+        if pic:
+            rest = [i for i in rest if i not in pic] + [i for i in rest if i in pic]
         out, kept = [], []
-        for sid in first + [i for i in sorted(score, key=score.get, reverse=True) if i not in first]:
+        for sid in first + rest:
             sh = _shingles(bodies.get(sid, ""))
             if any(len(sh & o) > self.DUP_JACCARD * len(sh | o) for o in kept if sh and o):
                 continue

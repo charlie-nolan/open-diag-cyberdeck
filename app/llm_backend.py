@@ -415,6 +415,57 @@ class OpenAICompatModel:
         pass
 
 
+class CliModel:
+    """Same interface over a command-line AI tool the user is already signed into with their own subscription
+    (Claude Code, Google's Gemini CLI or agy, OpenAI's Codex CLI): no API key. config "cli_cmd" is the command as a
+    list; "{prompt}" in it is replaced by the prompt, else the prompt goes to the tool's stdin. The app's system
+    prompt is put in front of the prompt, since each tool keeps its own. The answer is the tool's stdout.
+    Use the tools' read-only / no-tools flags (see docs/SINGLE_CAR_LAPTOP.md): the deck only wants text back."""
+
+    def __init__(self, cmd, system_prompt="", timeout=900, **_):
+        if not cmd or not isinstance(cmd, list):
+            raise RuntimeError('backend "cli" needs "cli_cmd" in config.json, e.g. ["claude", "-p"]')
+        self.cmd, self.system_prompt, self.timeout = cmd, system_prompt, timeout
+        self.name = os.path.basename(cmd[0])
+        self.history = []
+        self._proc = None
+
+    def generate(self, prompt, on_token, keep_history=False, max_new_tokens=None, temperature=None):
+        import re
+        import subprocess
+        text = (f"SYSTEM INSTRUCTIONS:\n{self.system_prompt}\n\n" if self.system_prompt else "") + prompt
+        args = [a.replace("{prompt}", text) if "{prompt}" in a else a for a in self.cmd]
+        stdin = None if any("{prompt}" in a for a in self.cmd) else text
+        with _RUN_LOCK:
+            try:
+                self._proc = subprocess.Popen(args, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
+                                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                out, err = self._proc.communicate(stdin, timeout=self.timeout)
+            except FileNotFoundError:
+                raise RuntimeError(f"cli backend: '{self.cmd[0]}' not found (install it and sign in first)")
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+                raise RuntimeError(f"cli backend: '{self.name}' took over {self.timeout} s")
+            finally:
+                rc = self._proc.returncode if self._proc else None
+                self._proc = None
+        if rc not in (0, None) or not (out or "").strip():
+            raise RuntimeError(f"cli backend: '{self.name}' failed ({rc}): {(err or out or '').strip()[-300:]}")
+        answer = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", out).strip()    # terminal colour codes
+        on_token(answer)
+        return answer
+
+    def clear_history(self):
+        self.history = []
+
+    def abort(self):
+        if self._proc is not None:
+            self._proc.kill()
+
+    def release(self):
+        pass
+
+
 class ClaudeModel:
     """Same interface over the Claude API (pip install anthropic). The SDK finds the key itself:
     ANTHROPIC_API_KEY, or a profile from `ant auth login`. Thinking is always on for current Claude models,
