@@ -134,6 +134,29 @@ MODEL_ALIASES = {
 VEC_ALL_CARS_MAX = 200000    # rows searched with no year/model filter; keyword search still runs above this
 
 
+# The baked cards say "confirmed fix", "most common confirmed fix", "#1 cause": the bake's words for owner reports.
+# Models read that as proof and led with it over the manual (sim v3). Same meaning, neutral words: how often owners
+# reported a fix. Wording only, no cause is named or changed.
+_NEUTRAL = [
+    (r"\b(?:the\s+)?(?:#\s*1|number one|top)\s+(?:most\s+)?(?:confirmed\s+|common\s+)?(fix|cause)\b", r"the most often reported \1"),
+    (r"\b(?:the\s+)?most\s+(?:common(?:ly)?|frequent(?:ly)?)\s+confirmed\s+(fix|cause)", r"the most often reported \1"),
+    (r"\b(?:the\s+)?most\s+confirmed\s+(fix|cause)", r"the most often reported \1"),
+    (r"\b(?:the\s+)?most\s+(?:common|frequent)\s+(fix|cause)", r"the most often reported \1"),
+    (r"\bconfirmed\s+by\s+(\d+)", r"reported fixed by \1"),
+    (r"\b(\d+)\s+owners?\s+confirmed\s+this\s+fix", r"\1 owner report(s) of this fix"),
+    (r"\bconfirmed\s+(fix(?:es)?)\b", r"owner-reported \1"),
+    (r"\((\d+)\s+confirmed\)", r"(\1 owner reports)"),
+    (r"Likely causes, most common first:", "Owner-reported causes, most often reported first (not the manual's order):"),
+]
+
+
+def neutral_card(text):
+    """A card's wording with "confirmed / #1 / most common fix" said as owner reports (see _NEUTRAL)."""
+    for pat, sub in _NEUTRAL:
+        text = re.sub(pat, sub, text or "", flags=re.I)
+    return text
+
+
 class Retriever:
     def __init__(self, db_path, model=None, year=None, engine=None, embed=None):
         db_path = os.path.expanduser(db_path)
@@ -252,7 +275,7 @@ class Retriever:
             row = self.db.execute(sql + " ORDER BY year_max - year_min LIMIT 1", args).fetchone()
         except sqlite3.OperationalError:      # DB built before the cards step existed
             return ""
-        return f"[CARD] {row[0]}" if row else ""
+        return f"[CARD] {neutral_card(row[0])}" if row else ""
 
     # What kind of page a question wants. Problem descriptions want the manual's symptom / trouble tables and
     # diagnostic procedures; repair jobs want removal / installation pages. This says nothing about causes.
@@ -423,7 +446,7 @@ class Retriever:
         for tq in dict.fromkeys(tiers):
             for r in self.db.execute(
                     "SELECT p.id, p.component, p.value_si, p.tol_si, p.value_us, p.tol_us, p.unit_us, s.title, s.topic, "
-                    "s.page, d.kind FROM spec_fts f JOIN spec p ON p.id=f.rowid JOIN section s ON s.id=p.section_id "
+                    "s.page, d.kind, p.raw FROM spec_fts f JOIN spec p ON p.id=f.rowid JOIN section s ON s.id=p.section_id "
                     f"JOIN doc d ON d.id=s.doc_id WHERE spec_fts MATCH ?{vf} "
                     "ORDER BY d.kind='charm', bm25(spec_fts, 3.0, 1.0) LIMIT ?", [tq] + args + [limit]):
                 if r[0] not in seen:
@@ -437,7 +460,7 @@ class Retriever:
         rows.sort(key=lambda r: (r[9] == "charm",
                                  -len(pw & set(re.findall(r"[a-z0-9]{3,}", f"{r[7] or ''} {r[6] or ''}".lower())))))
         out = []
-        for comp, nm, nm_tol, us, us_tol, us_unit, title, topic, page, kind in rows:
+        for comp, nm, nm_tol, us, us_tol, us_unit, title, topic, page, kind, raw in rows:
             vals = []
             if nm is not None:
                 vals.append(f"{nm:g}" + (f"±{nm_tol:g}" if nm_tol else "") + " N·m")
@@ -446,6 +469,8 @@ class Retriever:
             value = f"{vals[0]} ({vals[1]})" if len(vals) == 2 else vals[0] if vals else "?"
             where = f"{topic}, {title}" if topic and topic != title else title
             src = "CHARM" if kind == "charm" else f"FSM p.{page}"
+            if (raw or "").startswith("image "):   # kb/car_db.py vision rows: check the picture if it matters
+                src = "manual picture, read by vision model, unverified"
             out.append(f"[{src}, {where}] {comp}: {value}")
         return out
 

@@ -6,8 +6,7 @@ numpy>=1.24
 Pillow>=10.0
 sqlite-vec>=0.1.6
 segno>=1.5            # parts sourcing QR codes
-# Voice (optional; the app turns voice off when these are missing)
-vosk>=0.3.45
-sounddevice>=0.4.6
-pyttsx3>=2.90
+psutil>=5.9; sys_platform != "linux"   # free-RAM check on Windows/macOS laptops
+# Claude backend (optional): pip install anthropic
+# Voice is an optional add-on: pip install -r requirements-voice.txt
 # RKLLM runtime: librkllmrt.so from Rockchip's rknn-llm (not on PyPI), see README

@@ -52,6 +52,10 @@ def parse(bodies):
                 continue
             if s.startswith("### ") and ("DTC" in s and "—" in s):
                 continue  # the title, repeated on every continued section
+            if s.startswith("[PICTURE READ"):   # steps a vision model read from the manual's pictures (kb/car_db.py vision)
+                if s not in head:
+                    head.insert(0, s)           # first, so the prompt always says they are unverified
+                continue
             if s != "[fig]":
                 head.append(_clean(s.lstrip("# ")))
     return head, steps

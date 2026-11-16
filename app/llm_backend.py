@@ -344,6 +344,150 @@ class OllamaModel:
         pass
 
 
+class OpenAICompatModel:
+    """Same interface over any OpenAI-compatible /v1/chat/completions server: LM Studio, llama.cpp's
+    llama-server, Jan, vLLM, LocalAI, OpenRouter and other hosted APIs. Standard library only.
+    The key comes from an environment variable (never from config.json, which may get shared)."""
+
+    def __init__(self, model_name, system_prompt="", url="http://127.0.0.1:1234/v1", key_env="OPENAI_API_KEY",
+                 temperature=0.3, max_new_tokens=1024, enable_thinking=False, **_):
+        self.name, self.url = model_name, url.rstrip("/")
+        self.key = os.environ.get(key_env, "") if key_env else ""
+        self.system_prompt, self.temperature, self.max_new_tokens = system_prompt, temperature, max_new_tokens
+        self.history = []
+        self._resp = None
+
+    def generate(self, prompt, on_token, keep_history=False, max_new_tokens=None, temperature=None):
+        import urllib.request
+        msgs = [{"role": "system", "content": self.system_prompt}] if self.system_prompt else []
+        msgs += self.history + [{"role": "user", "content": prompt}]
+        payload = {"model": self.name, "messages": msgs, "stream": True,
+                   "temperature": self.temperature if temperature is None else temperature,
+                   "max_tokens": max_new_tokens or self.max_new_tokens}
+        headers = {"Content-Type": "application/json"}
+        if self.key:
+            headers["Authorization"] = f"Bearer {self.key}"
+        req = urllib.request.Request(f"{self.url}/chat/completions", data=json.dumps(payload).encode(), headers=headers)
+        parts, in_think = [], False
+        with _RUN_LOCK:
+            self._resp = urllib.request.urlopen(req, timeout=600)
+            try:
+                for raw in self._resp:                      # server-sent events: "data: {...}"
+                    line = raw.decode("utf-8", "replace").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    chunk = json.loads(data)
+                    if chunk.get("error"):
+                        raise RuntimeError(str(chunk["error"]))
+                    delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
+                    # reasoning models on llama.cpp / vLLM / DeepSeek-style APIs send their thinking separately
+                    think = delta.get("reasoning_content") or delta.get("reasoning")
+                    if think:
+                        t = ("<think>\n" if not in_think else "") + think
+                        in_think = True
+                        parts.append(t)
+                        on_token(t)
+                    tok = delta.get("content") or ""
+                    if tok and in_think:
+                        tok, in_think = "\n</think>\n\n" + tok, False
+                    if tok:
+                        parts.append(tok)
+                        on_token(tok)
+            finally:
+                self._resp.close()
+                self._resp = None
+        text = "".join(parts)
+        if keep_history:
+            self.history += [{"role": "user", "content": prompt}, {"role": "assistant", "content": text}]
+        return text
+
+    def clear_history(self):
+        self.history = []
+
+    def abort(self):
+        if self._resp is not None:
+            self._resp.close()
+
+    def release(self):
+        pass
+
+
+class ClaudeModel:
+    """Same interface over the Claude API (pip install anthropic). The SDK finds the key itself:
+    ANTHROPIC_API_KEY, or a profile from `ant auth login`. Thinking is always on for current Claude models,
+    so depth is set with effort (fast role: low) instead of a thinking switch. Declined requests are re-run on
+    Anthropic's recommended fallback model server-side (fallbacks="default")."""
+
+    def __init__(self, model_name="claude-opus-5-5", system_prompt="", effort="medium", max_new_tokens=1024,
+                 enable_thinking=False, **_):
+        try:
+            import anthropic
+        except ImportError as e:
+            raise RuntimeError("the claude backend needs: pip install anthropic") from e
+        self.client = anthropic.Anthropic()
+        self.name, self.system_prompt, self.effort = model_name, system_prompt, effort
+        # max_tokens covers thinking as well as the answer, so it gets a generous floor
+        self.max_new_tokens = max(16000, max_new_tokens)
+        self.show_thinking = enable_thinking
+        self.history = []
+        self._stream = None
+
+    def generate(self, prompt, on_token, keep_history=False, max_new_tokens=None, temperature=None):
+        msgs = self.history + [{"role": "user", "content": prompt}]
+        kw = dict(model=self.name, max_tokens=max(16000, max_new_tokens or 0, self.max_new_tokens), messages=msgs,
+                  output_config={"effort": self.effort},
+                  betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+        if self.system_prompt:
+            kw["system"] = self.system_prompt
+        if self.show_thinking:      # THINK HARDER shows a readable summary of the reasoning
+            kw["thinking"] = {"type": "adaptive", "display": "summarized"}
+        parts, in_think = [], False
+        with _RUN_LOCK:
+            with self.client.beta.messages.stream(**kw) as stream:
+                self._stream = stream
+                try:
+                    for event in stream:
+                        if event.type != "content_block_delta":
+                            continue
+                        if event.delta.type == "thinking_delta" and event.delta.thinking:
+                            t = ("<think>\n" if not in_think else "") + event.delta.thinking
+                            in_think = True
+                            parts.append(t)
+                            on_token(t)
+                        elif event.delta.type == "text_delta" and event.delta.text:
+                            tok = event.delta.text
+                            if in_think:
+                                tok, in_think = "\n</think>\n\n" + tok, False
+                            parts.append(tok)
+                            on_token(tok)
+                    final = stream.get_final_message()
+                finally:
+                    self._stream = None
+        if final.stop_reason == "refusal":
+            note = "\n[Claude declined this request" + (
+                f": {final.stop_details.category}" if getattr(final, "stop_details", None) else "") + "]"
+            parts.append(note)
+            on_token(note)
+        text = "".join(parts)
+        if keep_history:
+            answer = text.split("</think>")[-1].strip()
+            self.history += [{"role": "user", "content": prompt}, {"role": "assistant", "content": answer}]
+        return text
+
+    def clear_history(self):
+        self.history = []
+
+    def abort(self):
+        if self._stream is not None:
+            self._stream.close()
+
+    def release(self):
+        pass
+
+
 def ollama_models(url, timeout=3):
     """Names of the models an Ollama server has, or None when it can't be reached."""
     import urllib.request
@@ -362,7 +506,11 @@ def mem_available_gb():
                     return int(line.split()[1]) / 1024 / 1024
     except OSError:
         pass
-    return 0.0
+    try:                        # Windows / macOS: no /proc (pip install psutil)
+        import psutil
+        return psutil.virtual_memory().available / 1024 ** 3
+    except ImportError:
+        return 0.0
 
 
 def mem_total_gb():
@@ -373,7 +521,11 @@ def mem_total_gb():
                     return int(line.split()[1]) / 1024 / 1024
     except OSError:
         pass
-    return 0.0
+    try:                        # Windows / macOS: no /proc (pip install psutil)
+        import psutil
+        return psutil.virtual_memory().total / 1024 ** 3
+    except ImportError:
+        return 0.0
 
 
 # --------------------------------------------------------------------------- out-of-process trial load
