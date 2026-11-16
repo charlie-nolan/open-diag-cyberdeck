@@ -14,6 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from parts_sourcing import alert_mail, interchange, junk_quote, qr, sourcing, yard_paste, yard_sync, yards  # noqa: E402
 from parts_sourcing.sheet import render  # noqa: E402
 
+TODAY = dt.date(2026, 10, 15)   # fixture cars were added Sep 30 - Oct 10, 2026; a fixed date keeps the 45-day cutoff stable
+
 KB_SCHEMA = """
 CREATE TABLE vehicle (id INTEGER PRIMARY KEY, model TEXT NOT NULL, chassis TEXT, year INTEGER NOT NULL, engine TEXT,
   transmission TEXT, market TEXT NOT NULL DEFAULT 'USDM');
@@ -146,7 +148,7 @@ class T(unittest.TestCase):
 
     def test_yard_counts(self):
         ic = interchange.lookup(self.kb, "14038AA000")
-        rep = yards.report(self.ydb, self.kb, ic)
+        rep = yards.report(self.ydb, self.kb, ic, today=TODAY)
         by = {y.yard: y for y in rep.yards}
         lyn = by["PICK-n-PULL Lynnwood"]
         # 2002 Forester: one engine that year -> likely; 2004 decoded SOHC -> likely
@@ -208,7 +210,7 @@ VIN: 4S4BP61C057300009  Row: 7  Added to yard: Oct 12, 2026
         con.commit()
         con.close()
         ic = interchange.lookup(self.kb, "14038AA000")
-        rep = yards.report(db, self.kb, ic)
+        rep = yards.report(db, self.kb, ic, today=TODAY)
         self.assertEqual([c.year for y in rep.yards for c in y.cars], [2002])
 
     def test_junk_quote(self):

@@ -181,8 +181,8 @@ def report(yards_db, kb_db, interchange, make="Subaru", today=None):
             # Still there: on the yard's latest full list, or added since then and not older than MAX_AGE_DAYS.
             "AND ((y.last_full IS NOT NULL AND v.last_seen >= y.last_full) OR "
             "     (v.first_seen > coalesce(y.last_full, '') AND "
-            "      julianday('now') - julianday(substr(coalesce(v.added, v.first_seen), 1, 10)) <= ?))",
-            sorted(makes) + [MAX_AGE_DAYS]).fetchall()
+            "      julianday(?) - julianday(substr(coalesce(v.added, v.first_seen), 1, 10)) <= ?))",
+            sorted(makes) + [(today or dt.date.today()).isoformat(), MAX_AGE_DAYS]).fetchall()
         yards = {}
         for (y_name, y_city, y_loc, y_url) in con.execute("SELECT name, city, location_id, url FROM yard ORDER BY name"):
             yards[y_name] = YardResult(y_name, y_city, y_loc, y_url)
