@@ -4450,7 +4450,10 @@ class CyberdeckApp(QMainWindow):
 
     def _clear_qr(self):
         while self.qr_lay.count():
-            self.qr_lay.takeAt(0).widget().deleteLater()
+            w = self.qr_lay.takeAt(0).widget()
+            if w is not None:            # off the screen now: deleteLater alone left the old codes drawn under the new
+                w.setParent(None)
+                w.deleteLater()
 
     def _show_part(self, pn):
         res = PS.sourcing(pn, cfg=self._ps_cfg(parts_row=True))
@@ -4464,21 +4467,105 @@ class CyberdeckApp(QMainWindow):
             return
         qdir = os.path.join(CFG["cache_dir"], "qr")
         os.makedirs(qdir, exist_ok=True)
-        for i, ln in enumerate(res["links"]):  # sites.json order: O'Reilly, AutoZone, RockAuto, Row52
+        for i, ln in enumerate(res["links"]):  # sites.json order: RockAuto, O'Reilly, AutoZone, Row52
             path = os.path.join(qdir, hashlib.sha1(ln.url.encode()).hexdigest()[:16] + ".png")
             if not os.path.isfile(path):
                 PSQR.qr_png(ln.url, path, scale=4)
             img = QLabel()
             img.setPixmap(QPixmap(path))
-            look = ""
-            if ln.site == "row52":  # Row52 links can't name a model; say what to look for in the list
-                car = self._ps_cfg(parts_row=True).get("car") or {}
-                look = f". Look for: {car.get('year', '')} {car.get('make', '')} {car.get('model', '')}".rstrip()
-            cap = QLabel(f"{ln.label}{look}" + ("" if ln.verified else " (link unverified)"))
+            cap = QLabel(ln.label + ("" if ln.verified else " (link unverified)"))
             cap.setWordWrap(True)
             cap.setStyleSheet("font-size: 16px; margin-bottom: 14px;")
             self.qr_lay.addWidget(img, i * 2, 0)
             self.qr_lay.addWidget(cap, i * 2 + 1, 0)
+        self._fill_row52(res)
+
+    def _fill_row52(self, res):
+        """Row52 by hand: its terms forbid crawling, so the deck never fetches it. Under Row52's QR
+        code: a QR for every donor car at once (the make over all the donor years: Row52 takes one model per search),
+        then the donor cars one per line, each opening its own search (model + years when row52_ids.json has the
+        model's id, else make + years), and a box to teach the deck a make's/model's ids from a pasted Row52 link."""
+        r52 = next((ln for ln in res["links"] if ln.site == "row52"), None)
+        try:
+            from parts_sourcing.interchange import donors
+            from parts_sourcing import row52
+            cars = donors(res["interchange"])
+        except Exception:
+            cars = []
+        if not (r52 and cars):
+            return
+        pcfg = self._ps_cfg(parts_row=True)
+        make, zip_code = (pcfg.get("car") or {}).get("make", ""), pcfg.get("home_zip", "")
+        all_years = sorted({y for d in cars for y in d["years"]})
+        span = f"{all_years[0]}-{all_years[-1]}" if len(all_years) > 1 else str(all_years[0])
+        row = self.qr_lay.rowCount()
+
+        def add(w):
+            nonlocal row
+            self.qr_lay.addWidget(w, row, 0)
+            row += 1
+        url = row52.search_url(make, zip_code, all_years)
+        if url and PSQR is not None and PSQR.available():
+            qdir = os.path.join(CFG["cache_dir"], "qr")
+            path = os.path.join(qdir, hashlib.sha1(url.encode()).hexdigest()[:16] + ".png")
+            if not os.path.isfile(path):
+                PSQR.qr_png(url, path, scale=4)
+            img = QLabel()
+            img.setPixmap(QPixmap(path))
+            add(img)
+            cap = QLabel(f"Row52: every {make} {span} near {zip_code}. Look for the cars below.")
+            cap.setWordWrap(True)
+            cap.setStyleSheet("font-size: 16px;")
+            add(cap)
+        elif not url:
+            cap = QLabel(f"Row52 doesn't know {make}'s id yet: paste one Row52 search link for it below.")
+            cap.setWordWrap(True)
+            cap.setStyleSheet(f"color: {T.AMBER};")
+            add(cap)
+        head = QLabel("Cars that can have this part (tap one to open its Row52 search here):")
+        head.setWordWrap(True)
+        head.setStyleSheet(f"color: {T.AMBER}; font-weight: bold; margin-top: 8px;")
+        add(head)
+        for d in cars:
+            u = row52.search_url(make, zip_code, d["years"], d["model"]) or r52.url
+            b = QPushButton(f"{d['model']} {d['years_text']}" + (f"  ({d['engine']})" if d["engine"] else ""))
+            b.setFlat(True)
+            b.setStyleSheet("text-align: left; padding: 2px 4px; font-size: 16px;")
+            b.setToolTip(u)
+            b.clicked.connect(lambda _=False, d=d, u=u, mk=make: self._row52_by_hand(mk, d, u))
+            add(b)
+        teach = QLabel("Teach the deck a Row52 id: search one car on row52.com, then pick the model and paste the link:")
+        teach.setWordWrap(True)
+        teach.setStyleSheet(f"color: {T.MUTED}; margin-top: 8px;")
+        add(teach)
+        self.cmb_r52_model = QComboBox()
+        self.cmb_r52_model.addItems(sorted({d["model"] for d in cars}))
+        add(self.cmb_r52_model)
+        self.in_r52_link = QLineEdit()
+        self.in_r52_link.setPlaceholderText("paste a row52.com/Search/... link, Enter")
+        self.in_r52_link.returnPressed.connect(lambda mk=make: self._row52_teach(mk))
+        add(self.in_r52_link)
+
+    def _row52_teach(self, make):
+        """Save the make's/model's Row52 ids from a search link the user pasted (row52_ids.json)."""
+        from parts_sourcing import row52
+        model = self.cmb_r52_model.currentText()
+        try:
+            got = row52.learn(self.in_r52_link.text().strip(), make, model)
+        except ValueError as e:
+            self._say(self.txt_parts, f"Row52 link not saved: {e}", T.AMBER)
+            return
+        self.in_r52_link.clear()
+        self._say(self.txt_parts, f"[✓] Row52 ids saved: {got}. Show the part again to use them.", T.OK)
+
+    def _row52_by_hand(self, make, d, url):
+        """One donor car (or all of them): open its Row52 search, copy what to look for."""
+        text = f"{make} {d['model']}".strip()
+        QApplication.clipboard().setText(text)
+        QDesktopServices.openUrl(QUrl(url))
+        self._say(self.txt_parts, f"Row52 opened: {text}, years {d['years_text']}"
+                  + (f", engine {d['engine']}" if d["engine"] else "") + f" (\"{text}\" copied). Only cars on the "
+                  "fit list above take this part; Row52 can't filter by engine, so check that on the car.", T.OK)
 
     def act_parts_sheet(self):
         if PS is None or not self.parts_shown:

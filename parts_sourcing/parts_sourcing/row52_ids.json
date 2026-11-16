@@ -1,0 +1,5 @@
+{
+  "_comment": "Row52 search ids (https://row52.com/Search/?YMMorVin=YMM&Year=..&MakeId=..&ModelId=..&ZipCode=..&Distance=..), read from searches made by hand on row52.com. The deck never fetches Row52 (its terms forbid robots); these ids only build links a person opens. Add a model's id from the address bar after searching for it once.",
+  "makes": {"Subaru": 226},
+  "models": {"Subaru": {"Forester": 4149}}
+}
