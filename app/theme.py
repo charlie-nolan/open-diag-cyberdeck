@@ -18,6 +18,7 @@ RED = "#c4544a"         # stop and danger, rarely
 GREY = "#6b7570"        # no spec / disabled
 TEXT = "#e3e8e4"        # body text
 MUTED = "#93a39a"       # secondary text
+PYCHECK = "#6fa8dc"     # the deck's own Python check of an answer (app/answer_check.py), apart from amber
 
 SANS = '"Noto Sans", "DejaVu Sans", "Liberation Sans", sans-serif'
 MONO = '"DejaVu Sans Mono", "Noto Sans Mono", "Liberation Mono", monospace'

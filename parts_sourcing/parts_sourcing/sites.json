@@ -1,6 +1,18 @@
 {
-  "_comment": "Sourcing links, in the order the deck shows them (10-19: local stores first, then RockAuto, then Row52; no Google). {pn} = OEM part number, {pn_lc} = lowercase, {q} = URL-encoded free text, {zip} = home ZIP from sourcing.json. 'verified' = the URL pattern was checked against the live site. O'Reilly and AutoZone keep the store you pick on your phone; their search URLs take no ZIP or radius.",
+  "_comment": "Sourcing links, in the order the deck shows them (2026-11-16: RockAuto first, then O'Reilly, AutoZone, then Row52 as its plain home page, since its search links didn't work; no Google). {pn} = OEM part number, {pn_lc} = lowercase, {q} = URL-encoded free text, {zip} = home ZIP from sourcing.json. 'verified' = the URL pattern was checked against the live site. O'Reilly and AutoZone keep the store you pick on your phone; their search URLs take no ZIP or radius.",
   "tiers": [
+    {
+      "tier": "aftermarket",
+      "label": "Online",
+      "sites": [
+        {
+          "id": "rockauto",
+          "label": "RockAuto (part number search)",
+          "url": "https://www.rockauto.com/en/partsearch/?partnum={pn}",
+          "verified": false
+        }
+      ]
+    },
     {
       "tier": "local",
       "label": "Local store",
@@ -20,25 +32,13 @@
       ]
     },
     {
-      "tier": "aftermarket",
-      "label": "Online",
-      "sites": [
-        {
-          "id": "rockauto",
-          "label": "RockAuto (part number search)",
-          "url": "https://www.rockauto.com/en/partsearch/?partnum={pn}",
-          "verified": false
-        }
-      ]
-    },
-    {
       "tier": "used",
       "label": "Used / junkyard",
       "sites": [
         {
           "id": "row52",
-          "label": "Row52: self-service yards near {zip}",
-          "url": "https://row52.com/search/?ZipCode={zip}&Distance=50&Sort=Make",
+          "label": "Row52: self-service yards (search by hand for the donor cars)",
+          "url": "https://row52.com/",
           "verified": true
         }
       ]

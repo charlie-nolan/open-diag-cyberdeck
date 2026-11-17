@@ -157,6 +157,17 @@ class Interchange:
         return (f"{len(donors)} donor model-years across {len(by)} models: " + "; ".join(lines))
 
 
+def donors(ic):
+    """The fit list as donor cars to look for by hand: [{model, engine, years, years_text}], one per model and
+    engine, oldest first (what the parts screen offers to search Row52 for)."""
+    by = {}
+    for f in ic.fits:
+        m = norm_model(f.model).title() if f.model != "XT-6" else f.model
+        by.setdefault((m, Engine.from_charm(f.engine).label()), set()).add(f.year)
+    out = [{"model": m, "engine": e, "years": sorted(ys), "years_text": compress_years(ys)} for (m, e), ys in by.items()]
+    return sorted(out, key=lambda d: (d["model"], min(d["years"])))
+
+
 def compress_years(years):
     years = sorted(set(years))
     out, start = [], None
