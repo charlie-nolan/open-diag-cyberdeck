@@ -52,7 +52,9 @@ SYNONYMS = {
     "squeal": "squeak|noise", "squealing": "squeak|noise", "clunk": "noise", "rattle": "noise",
     "pulls to one side": "pulling to one side", "pulls": "pulling", "dies": "stalls", "stalling": "stalls",
     "antifreeze": "coolant", "overheats": "overheating",
-    "battery dying": "battery discharge", "not charging": "charging system",
+    "battery dying": "battery discharge", "battery died": "battery discharge", "battery dead": "battery discharge",
+    "not charging": "charging system", "battery light": "charge indicator|charging system",
+    "battery warning light": "charge indicator|charging system", "alt light": "charge indicator|charging system",
 }
 _SYN_RE = [(re.compile(rf"(?<![a-z0-9]){re.escape(k)}(?![a-z0-9])"), v) for k, v in SYNONYMS.items()]
 _REPAIR_RE = re.compile(r"\b(replace|replacement|remove|removal|install|installation|change|swap|how (do|to)|torque|"
