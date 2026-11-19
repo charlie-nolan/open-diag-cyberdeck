@@ -97,6 +97,9 @@ Use ONLY the numbered sources given. Every cause and step lists the source ids i
 - Wording: these are owner reports, not proof. Say "reported fixed by N owners" or "the most often reported fix";
   never "confirmed fix", "#1", "top cause" or "most common confirmed fix". The manual's procedure decides the order of
   work; the card only says how often owners reported each fix.
+- Each forum source's label says whether it is "this car", "same model, year unknown" or "another car". Only "this car"
+  sources may be called this car's fix. Never attach a part or engine detail from the other sources to this car (a
+  newer model's timing chain, turbo or CVT); keep only the cause bucket they share.
 - Plain, short sentences."""
 
 VERIFY_SYSTEM = """You check one cause listed on a car diagnostic card for a trouble code against the sources it cites.
@@ -165,11 +168,13 @@ CODE_RE = re.compile(r"\b[PBCU][0-9][0-9A-F]{3}\b")
 def forum_counts(work, code, model, y0, y1, slack, min_car=3):
     """Confirmed fixes per cause bucket for this model+years and for every Subaru, plus one ranking.
     A bucket is ranked by this car's count only when at least min_car owners of this car confirmed it;
-    otherwise every Subaru's count decides, so one-off threads don't outrank the common fixes."""
+    otherwise every Subaru's count decides, so one-off threads don't outrank the common fixes.
+    "This car" needs a known model year in range: a thread with no year can be any generation of the model (a
+    newer engine's timing chain cover once read as a 1998-2002 Forester fix), so it counts for the make only."""
     if not work:
         return {"this_car": [], "all_subaru": [], "ranked": []}, []
     rows = work.execute("""SELECT t.url, t.title, e.model, e.year, e.fix, e.evidence, e.category, e.part,
-            (upper(e.model)=upper(?) AND (e.year IS NULL OR e.year BETWEEN ? AND ?)) AS same_car,
+            (upper(e.model)=upper(?) AND e.year BETWEEN ? AND ?) AS same_car,
             e.confirmed='op_confirmed' AS op, t.score
         FROM extract_code c JOIN extract e USING(src, tid) JOIN thread t USING(src, tid)
         WHERE c.code=? AND e.relevant AND e.evidence_ok AND e.confirmed IN ('op_confirmed','other_confirmed')
@@ -212,7 +217,8 @@ def build_sources(r, kb, work, code, a, y0, y1, vids):
         add(s["kind"], "S", s["label"], s["text"])
     counts, examples = forum_counts(work, code, a.model, y0, y1, a.forum_year_slack, a.min_forum)
     for url, title, model, year, fix, ev, cat, same in examples:
-        add("forum", "F", f"{model or '?'} {year or ''} | {title}"[:120],
+        who = "this car" if same else ("same model, year unknown" if model and not year else "another car")
+        add("forum", "F", f"{model or '?'} {year or ''} ({who}) | {title}"[:120],
             f"Fix: {fix}\nCause bucket: {cat}\nQuote: \"{ev}\"", url)
     if has_table(kb, "knowledge"):
         rows = kb.execute("""SELECT k.kind, k.model, k.year_min, k.title, k.body, k.url FROM knowledge_fts f
@@ -373,7 +379,7 @@ def codes_for(kb, work, a, y0, y1, vids):
     if work:  # codes owners of this car post about most come first (so --limit tries the useful ones)
         codes += [r[0] for r in work.execute(
             """SELECT c.code FROM extract_code c JOIN extract e USING(src, tid)
-               WHERE upper(e.model)=upper(?) AND (e.year IS NULL OR e.year BETWEEN ? AND ?)
+               WHERE upper(e.model)=upper(?) AND e.year BETWEEN ? AND ?
                  AND e.confirmed IN ('op_confirmed','other_confirmed') AND e.evidence_ok
                GROUP BY c.code HAVING count(*) >= ? ORDER BY count(*) DESC""",
             (a.model, y0 - a.forum_year_slack, y1 + a.forum_year_slack, a.min_forum))]
