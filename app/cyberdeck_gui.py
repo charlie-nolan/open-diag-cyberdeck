@@ -788,6 +788,10 @@ class ModelManager:
         self.pc_checked = {}      # role -> time the PC was last found unreachable for it
         self.pc_why = ""
         self._lock = threading.RLock()   # the launch preload and a model request can arrive together
+        # DECK ONLY switch (Home mode): skips the PC check and uses the deck's RKLLM models; remembered in config
+        self.deck_only = False
+        if self.home and cfg.get("deck_only"):
+            self.set_deck_only(True)
 
     def label(self, role):
         if self.home and role in self.on_pc:
@@ -830,6 +834,16 @@ class ModelManager:
         return OllamaModel(name, system_prompt=system, url=self.cfg["home_url"], temperature=temp,
                            enable_thinking=role == "think", num_ctx=self.cfg["home_context_len"], options=opts)
 
+    def set_deck_only(self, on):
+        """DECK ONLY on: drop any PC models and answer with the deck's. Off: the PC is checked at the next question."""
+        with self._lock:
+            self.deck_only = bool(on)
+            for role in list(self.on_pc):
+                self.models.pop(role, None)
+            self.on_pc.clear()
+            self.pc_checked.clear()
+            self.pc_why = "DECK ONLY" if on else ""
+
     def pc_failed(self, role):
         """A PC model stopped answering mid-job: drop it so the next request checks again (or uses the deck)."""
         if role in self.on_pc:
@@ -843,7 +857,7 @@ class ModelManager:
             return self._get(role)
 
     def _get(self, role):
-        if self.home and role not in self.on_pc and time.time() - self.pc_checked.get(role, 0) > 60:
+        if self.home and not self.deck_only and role not in self.on_pc and time.time() - self.pc_checked.get(role, 0) > 60:
             m = self._pc_model(role)
             if m is not None:
                 old = self.models.pop(role, None)
@@ -1696,7 +1710,7 @@ class CyberdeckApp(QMainWindow):
             self.kb_msg = f"manual database failed to open: {e}"
         self.mgr = ModelManager(CFG)
         self.preload = None
-        if self.mgr.backend == "rkllm" and not self.mgr.home:
+        if self.mgr.backend == "rkllm":   # in Home this checks the PC at launch, and loads the deck's model if it's away
             self.preload = PreloadWorker(self.mgr)
             self.preload.start()
         DRIVE_KEY["key"] = lambda: "drive_log" if self.mgr.home and not self.mgr.pc_why else "drive_log_short"
@@ -1731,6 +1745,13 @@ class CyberdeckApp(QMainWindow):
         self.lbl_llm.setObjectName("chip")   # the Home/RKLLM mode label (theme.qss)
         top.addWidget(title, 1)
         top.addWidget(self.lbl_llm, 1)
+        if self.mgr.home:   # skip the PC and use the deck's RKLLM models
+            self.b_deck_only = QPushButton("DECK ONLY")
+            self.b_deck_only.setCheckable(True)
+            self.b_deck_only.setChecked(self.mgr.deck_only)
+            self.b_deck_only.setToolTip("On: don't look for the home PC, answer with the deck's own models. Remembered.")
+            self.b_deck_only.toggled.connect(self.act_deck_only)
+            top.addWidget(self.b_deck_only)
         lay.addLayout(top)
 
         nav = ReflowRow()   # wraps onto two rows on a portrait screen
@@ -1806,6 +1827,21 @@ class CyberdeckApp(QMainWindow):
         out = [self.txt_intake, self.txt_chat, self.txt_verdict, self.txt_sop, self.txt_parts,
                self.txt_tests, self.txt_maint][self.stack.currentIndex()]
         self._say(out, f"[error] {msg}", T.RED)
+
+    def act_deck_only(self, on):
+        if self.worker is not None and self.worker.isRunning():   # don't swap models under a running answer
+            self.b_deck_only.blockSignals(True)
+            self.b_deck_only.setChecked(not on)
+            self.b_deck_only.blockSignals(False)
+            self.lbl_llm.setText("busy: wait for the current answer, or press STOP")
+            self.lbl_llm.setStyleSheet(BUSY)
+            return
+        self.mgr.set_deck_only(on)
+        save_config_key("deck_only", bool(on))
+        if on and self.mgr.backend == "rkllm" and "fast" not in self.mgr.models:
+            self.preload = PreloadWorker(self.mgr)   # load the deck's 1.7B now, not at the next question
+            self.preload.start()
+        self._llm_idle()
 
     def _llm_idle(self):
         self.lbl_llm.setText(f"[{self.mgr.backend}] fast: {self.mgr.label('fast')} | deep: {self.mgr.label('deep')} (idle)")
@@ -3929,10 +3965,7 @@ class CyberdeckApp(QMainWindow):
                 self._verdict_redo = (pass2_prompt(plan), full + opinions)
                 go2 = lambda: self._run("deep", pass2_prompt(plan), self.txt_verdict, self._verdict_done,
                                         max_new_tokens=2200 if on_pc else 900, temperature=0.0)
-                if w is not None and w.isRunning():
-                    w.finished.connect(go2)
-                else:
-                    go2()
+                self._after_thread(w, go2)
             self._reset_verdict_tabs()
             self.txt_verdict.clear()
             if dc:
@@ -3966,10 +3999,7 @@ class CyberdeckApp(QMainWindow):
                     self._draft_verdict = draft.strip()      # kept if the review fails or runs out of room
                     w = self.worker                          # the draft's thread is still finishing: start after it
                     go = lambda: self._run("think", review, self.txt_verdict, self._think_done)
-                    if w is not None and w.isRunning():
-                        w.finished.connect(go)
-                    else:
-                        go()
+                    self._after_thread(w, go)
                 self._draft_verdict = ""
                 self._run("deep", prompt, self.txt_verdict, draft_done, temperature=0.0)
             else:
@@ -3984,10 +4014,30 @@ class CyberdeckApp(QMainWindow):
         """_run after the current worker's thread has finished (a done-callback runs before the thread ends)."""
         w = self.worker
         go = lambda: self._run(role, prompt, self.txt_verdict, then, temperature=0.0, **kw)
-        if w is not None and w.isRunning():
-            w.finished.connect(go)
-        else:
-            go()
+        self._after_thread(w, go)
+
+    def _after_thread(self, w, go):
+        """go() once worker w's thread has ended, checked by a short timer. Was finished.connect: the thread could
+        emit finished while the done-callback still ran, yet still report isRunning(), so go never ran (pass 2 of
+        FINAL DIAGNOSIS never started after "Pass 1 done"). go runs exactly once."""
+        fired = [False]
+
+        def fire(*_):
+            if not fired[0]:
+                fired[0] = True
+                go()
+        if w is None or not w.isRunning():
+            fire()
+            return
+
+        def poll():   # on the GUI thread, so go() never runs on the finishing worker's thread
+            if fired[0]:
+                return
+            if w.isRunning():
+                QTimer.singleShot(200, poll)
+            else:
+                fire()
+        QTimer.singleShot(200, poll)
 
     def _verdict_steps(self, top, case, case1, ctx, opinions, fmt, most, on_pc, check_against):
         """Final Diagnosis in short steps (app/verdict_steps.py): candidates, one check per candidate, Python

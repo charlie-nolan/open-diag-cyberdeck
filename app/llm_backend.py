@@ -175,6 +175,7 @@ class RKLLMModel:
             raise FileNotFoundError(model_path)
         lib = _load_lib(lib_path)
         self.name = os.path.basename(model_path)
+        self.max_ctx = max_context_len
         self.enable_thinking = enable_thinking
         self._sink = None
         self._error = False
@@ -245,6 +246,17 @@ class RKLLMModel:
         def sink(t):
             parts.append(t)
             on_token(t)
+
+        # last guard: a prompt built for a bigger context (Home mode falling back to the deck) is cut to fit
+        # instead of failing with "prompt is greater than max context". Keeps the start (case) and the end (question).
+        room = int((self.max_ctx - 512) * 2.6)          # ~2.6 chars a token, conservative
+        if len(prompt) > room:
+            head = room * 2 // 5
+            print(f"rkllm: prompt {len(prompt)} chars > {room} the deck's context holds; trimming the middle")
+            prompt = prompt[:head] + "\n...\n" + prompt[-(room - head):]
+        left = max(256, self.max_ctx - int(len(prompt) / 2.6) - 64)
+        if not max_new_tokens or max_new_tokens > left:
+            max_new_tokens = left
 
         inp = RKLLMInput()
         inp.role = b"user"
