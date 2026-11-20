@@ -60,7 +60,7 @@ def _keywords(r, code, title):
     alts = set()
     for w in list(words):
         alts.update(ALSO.get(w, []))
-    alts.update(_expand(text)[1])
+    alts.update(_expand(text, getattr(r, "syn_re", ()))[1])
     return {w for w in words if len(w) >= 3} | alts
 
 
@@ -434,7 +434,7 @@ def symptom_hits(r, text, k=4):
     """Symptom-chart rows matching the user's words in the manual's terms: [(sid, path, page, row text, score)].
     Only chart rows (table rows / list items on pages whose path names a symptom or trouble chart) are searched,
     FSM before CHARM, so the system comes from the chart the row sits in, never from a guess."""
-    low, alts = _expand(text)
+    low, alts = _expand(text, getattr(r, "syn_re", ()))
     words = {_stem(w) for w in re.findall(r"[a-z0-9]{3,}", low + " " + " ".join(alts)) if w not in _STOPWORDS}
     if not words:
         return []

@@ -20,7 +20,7 @@ import re
 import sqlite3
 import sys
 
-from . import settings
+from .settings import settings
 from . import yards as Y
 from .interchange import normalize_pn, pn_from_raw
 

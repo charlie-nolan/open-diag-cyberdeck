@@ -123,7 +123,41 @@ DEFAULT_CONFIG = {
     "parts_sourcing_dir": f"{ROOT}/parts_sourcing",
 }
 
-OLD_HOME_MODELS = {"qwen3:8b", "qwen3:30b-a3b-instruct-2507-q4_K_M", "qwen3:30b-a3b-thinking-2507-q4_K_M"}
+CONFIG_VERSION = 2
+
+
+def _forget_old_home_defaults(data):
+    """v1 -> v2: config.json files from before the 10-21 model change carry the old defaults as if chosen."""
+    old = {"qwen3:8b", "qwen3:30b-a3b-instruct-2507-q4_K_M", "qwen3:30b-a3b-thinking-2507-q4_K_M"}
+    for key in ("home_fast", "home_deep", "home_think"):
+        if data.get(key) in old:
+            del data[key]
+
+
+CONFIG_MIGRATIONS = {1: _forget_old_home_defaults}
+
+
+def migrate_config(data):
+    """Bring a config.json dict up to CONFIG_VERSION, once. Returns True when it changed.
+    A value the user sets after the migration is never touched again."""
+    version = data.get("config_version", 1)
+    if version >= CONFIG_VERSION:
+        return False
+    for v in range(version, CONFIG_VERSION):
+        if v in CONFIG_MIGRATIONS:
+            CONFIG_MIGRATIONS[v](data)
+    data["config_version"] = CONFIG_VERSION
+    return True
+
+
+def _write_config(data):
+    tmp = CONFIG_PATH + ".tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp, CONFIG_PATH)
+    except OSError:
+        pass
 
 
 def load_config():
@@ -131,12 +165,12 @@ def load_config():
     if os.path.isfile(CONFIG_PATH):
         try:
             with open(CONFIG_PATH) as f:
-                cfg.update(json.load(f))
+                data = json.load(f)
+            if migrate_config(data):
+                _write_config(data)
+            cfg.update(data)
         except (OSError, ValueError) as e:
             print(f"config.json unreadable ({e}); using defaults")
-    for key in ("home_fast", "home_deep", "home_think"):
-        if cfg.get(key) in OLD_HOME_MODELS:
-            cfg[key] = DEFAULT_CONFIG[key]
     cfg = {k: os.path.expanduser(v) if isinstance(v, str) and v.startswith("~") else v for k, v in cfg.items()}
     for key in ("rkllm_lib", "fast_model", "deep_model", "think_model"):
         cands = [cfg[key]] if isinstance(cfg[key], str) else list(cfg[key])
@@ -236,6 +270,15 @@ def remember_ecu_vin(ecu, vin):
             json.dump(known, f, indent=1)
     except OSError:
         pass
+
+
+def case_make(v):
+    """The make of a saved case: as saved, else from its VIN, else '' so Intake asks for it. Never guessed."""
+    if v.get("make"):
+        return v["make"]
+    if v.get("vin"):
+        return decode_vin(v["vin"], CFG.get("vin_db"))["make"]
+    return ""
 
 
 def use_make(make):
@@ -589,7 +632,10 @@ def focus_specs(job, specs):
 
 CASE_MAX_CHARS = 2500
 CHART_READS_MAX = 6000
-MAINT_PAGE = 6
+SCREENS = (("intake", "1. INTAKE && SCAN"), ("maint", "2. MAINTENANCE"), ("chat", "3. BRAINSTORM / CHAT"),
+           ("verdict", "4. FINAL DIAGNOSIS"), ("sop", "5. REPAIR GUIDE (SOP)"), ("parts", "6. PARTS"),
+           ("tests", "7. TESTS"))
+PAGE = {name: i for i, (name, _) in enumerate(SCREENS)}
 DRIVE_KEY = {"key": lambda: "drive_log_short"}
 
 
@@ -1480,13 +1526,8 @@ def save_config_key(key, value):
         except ValueError:
             return
         data[key] = value
-        tmp = CONFIG_PATH + ".tmp"
-        try:
-            with open(tmp, "w") as f:
-                json.dump(data, f, indent=2)
-            os.replace(tmp, CONFIG_PATH)
-        except OSError:
-            pass
+        _write_config(data)
+
 
 
 MODELS = ["Forester", "Impreza", "Legacy", "Outback", "WRX", "WRX STI", "Baja", "Crosstrek", "Tribeca", "SVX",
@@ -1642,9 +1683,8 @@ class CyberdeckApp(QMainWindow):
             v = {}
         if v.get("model"):
             CFG["kb_model"], CFG["kb_year"] = v["model"], int(v["year"]) if str(v.get("year", "")).isdigit() else None
-        if "make" not in v and v.get("model"):
-            v["make"] = "Subaru"
-        self.kb_msg = use_make(v.get("make", ""))
+        v["make"] = case_make(v)
+        self.kb_msg = use_make(v["make"])
         try:
             self.retriever = make_retriever(CFG)
             self._warm_retriever()
@@ -1698,23 +1738,17 @@ class CyberdeckApp(QMainWindow):
         lay.addLayout(top)
 
         nav = ReflowRow()
-        self.nav = [QPushButton(t) for t in ("1. INTAKE && SCAN", "3. BRAINSTORM / CHAT", "4. FINAL DIAGNOSIS",
-                                             "5. REPAIR GUIDE (SOP)", "6. PARTS", "7. TESTS", "2. MAINTENANCE")]
+        self.nav = [QPushButton(label) for _, label in SCREENS]
         for i, b in enumerate(self.nav):
             b.setCheckable(True)
             b.clicked.connect(lambda _, i=i: self.switch(i))
-        for i in (0, MAINT_PAGE, 1, 2, 3, 4, 5):
-            nav.add(self.nav[i])
+            nav.add(b)
         lay.addWidget(nav)
 
         self.stack = QStackedWidget()
-        self._intake_view()
-        self._chat_view()
-        self._verdict_view()
-        self._sop_view()
-        self._parts_view()
-        self._tests_view()
-        self._maint_view()
+        for name, _ in SCREENS:
+            getattr(self, f"_{name}_view")()
+            assert self.stack.count() == PAGE[name] + 1, f"_{name}_view must add exactly one page"
         lay.addWidget(self.stack, 1)
 
         bar = QHBoxLayout()
@@ -1753,7 +1787,7 @@ class CyberdeckApp(QMainWindow):
         frame.setFrameShape(QScrollArea.Shape.NoFrame)
         frame.setWidget(root)
         self.setCentralWidget(frame)
-        self.switch(0)
+        self.switch(PAGE["intake"])
         if bus is not None:
             bus.error.connect(self.on_error)
         self._start_voice()
@@ -1761,8 +1795,7 @@ class CyberdeckApp(QMainWindow):
     def on_error(self, msg):
         self.lbl_llm.setText(f"error: {msg[:120]}")
         self.lbl_llm.setStyleSheet(ERR)
-        out = [self.txt_intake, self.txt_chat, self.txt_verdict, self.txt_sop, self.txt_parts,
-               self.txt_tests, self.txt_maint][self.stack.currentIndex()]
+        out = getattr(self, f"txt_{SCREENS[self.stack.currentIndex()][0]}")
         self._say(out, f"[error] {msg}", T.RED)
 
     def act_deck_only(self, on):
@@ -1873,18 +1906,18 @@ class CyberdeckApp(QMainWindow):
             out.moveCursor(QTextCursor.MoveOperation.End)
 
     def switch(self, i):
-        if self.stack.currentIndex() == 0 and i != 0:
+        if self.stack.currentIndex() == PAGE["intake"] and i != PAGE["intake"]:
             self._store_case()
-        if self.stack.currentIndex() == 5 and i != 5 and self.test_worker is not None \
+        if self.stack.currentIndex() == PAGE["tests"] and i != PAGE["tests"] and self.test_worker is not None \
                 and self.lbl_testmode.text().startswith("RUNNING"):
             self.test_worker.emergency_stop()
-        if i == 2 and hasattr(self, "txt_notes"):
+        if i == PAGE["verdict"] and hasattr(self, "txt_notes"):
             self.txt_notes.setPlainText(self.session.get("chat_notes"))
             verdict = self.session.get("final_verdict")
             if verdict and self.tabs_verdict.count() == 1 and not self.txt_verdict.toPlainText().strip():
                 self._say(self.txt_verdict, verdict)
                 self._build_verdict_tabs(verdict)
-        if i == MAINT_PAGE:
+        if i == PAGE["maint"]:
             self._maint_fill()
         self.stack.setCurrentIndex(i)
         for j, b in enumerate(self.nav):
@@ -1935,10 +1968,9 @@ class CyberdeckApp(QMainWindow):
         ctx = CFG["home_context_len"] if on_pc else CFG["max_context_len"]
         return max(256, ctx - int(len(prompt) / 3.0) - 128)
 
-    def _run(self, role, prompt, out: QTextEdit, on_done, keep_history=False, max_new_tokens=None, temperature=None,
-             check=True, check_against=None):
-        max_new_tokens = self.answer_room(prompt)
-        self.worker = GenWorker(self.mgr, role, prompt, keep_history, max_new_tokens, temperature)
+    def _run(self, role, prompt, out: QTextEdit, on_done, keep_history=False, temperature=None):
+        """Stream one model answer into out. Its length is set by answer_room(): the prompt says how long to be."""
+        self.worker = GenWorker(self.mgr, role, prompt, keep_history, self.answer_room(prompt), temperature)
         plain = QTextCharFormat()
         plain.setForeground(QColor(T.TEXT))
 
@@ -2086,25 +2118,25 @@ class CyberdeckApp(QMainWindow):
 
     def on_voice(self, cmd, arg):
         if cmd == "read_car":
-            self.switch(0)
+            self.switch(PAGE["intake"])
             self.act_read_obd()
         elif cmd == "save_case":
             self.act_save_case()
         elif cmd == "new_case":
             self.act_new_case()
         elif cmd == "verdict":
-            self.switch(2)
+            self.switch(PAGE["verdict"])
             self.act_verdict()
         elif cmd == "torque":
             rows = focus_specs(arg, self.retriever.specs(arg, limit=30))[:8] or self.retriever.specs(arg)
-            self.switch(1)
+            self.switch(PAGE["chat"])
             self._say(self.txt_chat, f"/torque {arg}", who="You (voice)")
             self._say(self.txt_chat, "\n".join("  " + r for r in rows) or "  no match", T.OK)
             self._speak(re.sub(r"^\[[^\]]*\]\s*", "", rows[0]).replace("N·m", "newton meters")
                         .replace("ft-lb", "foot pounds") if rows else f"No torque spec found for {arg}")
         elif cmd == "fluid":
             hits = fsm_hits(self.retriever, f"{arg} fluid capacity specification", k=1, chars=700)
-            self.switch(1)
+            self.switch(PAGE["chat"])
             self._say(self.txt_chat, f"fluid {arg}", who="You (voice)")
             if hits:
                 self._say_hits(self.txt_chat, hits)
@@ -2114,13 +2146,12 @@ class CyberdeckApp(QMainWindow):
         elif cmd == "next_step":
             self._speak(self._next_step(arg))
         elif cmd == "goto":
-            self.switch({"intake": 0, "chat": 1, "verdict": 2, "repair": 3, "procedure": 3, "parts": 4,
-                         "maintenance": MAINT_PAGE}[arg])
+            self.switch(PAGE[{"repair": "sop", "procedure": "sop", "maintenance": "maint"}.get(arg, arg)])
         elif cmd == "stop":
             self.act_stop()
         elif cmd == "dictating":
             if arg == "intake":
-                self.switch(0)
+                self.switch(PAGE["intake"])
                 self.last_edit = self.txt_note
             self._start_dictation(self.stack.currentIndex())
 
@@ -2165,22 +2196,22 @@ class CyberdeckApp(QMainWindow):
                 self.act_find_parts()
             return
         if alive:
-            self.switch(0)
+            self.switch(PAGE["intake"])
             self._insert_text(w, text)
             self._summarize_note()
             return
-        if target == 1:
+        if target == PAGE["chat"]:
             self.in_chat.setText(text)
             self.act_chat()
             return
-        if target == 3:
+        if target == PAGE["sop"]:
             self.bub_repair.set_text(text)
             return
-        if target == 4:
+        if target == PAGE["parts"]:
             self.in_part.setText(text)
             self.act_find_parts()
             return
-        self.switch(0)
+        self.switch(PAGE["intake"])
         self.txt_note.appendPlainText(text)
         self._summarize_note()
 
@@ -2193,7 +2224,7 @@ class CyberdeckApp(QMainWindow):
                   "\n\nPull out, as three short lines, only what the note says:\nSYMPTOMS: ...\n"
                   "PARTS ALREADY REPLACED OR CHECKED: ...\nWHEN IT HAPPENS: ...\nWrite 'not mentioned' where it says nothing.")
         self._say(self.txt_intake, "", who="Summary")
-        self._run("fast", prompt, self.txt_intake, self._note_summary_done, keep_history=False, max_new_tokens=250)
+        self._run("fast", prompt, self.txt_intake, self._note_summary_done, keep_history=False)
 
     def _note_summary_done(self, text):
         self.session.set("intake_summary", "" if "[LLM error" in text else text.strip())
@@ -2583,8 +2614,7 @@ class CyberdeckApp(QMainWindow):
             v = json.loads(self.session.get("vehicle_info") or "{}")
         except ValueError:
             pass
-        if "make" not in v and v.get("model"):
-            v["make"] = "Subaru"
+        v["make"] = case_make(v)
         self.cmb_make.blockSignals(True)
         self.cmb_make.setCurrentText(v.get("make", ""))
         self.cmb_make.blockSignals(False)
@@ -3152,7 +3182,7 @@ class CyberdeckApp(QMainWindow):
         if low.startswith(("/maintenance", "/maint", "/addmaint")):
             if "severe" in low:
                 self.cmb_maint_kind.setCurrentIndex(1)
-            self.switch(MAINT_PAGE)
+            self.switch(PAGE["maint"])
             return
         if low == "/common" or low.startswith("/common "):
             self.act_common()
@@ -3164,7 +3194,7 @@ class CyberdeckApp(QMainWindow):
             q = msg.split(" ", 1)[1]
             self._say(self.txt_chat, "", T.FOREST_TEXT, who="Deck")
             self._run("fast", f"Answer briefly and factually. No speculation.\n\nQUESTION: {q}", self.txt_chat,
-                      lambda t: None, keep_history=False, max_new_tokens=400)
+                      lambda t: None, keep_history=False)
             return
         if low.startswith("/"):
             self._say(self.txt_chat, "  commands: /maintenance (opens the MAINTENANCE screen), /chart [codes], /common, /torque <part>, /fsm <words>, /fluids <system>, /part <name or number>, /debate [q] (or end your text with /debate), /save, /wildcard [q], /savewild, /q <text>",
@@ -3217,7 +3247,7 @@ class CyberdeckApp(QMainWindow):
                     self.chat_hist.append((msg, t.strip()[:600]))
 
             self._say(self.txt_chat, "", T.FOREST_TEXT, who="Deck")
-            self._run(role, prompt, self.txt_chat, done, keep_history=False, max_new_tokens=300)
+            self._run(role, prompt, self.txt_chat, done, keep_history=False)
 
         self._lookup(f"{anchor} {recent} {msg}".strip(), 5000, go, scraped=True, verified_only=True)
 
@@ -3242,7 +3272,7 @@ class CyberdeckApp(QMainWindow):
                       "Then WHAT SETTLES IT: the one test that tells them apart, and what each result means.\n"
                       "Do not pick a winner. Keep each explanation under 100 words.")
             self._say(self.txt_chat, "", T.AMBER, who="Debate")
-            self._run("fast", prompt, self.txt_chat, self._debate_done, keep_history=False, max_new_tokens=900)
+            self._run("fast", prompt, self.txt_chat, self._debate_done, keep_history=False)
 
         self._lookup(case + " " + question, 4500, go)
 
@@ -3645,7 +3675,7 @@ class CyberdeckApp(QMainWindow):
             return
         self.in_part.setText(e["item"])
         self.act_find_parts()
-        self.switch(4)
+        self.switch(PAGE["parts"])
 
     def act_common(self):
         """Top known problems for the car on Intake, and at what mileage. Python counts; the model only words it."""
@@ -3668,7 +3698,7 @@ class CyberdeckApp(QMainWindow):
                                              scope=r["scope"], facts=facts)
         role = "fast"
         self._say(self.txt_chat, "", T.FOREST_TEXT, who="Deck")
-        self._run(role, prompt, self.txt_chat, lambda t: None, keep_history=False, max_new_tokens=600)
+        self._run(role, prompt, self.txt_chat, lambda t: None, keep_history=False)
 
     def act_wildcard(self, question):
         """Dr. House mode: 5 unlikely-but-possible causes, high temperature. SAVE WILDCARD keeps them as long shots."""
@@ -3691,7 +3721,7 @@ class CyberdeckApp(QMainWindow):
                 self.last_wildcard = t.strip()
             self._say(self.txt_chat, "  (not saved: tap SAVE WILDCARD to add these to the case as long shots)",
                       T.MUTED)
-        self._run("deep", prompt, self.txt_chat, done, keep_history=False, max_new_tokens=700, temperature=0.85)
+        self._run("deep", prompt, self.txt_chat, done, keep_history=False, temperature=0.85)
 
     def _debate_done(self, text):
         self.last_debate = text
@@ -3712,11 +3742,11 @@ class CyberdeckApp(QMainWindow):
         row.add(self.chk_think)
         self.b_to_sop = QPushButton("REPAIR GUIDE →")
         self.b_to_sop.setToolTip("Write the repair procedure for this verdict")
-        self.b_to_sop.clicked.connect(lambda: (self.switch(3), self.act_sop()))
+        self.b_to_sop.clicked.connect(lambda: (self.switch(PAGE["sop"]), self.act_sop()))
         row.add(self.b_to_sop)
         b_parts = QPushButton("PARTS →")
         b_parts.setToolTip("Part numbers, prices and QR codes for the repair in this verdict")
-        b_parts.clicked.connect(lambda: self.switch(4))
+        b_parts.clicked.connect(lambda: self.switch(PAGE["parts"]))
         row.add(b_parts)
         lay.addWidget(row)
         notes_lbl = QLabel("YOUR NOTES FROM CHAT (sent to Final Diagnosis; delete any line that's wrong):")
@@ -3854,9 +3884,8 @@ class CyberdeckApp(QMainWindow):
                 if re.search(r"(?m)^\W*NEEDS MORE DATA", plan) and not re.search(r"(?im)^\W*=+\s*ISSUE", plan):
                     self._verdict_done(plan)
                     return
-                self._verdict_redo = (pass2_prompt(plan), full + opinions)
-                go2 = lambda: self._run("deep", pass2_prompt(plan), self.txt_verdict, self._verdict_done,
-                                        max_new_tokens=2200 if on_pc else 900, temperature=0.0)
+                self._verdict_redo = pass2_prompt(plan)
+                go2 = lambda: self._run("deep", pass2_prompt(plan), self.txt_verdict, self._verdict_done, temperature=0.0)
                 self._after_thread(w, go2)
             self._reset_verdict_tabs()
             self.txt_verdict.clear()
@@ -3866,8 +3895,7 @@ class CyberdeckApp(QMainWindow):
                 " Pass 1 of 2: evidence only, the Suspect field and other opinions left out." if blind else ""), T.MUTED)
             self._blind_pass1 = ""
             if steps:
-                self._verdict_steps(top, case, case1, ctx, opinions if blind else "", fmt, most, on_pc,
-                                    check_against=full + opinions)
+                self._verdict_steps(top, case, case1, ctx, opinions if blind else "", fmt, most, on_pc)
                 return
             if self.chk_think.isChecked():
                 def draft_done(draft):
@@ -3893,9 +3921,8 @@ class CyberdeckApp(QMainWindow):
                 self._run("deep", prompt, self.txt_verdict, draft_done, temperature=0.0)
             else:
                 if not blind:
-                    self._verdict_redo = (prompt, None)
-                self._run("deep", prompt, self.txt_verdict, pass1_done if blind else self._verdict_done, temperature=0.0,
-                          max_new_tokens=2200 if on_pc else 900)
+                    self._verdict_redo = prompt
+                self._run("deep", prompt, self.txt_verdict, pass1_done if blind else self._verdict_done, temperature=0.0)
 
         self._lookup(case1, 6000 if on_pc else 3500, go)
 
@@ -3928,7 +3955,7 @@ class CyberdeckApp(QMainWindow):
                 fire()
         QTimer.singleShot(200, poll)
 
-    def _verdict_steps(self, top, case, case1, ctx, opinions, fmt, most, on_pc, check_against):
+    def _verdict_steps(self, top, case, case1, ctx, opinions, fmt, most, on_pc):
         """Final Diagnosis in short steps (app/verdict_steps.py): candidates, one check per candidate, Python
         ranking, then the write-up. Candidates come from the evidence only (case1); opinions join as guesses."""
         V = verdict_steps
@@ -3941,8 +3968,7 @@ class CyberdeckApp(QMainWindow):
             self._steps_log.append(("candidates", text))
             if not cands:
                 self._say(self.txt_verdict, "[!] No candidate list came back; writing the plan in one pass.", T.AMBER)
-                self._chain("deep", V.write_prompt(top, case, ctx, [], fmt, most, opinions), self._verdict_done,
-                            max_new_tokens=2200 if on_pc else 900, check_against=check_against)
+                self._chain("deep", V.write_prompt(top, case, ctx, [], fmt, most, opinions), self._verdict_done)
                 return
             self.txt_verdict.clear()
             self._say(self.txt_verdict, f"[*] Step 2 of 3: checking {len(cands)} candidates against the case and the "
@@ -3957,9 +3983,8 @@ class CyberdeckApp(QMainWindow):
                 self._say(self.txt_verdict, "[*] Step 3 of 3: ranked by the deck from the checks:\n"
                           + V.ranking_text(ranked), T.MUTED)
                 wp = V.write_prompt(top, case, ctx, ranked, fmt, most, opinions)
-                self._verdict_redo = (wp, check_against)
-                self._chain("deep", wp, self._verdict_done, max_new_tokens=2200 if on_pc else 900,
-                            check_against=check_against)
+                self._verdict_redo = wp
+                self._chain("deep", wp, self._verdict_done)
                 return
 
             def got(text, c=cands[i]):
@@ -3968,11 +3993,10 @@ class CyberdeckApp(QMainWindow):
                 c.update(V.parse_check(text))
                 self._steps_log.append((f"check {c['name']}", text))
                 check_next(cands, i + 1)
-            self._chain("deep", V.check_prompt(top, case1, ctx, cands[i]), got, max_new_tokens=300, check=False)
+            self._chain("deep", V.check_prompt(top, case1, ctx, cands[i]), got)
 
         self._say(self.txt_verdict, "[*] Step 1 of 3: listing the causes worth checking (evidence only)...", T.MUTED)
-        self._run("deep", V.candidates_prompt(top, case1, ctx), self.txt_verdict, got_candidates, temperature=0.0,
-                  max_new_tokens=500, check=False)
+        self._run("deep", V.candidates_prompt(top, case1, ctx), self.txt_verdict, got_candidates, temperature=0.0)
 
 
     def _reset_verdict_tabs(self):
@@ -4037,13 +4061,13 @@ class CyberdeckApp(QMainWindow):
             row = QHBoxLayout()
             job = d.get("REPAIR") or d["name"]
             b1 = QPushButton("REPAIR GUIDE FOR THIS")
-            b1.clicked.connect(lambda _=False, j=job: (self.bub_repair.set_text(j), self.switch(3), self.act_sop()))
+            b1.clicked.connect(lambda _=False, j=job: (self.bub_repair.set_text(j), self.switch(PAGE["sop"]), self.act_sop()))
             row.addWidget(b1)
             if PS is not None:
                 b2 = QPushButton("PARTS + PRICES FOR THIS")
                 pq = (self._issue_parts(d) or [part_from_job(job)])[0]
                 b2.clicked.connect(lambda _=False, j=pq: (self.in_part.setText(j), self.act_find_parts(),
-                                                          self.switch(4)))
+                                                          self.switch(PAGE["parts"])))
                 row.addWidget(b2)
             row.addStretch(1)
             bl.addLayout(row)
@@ -4125,12 +4149,11 @@ class CyberdeckApp(QMainWindow):
                 self._verdict_retried = True
                 self._say(self.txt_verdict, "[answer check] sending the plan back once: " + "; ".join(notes),
                           T.PYCHECK)
-                self._chain("deep", redo[0] + "\n\nYOUR PLAN:\n" + text.strip() + "\n\nTHE DECK'S CHECK OF THAT PLAN:\n"
+                self._chain("deep", redo + "\n\nYOUR PLAN:\n" + text.strip() + "\n\nTHE DECK'S CHECK OF THAT PLAN:\n"
                             + "\n".join(notes) + "\nFix the plan where the check is right: a part verified good or "
                             "just replaced is not issue 1 unless the evidence shows that new part itself is at fault, and "
                             "then say so in WHY HERE. Otherwise keep the plan and say why. Then write the whole plan "
-                            "again in exactly the same format.", self._verdict_done,
-                            check_against=redo[1])
+                            "again in exactly the same format.", self._verdict_done)
                 return
         self.session.set("final_verdict", text)
         self._file_visit()
@@ -4212,7 +4235,7 @@ class CyberdeckApp(QMainWindow):
                   "torque sequence, verification. Only use torque values listed under SPECS; where one is "
                   "missing write 'see FSM'. Mark any UNVERIFIED spec as such.")
         self._say(self.txt_sop, "")
-        self._run("deep", prompt, self.txt_sop, lambda t: None, max_new_tokens=900)
+        self._run("deep", prompt, self.txt_sop, lambda t: None)
 
     def _ps_cfg(self, parts_row=False):
         """parts_sourcing settings for a car: the Parts tab's own Year/Model row, else the Intake car."""

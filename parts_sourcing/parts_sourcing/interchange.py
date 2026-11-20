@@ -11,6 +11,7 @@ number when a CHARM parts or labor page filed under that vehicle lists it. On to
 
 CHARM's parts pages don't list every part for every car, so "not listed" never means "doesn't fit".
 """
+import functools
 import json
 import os
 import re
@@ -19,14 +20,40 @@ from dataclasses import dataclass, field
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SUBARU_PN_RE = re.compile(r"^\d{5}[A-Z]{2}[0-9A-Z]{3}$")
-ENGINE_CODES = {
-    "EJ18": (4, 1.8, "SOHC", False), "EJ22": (4, 2.2, "SOHC", False), "EJ20": (4, 2.0, "DOHC", True),
-    "EJ205": (4, 2.0, "DOHC", True), "EJ25D": (4, 2.5, "DOHC", False), "EJ251": (4, 2.5, "SOHC", False),
-    "EJ252": (4, 2.5, "SOHC", False), "EJ253": (4, 2.5, "SOHC", False), "EJ255": (4, 2.5, "DOHC", True),
-    "EJ257": (4, 2.5, "DOHC", True), "EZ30": (6, 3.0, "DOHC", False), "EZ36": (6, 3.6, "DOHC", False),
-    "FB20": (4, 2.0, "DOHC", False), "FB25": (4, 2.5, "DOHC", False),
-}
+ENGINE_CODES_FILE = os.path.join(HERE, "engine_codes.json")
 ENGINE_RE = re.compile(r"\b([FHVL])([3-8])-(\d\.\d)L\b(.*)$", re.I)
+DISP_RE = re.compile(r"(?<![\d.])(\d\.\d)\s*-?\s*(?:L|LITERS?|LITRES?)\b", re.I)
+CYL_RES = (re.compile(r"\b(?:[VWHLI]|INLINE[- ]?|FLAT[- ]?|BOXER[- ]?)(3|4|5|6|8|10|12)\b", re.I),
+           re.compile(r"\b(3|4|5|6|8|10|12)[- ]?(?:CYL(?:INDER)?S?|CYL\.)", re.I),
+           re.compile(r"\bCYLINDERS?\s*[:=]?\s*(3|4|5|6|8|10|12)\b", re.I))
+CODE_RE = re.compile(r"\b[A-Z0-9]{2,6}\b")
+
+
+@functools.lru_cache(maxsize=8)
+def engine_codes(path=None):
+    """Engine code -> attributes, for vehicles stored by code with no size in the name. Any make may be added."""
+    try:
+        with open(path or ENGINE_CODES_FILE) as f:
+            return {k.upper(): v for k, v in json.load(f).items()}
+    except (OSError, ValueError):
+        return {}
+
+
+def _cam(text):
+    t = text.upper()
+    return "DOHC" if "DOHC" in t or "DUAL OVERHEAD" in t else "SOHC" if "SOHC" in t or "SINGLE OVERHEAD" in t \
+        else "OHV" if re.search(r"\bOHV\b|PUSHROD", t) else None
+
+
+def _cylinders(text):
+    return next((int(m.group(1)) for rx in CYL_RES for m in [rx.search(text)] if m), None)
+
+
+def _turbo(text):
+    t = text.upper()
+    if re.search(r"TURBO|SUPERCHARG|\bSC\b", t):
+        return True
+    return None
 
 
 PN_CELL_RE = re.compile(r"^[A-Z0-9][A-Z0-9\-]{4,19}$")
@@ -80,19 +107,25 @@ class Engine:
     turbo: bool = None
 
     @classmethod
-    def from_charm(cls, text):
-        """'F4-2.5L SOHC', 'H6-3.0L', 'F4-2.0L DOHC Turbo' (CHARM's engine names)."""
+    def from_charm(cls, text, codes=None):
+        """Any make's engine name: CHARM's 'F4-2.5L SOHC' / 'H6-3.0L' / 'F4-2.0L DOHC Turbo', a VIN decode's
+        '5.3L V8 OHV', or a bare engine code looked up in engine_codes.json."""
         if not text:
             return cls()
-        code = ENGINE_CODES.get(text.strip().upper()[:5]) or ENGINE_CODES.get(text.strip().upper()[:4])
-        if code:
-            return cls(*code)
         m = ENGINE_RE.search(text)
-        if not m:
-            return cls()
-        rest = m.group(4).upper()
-        cam = "DOHC" if "DOHC" in rest else "SOHC" if "SOHC" in rest else None
-        return cls(int(m.group(2)), float(m.group(3)), cam, "TURBO" in rest)
+        if m:
+            rest = m.group(4)
+            return cls(int(m.group(2)), float(m.group(3)), _cam(rest), "TURBO" in rest.upper())
+        d = DISP_RE.search(text)
+        if d:
+            return cls(_cylinders(text), float(d.group(1)), _cam(text), _turbo(text))
+        table = engine_codes() if codes is None else {k.upper(): v for k, v in codes.items()}
+        for tok in CODE_RE.findall(text.upper()):
+            for n in range(len(tok), 1, -1):
+                v = table.get(tok[:n])
+                if v:
+                    return cls(v.get("cylinders"), v.get("litres"), v.get("cam"), v.get("turbo"))
+        return cls(_cylinders(text), None, _cam(text), _turbo(text))
 
     def known(self):
         return self.disp is not None

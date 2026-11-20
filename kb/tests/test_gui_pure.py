@@ -119,3 +119,38 @@ class CaseKeys(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(G is None, "cyberdeck_gui not importable (PyQt6 missing?)")
+class ConfigMigration(unittest.TestCase):
+    def test_old_defaults_dropped_once_and_choices_kept(self):
+        data = {"home_fast": "qwen3:8b", "home_deep": "my-own-model", "home_think": "qwen3:30b-a3b-thinking-2507-q4_K_M"}
+        self.assertTrue(G.migrate_config(data))
+        self.assertEqual(data, {"home_deep": "my-own-model", "config_version": G.CONFIG_VERSION})
+        data["home_fast"] = "qwen3:8b"
+        self.assertFalse(G.migrate_config(data))
+        self.assertEqual(data["home_fast"], "qwen3:8b")
+
+
+@unittest.skipIf(G is None, "cyberdeck_gui not importable (PyQt6 missing?)")
+class Screens(unittest.TestCase):
+    def test_page_numbers_follow_the_nav_order(self):
+        self.assertEqual([n for n, _ in G.SCREENS], list(G.PAGE))
+        for i, (name, label) in enumerate(G.SCREENS):
+            self.assertEqual(G.PAGE[name], i)
+            self.assertTrue(label.startswith(f"{i + 1}. "), label)
+
+
+@unittest.skipIf(G is None, "cyberdeck_gui not importable (PyQt6 missing?)")
+class CaseMake(unittest.TestCase):
+    def test_make_from_case_then_vin_never_a_default(self):
+        orig = G.decode_vin
+        G.decode_vin = lambda vin, db=None: {"make": {"1GN": "Chevrolet", "JF2": "Subaru"}.get(vin[:3], "")}
+        try:
+            self.assertEqual(G.case_make({"make": "Toyota", "vin": "JF2XXXXXXXXXXXXXX"}), "Toyota")
+            self.assertEqual(G.case_make({"vin": "1GNXXXXXXXXXXXXXX"}), "Chevrolet")
+            self.assertEqual(G.case_make({"vin": "JF2XXXXXXXXXXXXXX"}), "Subaru")
+            self.assertEqual(G.case_make({"vin": "ZZZXXXXXXXXXXXXXX"}), "")
+            self.assertEqual(G.case_make({}), "")
+        finally:
+            G.decode_vin = orig

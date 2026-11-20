@@ -28,7 +28,7 @@ STOP = set("the a an and or of to in on for with is are was it this that at by f
 
 
 SYNONYMS = {
-    "exhaust manifold": "front exhaust pipe", "cam belt": "timing belt|camshaft drive belt",
+    "cam belt": "timing belt|camshaft drive belt",
     "timing belt": "camshaft drive belt", "o2 sensor": "oxygen sensor",
     "a/f sensor": "oxygen sensor", "air-fuel sensor": "oxygen sensor", "air fuel sensor": "oxygen sensor",
     "air-fuel ratio sensor": "oxygen sensor", "air fuel ratio sensor": "oxygen sensor", "af sensor": "oxygen sensor",
@@ -53,7 +53,22 @@ SYNONYMS = {
     "not charging": "charging system", "battery light": "charge indicator|charging system",
     "battery warning light": "charge indicator|charging system", "alt light": "charge indicator|charging system",
 }
-_SYN_RE = [(re.compile(rf"(?<![a-z0-9]){re.escape(k)}(?![a-z0-9])"), v) for k, v in SYNONYMS.items()]
+def synonym_patterns(pairs):
+    """[(shop words, manual words)] -> [(regex, manual words)] for _expand."""
+    return [(re.compile(rf"(?<![a-z0-9]){re.escape(k.lower())}(?![a-z0-9])"), v.lower()) for k, v in pairs]
+
+
+_SYN_RE = synonym_patterns(SYNONYMS.items())
+
+
+def load_synonyms(db):
+    """The make's own manual wording from the DB's synonym table (shop TEXT, manual TEXT), if it has one.
+    Vocabulary that only one make's manuals use lives in that make's DB, never in the shared table above."""
+    try:
+        rows = db.execute("SELECT shop, manual FROM synonym").fetchall()
+    except sqlite3.Error:
+        return []
+    return synonym_patterns((k, v) for k, v in rows if k and v)
 _REPAIR_RE = re.compile(r"\b(replace|replacement|remove|removal|install|installation|change|swap|how (do|to)|torque|"
                         r"overhaul|disassembl|adjust)", re.I)
 
@@ -95,20 +110,20 @@ def _shingles(body, chars=1500):
     return {" ".join(w[i:i + 3]) for i in range(max(0, len(w) - 2))}
 
 
-def _expand(text):
-    """The query plus the manual's wording for any shop words in it."""
+def _expand(text, extra=()):
+    """The query plus the manual's wording for any shop words in it (shared table plus the make's own)."""
     low = f" {text.lower()} "
-    return low, [alt for rx, v in _SYN_RE if rx.search(low) for alt in v.split("|")]
+    return low, [alt for rx, v in [*_SYN_RE, *extra] if rx.search(low) for alt in v.split("|")]
 
 
-def _fts_query(text, max_terms=16):
+def _fts_query(text, max_terms=16, extra=()):
     """OR of the question's words, each manual-wording synonym as one phrase (so 'check engine light' adds
     "malfunction indicator lamp" once instead of three loose words that drown the rest of the question),
     plus each adjacent word pair as a phrase so 'timing belt' outranks pages that only say 'timing' and 'belt'."""
-    low, extra = _expand(text)
+    low, alts = _expand(text, extra)
     words = [w for w in re.findall(r"[a-z0-9]{3,}", low) if w not in STOP]
     syn = []
-    for alt in extra:
+    for alt in alts:
         toks = [w for w in re.findall(r"[a-z0-9]+", alt) if w not in STOP]
         if toks:
             syn.append(" ".join(toks))
@@ -153,6 +168,7 @@ class Retriever:
     def __init__(self, db_path, model=None, year=None, engine=None, embed=None):
         db_path = os.path.expanduser(db_path)
         self.db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
+        self.syn_re = load_synonyms(self.db)
         self.embed = None
         self._mats = {}
         self._mats_lock = threading.Lock()
@@ -345,7 +361,7 @@ class Retriever:
     def search_ids(self, text, k=3):
         first = self._code_sections(text)
         text = self._strip_car(text)
-        q = _fts_query(text)
+        q = _fts_query(text, extra=self.syn_re)
         lists = [self._bm25(q, 30)] if q else []
         if self.embed is not None:
             lists.append(self._vector(text, 30))
@@ -405,16 +421,16 @@ class Retriever:
 
     def specs(self, term, limit=8):
         """Torque specs as printed in the FSM (or CHARM tables), each with the procedure it came from."""
-        q = _fts_query(term)
+        q = _fts_query(term, extra=self.syn_re)
         if not q:
             return []
         part = lambda t: [w for w in re.findall(r"[a-z0-9]{3,}", t) if w not in STOP and w not in SPEC_GENERIC]  # noqa: E731
         variants = []
         for alt_term in _slash_variants(term):
-            low, _ = _expand(alt_term)
+            low, _ = _expand(alt_term, self.syn_re)
             low = re.sub(r"\b(cylinder|cyl|bank)\s*#?\d\b", " ", low)
             syn = []
-            for rx, v in _SYN_RE:
+            for rx, v in [*_SYN_RE, *self.syn_re]:
                 if rx.search(low):
                     syn += [[w for w in re.findall(r"[a-z0-9]{3,}", alt) if w not in STOP] + part(rx.sub(" ", low))
                             for alt in v.split("|")]
@@ -423,7 +439,7 @@ class Retriever:
                 syn.append(own)
             variants += syn
         variants = [list(v) for v in dict.fromkeys(tuple(dict.fromkeys(ws)) for ws in variants if ws)]
-        low = " ".join(_expand(t)[0] for t in _slash_variants(term))
+        low = " ".join(_expand(t, self.syn_re)[0] for t in _slash_variants(term))
         tiers = []
         for drop in (0, 1, 2):
             for ws in variants:
@@ -522,7 +538,7 @@ class Retriever:
 
     def knowledge_ids(self, text, k=3, kinds=None, all_models=False):
         text = self._strip_car(text)
-        q = _fts_query(text)
+        q = _fts_query(text, extra=self.syn_re)
         where, args = self._knowledge_scope(kinds, all_models)
         lists = []
         if q:
