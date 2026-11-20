@@ -12,8 +12,6 @@ import os
 import threading
 
 EMBED_DIM = 1024
-# Qwen3-Embedding wants a one-line task description in front of the query (documents get none).
-# It describes the task only; it says nothing about which causes or parts are likely.
 TASK = "Given a vehicle problem description or repair question, retrieve service manual passages that answer it"
 
 
@@ -39,9 +37,6 @@ class QueryEmbedder:
             if self.threads:
                 torch.set_num_threads(self.threads)
             from sentence_transformers import SentenceTransformer
-            # transformers 5 loads the checkpoint's bfloat16 by default; on a CPU that is ~3x slower than float32
-            # (537 vs 166 ms per query on the 5900X, 4 threads) for the same vector (cosine 0.9998).
-            # (.to() rather than a load kwarg: the deck's transformers may be older and not take dtype=.)
             self._model = SentenceTransformer(self.model_name, device=self.device)
             if self.device == "cpu" and self._model[0].auto_model.dtype != torch.float32:
                 self._model.to(torch.float32)
@@ -97,13 +92,12 @@ class DocEncoder:
                              "use --device cpu to run on the CPU on purpose")
         dt = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}[dtype]
         if device == "cpu" and dt != torch.float32:
-            dt = torch.float32      # no bf16/fp16 matmul units on these CPUs: half precision is slower there
+            dt = torch.float32
         self.torch, self.log = torch, log
         self.model_name, self._fp32 = os.path.expanduser(model), None
         try:
             self.model = SentenceTransformer(self.model_name, device=device, model_kwargs={"dtype": dt})
         except torch.cuda.OutOfMemoryError:
-            # another job holds the GPU (often Ollama answering the picture server): same rule as at batch 1
             torch.cuda.empty_cache()
             log("embed: GPU out of memory while loading the model (another GPU job?), running on the CPU (slow)",
                 flush=True)
@@ -158,7 +152,6 @@ class DocEncoder:
         with self.torch.inference_mode():
             v = self.model(feats)["sentence_embedding"].float()
             if not bool(self.torch.isfinite(v).all()):
-                # half precision overflowed on this batch (never seen on manual text): redo it in float32
                 self.log("embed: non-finite vector in half precision, redoing that batch in float32", flush=True)
                 if self._fp32 is None:
                     from sentence_transformers import SentenceTransformer
@@ -180,10 +173,8 @@ class DocEncoder:
                 queue.pop(0)
                 self._ok += 1
                 if self._ok >= 200 and self.budget < self.budget0:
-                    # the other GPU job (e.g. Ollama for a picture) has usually gone by now: grow back slowly
                     self.budget, self.max_batch, self._ok = min(self.budget * 2, self.budget0), self.max_batch0, 0
             except torch.cuda.OutOfMemoryError:
-                # another GPU job, or long rows: free the cache, halve the budget, re-plan the rest of the chunk
                 del f
                 torch.cuda.empty_cache()
                 self._ok = 0

@@ -23,7 +23,6 @@ ROOT = os.path.dirname(HERE)
 CASES = os.path.join(HERE, "replay", "cases")
 OUT = os.environ.get("TEAM_REPLAY_OUT") or os.path.join(ROOT, "logs", "team", "replay")
 PY = os.path.join(ROOT, "venv", "bin", "python")
-# one per make outside Subaru, then Subaru spread over models, years and code families
 PICK = ["gen_pages_chevrolet_misfire_express_1999_p0306", "gen_pages_dodge_fuel_trim_charger_2006_p0174",
         "gen_pages_ford_evap_escape_2010_p0453", "gen_pages_honda_idle_passport_2001_p0502",
         "gen_pages_hyundai_sensor_circuit_sonata_2008_p0119", "gen_pages_mazda_misfire_626_2000_p0302",
@@ -56,7 +55,7 @@ def make_cases():
         prev, veh = None, {}
     if prev and prev.get("dtcs"):
         keep = {k: v for k, v in prev.items() if v and k not in ("final_verdict", "visit_id", "drive_id")}
-        if not veh.get("make"):     # no car saved with it: the case file needs its vehicle_info filled by hand
+        if not veh.get("make"):
             out = os.path.join(CASES, "saved_prev_case.json")
             if os.path.isfile(out) and json.load(open(out)).get("vehicle_info", {}).get("make"):
                 print("saved_prev_case.json kept (vehicle filled by hand)")
@@ -81,7 +80,6 @@ def run(only=None, web="both"):
             if os.path.isfile(os.path.join(out, "report.json")):
                 print(f"skip {name} web {w} (done)")
                 continue
-            # the local baseline runs once per case (it never uses the web)
             args = [PY, os.path.join(HERE, "run.py"), "--case", path, "--web", w, "--out", out]
             if w == "off" and os.path.isfile(os.path.join(OUT, f"{name}__web_on", "baseline.txt")):
                 args.append("--no-baseline")

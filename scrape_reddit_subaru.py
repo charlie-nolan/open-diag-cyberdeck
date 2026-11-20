@@ -33,12 +33,10 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DB = os.path.join(HERE, "raw", "reddit", "reddit_subaru.db")
 API = "https://arctic-shift.photon-reddit.com/api"
-REDDIT_START = 1104537600  # 2005-01-01; the API rejects after=0
+REDDIT_START = 1104537600
 SALT_PATH = os.path.join(HERE, "raw", "reddit", ".op_salt")
 UA = "subaru-cyberdeck-research/1.0 (personal offline repair knowledge base; ~1 req/s)"
 
-# Most relevant first. r/Impreza is empty in the archive; r/subaruimpreza is the real one.
-# value = model implied by the subreddit when the text names none
 SUBREDDITS = {
     "SubaruForester": "Forester", "subaru": None, "subaruoutback": "Outback",
     "subarulegacy": "Legacy", "subaruimpreza": "Impreza", "SubaruBaja": "Baja",
@@ -86,7 +84,6 @@ def op_hash(author):
     return hashlib.blake2b(author.lower().encode(), key=_salt, digest_size=12).hexdigest()
 
 
-# ---------------------------------------------------------------- relevance + tagging
 DTC_RE = re.compile(r"\b([PCBU][0-3][0-9A-F]{3})\b", re.I)
 KEYWORDS_RE = re.compile(r"""\b(?:
     check\ engine | CEL | misfir\w* | head\ gaskets? | HG | overheat\w* | coolant |
@@ -104,12 +101,11 @@ MODELS = {
     "Ascent": r"ascent",
 }
 MODEL_RE = {m: re.compile(rf"\b(?:{p})\b", re.I) for m, p in MODELS.items()}
-# "Ascent"/"XV"/"STI" as plain words are noisy; require the capitalised spelling for those
 CASE_SENSITIVE = {"Ascent": re.compile(r"\bAscent\b"), "STI": re.compile(r"\bST[Ii]\b"),
                   "Crosstrek": re.compile(r"\b(?:[Cc]rosstrek|XV)\b")}
 YEAR4_RE = re.compile(r"\b(19[89]\d|20[0-2]\d)\b")
-YEAR2_RE = re.compile(r"(?:\b|['’])(\d{2})\s*(?:subaru\s+)?$", re.I)  # "'02 " / "02 " right before a model
-CHASSIS_RE = re.compile(r"\b(S[FGHJK]|G[CDEHRVP]|B[CDEGHJLMNPRST])\b")   # uppercase, standalone only
+YEAR2_RE = re.compile(r"(?:\b|['’])(\d{2})\s*(?:subaru\s+)?$", re.I)
+CHASSIS_RE = re.compile(r"\b(S[FGHJK]|G[CDEHRVP]|B[CDEGHJLMNPRST])\b")
 ENGINE_RE = re.compile(r"\b(EJ2[025]\d?|EJ18|EJ15|EJ16|FB2[05]|FA2[04]|FA24F|EZ3[06]|EG33|ER27)\b", re.I)
 
 
@@ -138,7 +134,7 @@ def tag(title, body, implied_model):
     implied = 0
     if not models and implied_model:
         models, implied = [implied_model], 1
-    if not years and models:  # "2003 - won't start" style titles
+    if not years and models:
         years.update(int(y) for y in YEAR4_RE.findall(title))
     years = {y for y in years if 1985 <= y <= 2027}
     letters = [c for c in text if c.isalpha()]
@@ -154,7 +150,6 @@ def clean(s):
     return None if s in ("", "[deleted]", "[removed]") else s
 
 
-# ---------------------------------------------------------------- HTTP
 class Api:
     def __init__(self, delay, log):
         self.delay, self.log, self.last, self.n = delay, log, 0.0, 0
@@ -186,17 +181,16 @@ class Api:
                     err += " " + e.read().decode()[:200]
                 except Exception:
                     pass
-                if e.code in (400, 404):  # a bad request will not fix itself (422 = server timeout, retry)
+                if e.code in (400, 404):
                     self.log(f"  giving up: {err}")
                     raise
-            except Exception as e:  # timeouts, "Timeout. Maybe slow down a bit", resets
+            except Exception as e:
                 err = str(e)[:200]
             self.log(f"  retry in {backoff}s: {err}")
             time.sleep(backoff)
             backoff = min(backoff * 2, 600)
 
 
-# ---------------------------------------------------------------- crawl
 def crawl_posts(conn, api, sub, log):
     st = conn.execute("SELECT last_created_utc, done, seen_posts FROM crawl_state WHERE subreddit=?", (sub,)).fetchone()
     if st and st[1]:
@@ -227,7 +221,6 @@ def crawl_posts(conn, api, sub, log):
         conn.executemany("INSERT OR REPLACE INTO _op VALUES(?,?)",
                          [(k[0], k[-1]) for k in kept if k[-1]])
         last = max(int(r["created_utc"]) for r in rows)
-        # a full page sharing one timestamp would loop forever; step past it
         after = last if last > after else after + 1
         seen += len(rows)
         conn.execute("INSERT INTO crawl_state(subreddit, last_created_utc, seen_posts) VALUES(?,?,?) "

@@ -14,8 +14,8 @@ CODE_RE = re.compile(r"\b[PBCU][0-9A-F]\d{3}\b")
 class Vehicle:
     model: str
     year: int
-    engine: str                      # label shown to the user, e.g. "2.5L" or "2.5L turbo"
-    ids: list = field(default_factory=list)   # every vehicle row (FSM and CHARM) for this car
+    engine: str
+    ids: list = field(default_factory=list)
 
     @property
     def label(self):
@@ -25,8 +25,8 @@ class Vehicle:
 @dataclass
 class Section:
     id: int
-    doc: str            # manual title
-    kind: str           # fsm | charm
+    doc: str
+    kind: str
     path: str
     title: str
     page: int
@@ -70,7 +70,6 @@ class KB:
         self.db.row_factory = sqlite3.Row
         self.tables = {r[0] for r in self.db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','view')")}
 
-    # ------------------------------------------------------------------ vehicles
     def models(self):
         return [r[0] for r in self.db.execute("SELECT DISTINCT model FROM vehicle ORDER BY model")]
 
@@ -95,7 +94,6 @@ class KB:
             f"JOIN doc ON doc.id=s.doc_id WHERE sv.vehicle_id IN ({q}) GROUP BY doc.id ORDER BY doc.kind DESC",
             veh.ids).fetchall()
 
-    # ------------------------------------------------------------------ sections
     def _section(self, row):
         return Section(row["id"], row["doc"], row["kind"], row["path"], row["title"], row["page"], row["body"])
 
@@ -144,7 +142,6 @@ class KB:
             f"{kind_sql} ORDER BY bm25(section_fts, 8.0, 4.0, 1.0) LIMIT ?", args).fetchall()
         return [self._section(r) for r in rows]
 
-    # ------------------------------------------------------------------ trouble codes
     def dtc_name(self, code):
         r = self.db.execute("SELECT description FROM dtc WHERE code=?", (code,)).fetchone()
         return r[0] if r and r[0] else ""
@@ -184,7 +181,6 @@ class KB:
             if "H6" in t and not six or "H4" in t and six:
                 continue
             tagged.append((chap, part))
-        # the same chart in two chapters that both fit (e.g. 'EN(H4SO)' and 'EN(H4SO U5)'): one set of steps only
         seen_kinds = {}
         for chap, part in tagged:
             kind = chap.split("(")[0]
@@ -215,7 +211,6 @@ class KB:
             veh.ids).fetchall()
         return [self._section(r) for r in rows]
 
-    # ------------------------------------------------------------------ labor and parts (CHARM)
     def labor_rows(self, veh):
         if "labor" not in self.tables:
             return []

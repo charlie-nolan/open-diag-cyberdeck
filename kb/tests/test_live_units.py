@@ -6,7 +6,7 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "app"))
 import live_data as L  # noqa: E402
 
@@ -36,7 +36,7 @@ class Units(unittest.TestCase):
 
     def test_wrong_quantity_dropped(self):
         self.assertEqual(L.parse("ECT 12 V"), {})
-        self.assertEqual(L.parse("TPS 0.6 V"), {})          # a sensor voltage is not throttle percent
+        self.assertEqual(L.parse("TPS 0.6 V"), {})
         self.assertEqual(L.parse("MAP 30 %, RPM 700"), {"rpm": 700})
 
     def test_words_after_number_are_not_units(self):

@@ -11,7 +11,7 @@ import tempfile
 import unittest
 import zipfile
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, ROOT)
 import build_subaru_diag_db as bd  # noqa: E402
 
@@ -49,7 +49,7 @@ class Layout(unittest.TestCase):
         self.assertEqual(err, "")
 
     def test_moved_column_skips_that_file_only(self):
-        shifted = ["X\t" + tsb_row(i) for i in range(300)]          # one new leading column
+        shifted = ["X\t" + tsb_row(i) for i in range(300)]
         d = self.folder("tsbs", {"A.zip": [tsb_row(i) for i in range(50)], "B.zip": shifted})
         rows, err = self.read(d)
         self.assertEqual(len(rows), 50)
@@ -76,7 +76,7 @@ class Layout(unittest.TestCase):
 
     def test_a_few_odd_rows_tolerated(self):
         lines = [recall_row(i) for i in range(200)]
-        lines[5] = recall_row(5, year="UNKNOWN")                     # 1 bad row of 200 is under the 5 % limit
+        lines[5] = recall_row(5, year="UNKNOWN")
         d = self.folder("rcl", {"A.zip": lines})
         rows, err = self.read(d)
         self.assertEqual(len(rows), 200)

@@ -12,7 +12,7 @@ import re
 ACTIONS = {"inspect", "replace", "rotate", "adjust", "lubricate", "clean", "change", "check", "drain", "flush",
            "tighten", "service", "perform", "test", "lube"}
 MI_RE = re.compile(r"(\d[\d,]*)\s*MI\b", re.I)
-LOOKBACK = 25000   # 10-25: what should have been done over the past 25,000 miles
+LOOKBACK = 25000
 
 
 def _pages(db, vehicle_ids, kind):
@@ -29,7 +29,7 @@ def _pages(db, vehicle_ids, kind):
             continue
         mi = int(m.group(1).replace(",", ""))
         p = pages.setdefault(mi, (path, {}))
-        p[1].setdefault(part or 1, body)      # the same page can come from more than one vehicle id
+        p[1].setdefault(part or 1, body)
     return {mi: (path, [parts[k] for k in sorted(parts)]) for mi, (path, parts) in pages.items()}
 
 
@@ -91,13 +91,13 @@ def plan(sched, miles, lookback=LOOKBACK):
         period = min((b - a for a, b in zip(at, at[1:])), default=at[0])
         e["period"] = period
         points = list(at)
-        while points[-1] < later_mi[-1]:      # past the table: the item's own spacing
+        while points[-1] < later_mi[-1]:
             points.append(points[-1] + period)
         src = lambda p: p if p in sched else at[-1]
         hit = [p for p in points if miles - lookback < p <= miles]
         if hit:
             past.append(dict(e, at=hit, src=src(hit[-1])))
-        elif period > lookback:     # a long-interval job (timing belt, plugs...) last due before the window
+        elif period > lookback:
             before = [p for p in points if p <= miles - lookback]
             if before:
                 longer.append(dict(e, at=[before[-1]], src=src(before[-1])))

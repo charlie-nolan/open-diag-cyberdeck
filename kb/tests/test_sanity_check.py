@@ -78,20 +78,20 @@ class TestSanity(unittest.TestCase):
                 "symptoms": "Turbocharger whistle.", "history": "", "suspect": "", "ruled_out": "", "intake_note": ""}
         flags = S.check(case, self.r, self.ref)
         items = {(f["kind"], f["item"]) for f in flags}
-        self.assertIn(("code", "P0301"), items)              # twice, two statuses
-        self.assertIn(("code", "P03O1"), items)              # malformed
+        self.assertIn(("code", "P0301"), items)
+        self.assertIn(("code", "P03O1"), items)
         level = {f["item"]: f.get("level", "flag") for f in flags}
-        self.assertEqual(level["P0299"], "note")             # valid generic code, no page: coverage note only
-        self.assertEqual(level["P9999"], "flag")             # malformed
-        self.assertEqual(level["P1999"], "flag")             # manufacturer code nothing in the DB knows
-        self.assertEqual(level["P0301"], "flag")             # two statuses
+        self.assertEqual(level["P0299"], "note")
+        self.assertEqual(level["P9999"], "flag")
+        self.assertEqual(level["P1999"], "flag")
+        self.assertEqual(level["P0301"], "flag")
         self.assertNotIn(("code", "P0420"), items)
-        self.assertTrue(any(f["kind"] == "live" and "ECT -20" in f["item"] for f in flags))     # same sensor twice
-        self.assertTrue(any(f["item"] == "LOAD 105 %" for f in flags))                         # outside its range
-        self.assertTrue(any(f["item"] == "VOLTS 18.9 V" for f in flags))                       # physical limit
-        self.assertTrue(any(f["item"] == "O2 B1S1 1.8 V" for f in flags))                      # J1979 0-1.275 V
-        self.assertTrue(any("RPM 0 with speed" in f["item"] for f in flags))                   # moving, engine stopped
-        self.assertTrue(any("mass air flow" in f["item"] for f in flags))                      # air flow at 0 rpm
+        self.assertTrue(any(f["kind"] == "live" and "ECT -20" in f["item"] for f in flags))
+        self.assertTrue(any(f["item"] == "LOAD 105 %" for f in flags))
+        self.assertTrue(any(f["item"] == "VOLTS 18.9 V" for f in flags))
+        self.assertTrue(any(f["item"] == "O2 B1S1 1.8 V" for f in flags))
+        self.assertTrue(any("RPM 0 with speed" in f["item"] for f in flags))
+        self.assertTrue(any("mass air flow" in f["item"] for f in flags))
         self.assertIn(("equipment", "turbocharger"), items)
         self.assertNotIn(("equipment", "spark plug"), items)
         self.assertTrue(S.block(flags).startswith("DATA CHECK"))

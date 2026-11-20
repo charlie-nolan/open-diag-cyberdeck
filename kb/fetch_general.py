@@ -36,8 +36,6 @@ def get(url, binary=True, timeout=120, tries=3):
 def safe(name):
     return re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_")[:120]
 
-# ------------------------------------------------------------------ what to fetch
-# PDF sources. 'want' = words that must appear in the PDF's first pages (case-insensitive, any of).
 PD_US = "US Government work, public domain (17 U.S.C. 105)"
 ARCHIVE_QUERIES = [
     dict(key="tm9-8000", q='title:("TM 9-8000") OR title:("principles of automotive vehicles")',
@@ -53,7 +51,6 @@ ARCHIVE_QUERIES = [
          want=["vehicle", "engine"], publisher="US Army", title="Army wheeled vehicle mechanic course",
          license=PD_US, era="mixed", max=2),
 ]
-# Navy training-manual PDFs hosted by the Navy (exact titles unknown until opened: kept only if they match).
 DIRECT_PDFS = [
     dict(url=u, want=["construction mechanic", "automotive", "engine"], publisher="US Navy",
          title=None, license=PD_US, era="mixed")
@@ -65,7 +62,6 @@ DIRECT_PDFS = [
         "https://media.defense.gov/2014/Jun/20/2002655885/-1/-1/1/140620-N-ZZ182-6530.pdf",
     ]
 ]
-# Web pages: (url, publisher, license, also harvest PDF links whose URL matches this regex, max PDFs)
 PAGES = [
     ("https://everyspec.com/ARMY/TM-Tech-Manual/TM_9-8000_CHG-1_48512/", "US Army (via EverySpec)", PD_US,
      r"\.pdf", 2, ["principles of automotive vehicles", "tm 9-8000"], False),
@@ -80,7 +76,7 @@ PAGES = [
      ["diagnostic", "malfunction"], True),
 ]
 
-WIKI = [  # Wikipedia articles (CC BY-SA 4.0). Missing titles are skipped, not guessed.
+WIKI = [
     "Internal combustion engine", "Four-stroke engine", "Compression ratio", "Compression test",
     "Leak-down tester", "Engine knocking", "Pre-ignition", "Misfire", "Spark plug", "Ignition coil",
     "Ignition system", "Distributor", "Fuel injection", "Fuel pump", "Fuel filter", "Mass flow sensor",
@@ -102,7 +98,6 @@ WIKI = [  # Wikipedia articles (CC BY-SA 4.0). Missing titles are skipped, not g
     "Corrosion", "Galvanic corrosion", "Rust", "Engine break-in", "Vehicle inspection", "Preventive maintenance",
 ]
 
-# ------------------------------------------------------------------ helpers
 def pdf_first_text(path, pages=6):
     try:
         import pymupdf
@@ -236,7 +231,7 @@ def wiki(manifest):
         rev = (pg.get("revisions") or [{}])[0]
         title = pg["title"]
         if any(r.get("title") == f"Wikipedia: {title}" for r in manifest.values()):
-            continue   # two names redirected to the same article
+            continue
         json.dump(dict(title=title, extract=pg["extract"], revid=rev.get("revid")), open(path, "w"))
         rec = dict(url=f"https://en.wikipedia.org/w/index.php?title={urllib.parse.quote(title)}&oldid={rev.get('revid')}",
                    publisher="Wikipedia", license="CC BY-SA 4.0 (Wikipedia contributors)", era="modern",

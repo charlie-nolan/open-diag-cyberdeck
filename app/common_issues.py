@@ -11,8 +11,6 @@ BANDS = [(0, 50000, "under 50k"), (50000, 100000, "50-100k"), (100000, 150000, "
          (150000, 10 ** 7, "150k+")]
 
 
-# Which part of the car a forum thread is about, from the words in its title (vocabulary only: says nothing
-# about causes). A title can count for more than one system.
 SYSTEMS = [
     ("engine (head gaskets, timing, internals)", r"head gasket|\bhg\b|timing (belt|chain)|piston|rod knock|"
      r"compression|valve|\bcam\b|oil (leak|consumption|burn)|knock|tick|\brings?\b|block|\bheads?\b"),
@@ -73,7 +71,7 @@ def gather(db_path, model, year=None, miles=None, aliases=None, top=5):
         return {"error": f"Can't open the manual database ({e})."}
     has_miles = db.execute("SELECT 1 FROM sqlite_master WHERE name='nhtsa_miles'").fetchone() is not None
     window = 0
-    for window in (0, 1, 2):   # widen to neighbouring years only when one year has too few reports
+    for window in (0, 1, 2):
         where, args = _scope(model, year, window, aliases)
         n = db.execute(f"SELECT count(*) FROM knowledge k WHERE kind='nhtsa_complaint' AND {where}", args).fetchone()[0]
         if n >= 25 or not year:

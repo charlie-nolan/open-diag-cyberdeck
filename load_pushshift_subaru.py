@@ -23,7 +23,6 @@ import scrape_reddit_subaru as s
 HERE = os.path.dirname(os.path.abspath(__file__))
 DUMP_DIR = os.path.join(HERE, "raw", "reddit", "pushshift", "reddit", "subreddits24")
 
-# subreddit -> model implied when the text names none (adds to scrape_reddit_subaru.SUBREDDITS)
 IMPLIED = dict(s.SUBREDDITS, Subaru_Outback="Outback", Subaru_Crosstrek="Crosstrek",
                XVcrosstrek="Crosstrek", WRXSTi="WRX", wrx_vb="WRX", **{"2022wrx": "WRX"})
 

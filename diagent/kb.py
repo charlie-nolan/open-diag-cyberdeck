@@ -15,11 +15,9 @@ import procedures as P
 import vehicle_id
 from kb_retriever import Retriever, _expand
 
-# words in a DTC title that don't say which component (kept out of the relevance check)
 GENERIC = set("sensor sensors circuit circuits low high input output voltage malfunction system control range "
               "performance bank signal dtc detected the and for too engine problem side open short fault "
               "intermittent erratic value".split())
-# vocabulary only (same rule as kb_retriever.SYNONYMS): other names the manual uses for the same part
 ALSO = {"ho2s": ["oxygen"], "o2": ["oxygen"], "evap": ["evaporative"], "egr": ["exhaust gas recirculation"],
         "ckp": ["crankshaft"], "cmp": ["camshaft"], "map": ["pressure"], "tps": ["throttle"],
         "iat": ["intake air temperature"], "ect": ["coolant"], "maf": ["mass air flow"],
@@ -92,7 +90,7 @@ def _segments(rows, code):
         title = path.split(" > ")[-1].split(" — ")[0]
         title_codes = set(P.CODE_RE.findall(title))
         if prev_sid is not None and sid == prev_sid + 1 and prev_codes is not None:
-            codes, head = prev_codes, prev_head            # a continued section: same procedure as before
+            codes, head = prev_codes, prev_head
         else:
             codes, head = title_codes, title
         seg, seen_row, first_head = [], False, True
@@ -101,7 +99,7 @@ def _segments(rows, code):
             if HEAD_RE.match(st):
                 hc = set(P.CODE_RE.findall(st.split("—")[0]))
                 if first_head and not seen_row and hc == title_codes:
-                    first_head = False                     # the title repeated at the top of the section
+                    first_head = False
                     continue
                 first_head = False
                 if seg:
@@ -154,14 +152,14 @@ def engine_features(text, decode=False):
     if d:
         f["disp"] = d.group(1)
     if decode and "turbo" not in f and not re.search(r"turbo|supercharg", t, re.I):
-        f.pop("turbo", None)        # a trim name that doesn't say turbo doesn't say "not turbo" either
+        f.pop("turbo", None)
     c = re.search(r"\b(SOHC|DOHC)\b", t, re.I)
     if c:
         f["cam"] = c.group(1).upper()
     if re.search(r"turbo|supercharg", t, re.I):
         f["turbo"] = True
     elif (f.get("disp") or f.get("cyl")) and not decode:
-        f["turbo"] = False          # kb descriptions name forced induction when there is one
+        f["turbo"] = False
     return f
 
 
@@ -213,9 +211,9 @@ def procedure(r, code, _seen=None, car_features=None, car=None):
     m = None
     for b in bodies:
         m = m or REFER_ONLY.search(b)
-    segs = [sg for sg in _segments(rows, code) if not sg[4] or code in sg[4]]   # only this code's own charts
+    segs = [sg for sg in _segments(rows, code) if not sg[4] or code in sg[4]]
     parsed = [(sg, {n: st for n, st in P.parse([sg[5]])[1].items() if n < 100}) for sg in segs]
-    if not any(st for _, st in parsed) and m and m.group(2) not in seen:   # "For the diagnostic procedure, refer to DTC X."
+    if not any(st for _, st in parsed) and m and m.group(2) not in seen:
         target = procedure(r, m.group(2), seen, car_features, car)
         if target:
             target["via"] = code
@@ -234,7 +232,6 @@ def procedure(r, code, _seen=None, car_features=None, car=None):
             cur_head = head
         cur["text"] += "\n" + text
         rows_text = " ".join(" ".join(x) for x in steps.values())
-        # under its own DTC heading a chart is this code's chart; the word check is only for tables with no heading
         suspect = not codes and bool(keys) and not _mentions(rows_text, keys)
         if sid not in cur["sections"]:
             cur["sections"].append(sid)
@@ -256,24 +253,24 @@ def procedure(r, code, _seen=None, car_features=None, car=None):
         else:
             kept.append(v)
     year = (car or {}).get("year")
-    if year and len(kept) > 1:       # a chart from a manual whose title names other years only
+    if year and len(kept) > 1:
         yrs = {v["key"]: _doc_years(r, v["sections"][0]) for v in kept}
         if any(year in y for y in yrs.values()):
             excluded += [v["label"] + " (manual for other years)" for v in kept if yrs[v["key"]] and year not in yrs[v["key"]]]
             kept = [v for v in kept if not yrs[v["key"]] or year in yrs[v["key"]]]
     spec = (car or {}).get("spec") or set()
-    if spec and len(kept) > 1:       # market/emission spec sections the car's decode names
+    if spec and len(kept) > 1:
         hit = [v for v in kept if tag_extras(v["tag"]) and tag_extras(v["tag"]) <= set(spec)]
         if hit:
             excluded += [v["label"] + " (other spec)" for v in kept if v not in hit and tag_extras(v["tag"])]
             kept = [v for v in kept if v in hit or not tag_extras(v["tag"])]
     uniq = []
-    for v in kept:                   # the same table printed twice is one chart
+    for v in kept:
         sig = tuple((n, x["step"], x["check"], x["yes"], x["no"]) for n, x in sorted(v["steps"].items()))
         if all(sig != u[0] for u in uniq):
             uniq.append((sig, v))
     kept = [v for _, v in uniq]
-    for v in kept:                   # what tells the remaining ones apart, for the question to the user
+    for v in kept:
         others = [o for o in kept if o is not v]
         diff = sorted({n for o in others for n in set(v["steps"]) | set(o["steps"])
                        if (v["steps"].get(n) or {}).get("check") != (o["steps"].get(n) or {}).get("check")})
@@ -330,10 +327,10 @@ def scan_answers(steps, codes):
     tup = {n: (s["step"], s["check"], s["yes"], s["no"]) for n, s in steps.items() if s["status"] != "broken"}
     out = P.answered(tup, codes)
     have = set(codes)
-    for n, (_, check, _, _) in tup.items():   # "Does the scan tool display DTC X and Y (at the same time)?"
-        listed = P.CODE_RE.findall(check)       # procedures.answered only knows 'indicate' / 'displayed'
+    for n, (_, check, _, _) in tup.items():
+        listed = P.CODE_RE.findall(check)
         m = re.search(r"\b(display|show)s?\b[^?]*?\bDTCs?\b", check, re.I)
-        if n not in out and listed and m and not re.search(r"\bor\b", check[m.end():]):   # 'X or Y': not sure
+        if n not in out and listed and m and not re.search(r"\bor\b", check[m.end():]):
             out[n] = "Yes" if all(c in have for c in listed) else "No"
     return out
 
@@ -346,14 +343,12 @@ def open_car(car, kb_dir):
     return r, path
 
 
-# words that start a manual instruction (plain English imperative verbs; nothing about any car)
 ACTION = re.compile(r"^(?:\d+[.)]\s*)?(measure|check|inspect|verify|turn|disconnect|connect|start|stop|remove|install|"
                     r"test|observe|perform|replace|repair|clear|command|operate|ensure|apply|probe|ignition|"
                     r"raise|run|drive|set|select|read|monitor|record|compare|wiggle|move|backprobe|unplug|"
                     r"plug|locate|key|allow|wait|shake|warm|depress|release|open|close|jump|use)\b", re.I)
 
 
-# block headings on a page; background blocks are skipped when the page also has test blocks
 BLOCK_HEAD = re.compile(r"^(#+\s*)?([A-Z][A-Za-z/ ,()&-]{3,60}|[A-Z][A-Z/ ,()&-]{3,60})$")
 BACKGROUND = re.compile(r"description|conditions? for|action taken|clearing|diagnostic aids|possible cause|reference|"
                         r"descriptor|notice|important|caution|warning|specification|circuit operation|"
@@ -385,7 +380,7 @@ def page_units(body, limit=40):
     blocks. A numbered item ('3.' on its own line) keeps its number: it is that step of the page's table.
     Lines the converter broke mid-sentence are joined; a question or 'If ...' goes with the action before it."""
     blocks = _blocks(body)
-    tests = [(h, ls) for h, ls in blocks if h and TESTING.search(h)]     # 'TEST DESCRIPTION' is a test block
+    tests = [(h, ls) for h, ls in blocks if h and TESTING.search(h)]
     use = tests or [(h, ls) for h, ls in blocks if not (h and BACKGROUND.search(h))] or blocks
     units = []
     for head, ls in use:
@@ -417,7 +412,7 @@ def page_units(body, limit=40):
                 if re.match(r"^(if|does|do|is|are|was|were|did|has|have)\b", sent, re.I) and units:
                     units[-1]["question"] = (units[-1]["question"] + " " + sent).strip()
                 elif step is not None and units and units[-1]["step"] == step and units[-1]["block"] == head:
-                    units[-1]["text"] += " " + sent          # one table step, one prompt
+                    units[-1]["text"] += " " + sent
                 elif (ACTION.match(sent) or step is not None) and len(sent) > 12:
                     units.append({"n": len(units) + 1, "text": sent, "question": "", "block": head, "step": step})
                 if len(units) >= limit:
@@ -473,7 +468,6 @@ def symptom_hits(r, text, k=4):
 from kb_retriever import STOP as _STOPWORDS  # noqa: E402
 
 
-# ------------------------------------------------------------------ symptom charts ("Engine Trouble in General")
 SYM_HEAD = re.compile(r"^(\d{1,2})\)\s+(.+?[.?])\s*(.*)$")
 RANK = re.compile(r"^[ABC]$")
 

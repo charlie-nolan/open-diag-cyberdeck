@@ -29,7 +29,7 @@ def _rows(vin, db):
 
 def vpic_decode(vin, db="vpic"):
     vin = (vin or "").strip().upper()
-    if not VIN_RE.match(vin) or not shutil.which("psql"):    # the VIN check also keeps the SQL literal safe
+    if not VIN_RE.match(vin) or not shutil.which("psql"):
         return None
     try:
         v = _rows(vin, db)

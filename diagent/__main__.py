@@ -60,7 +60,7 @@ def open_case(a, cfg, human, out=print):
         reader = (RealCar(a.make, cfg) if a.car == "real" else NoCar() if a.car == "none"
                   else FakeCar(json.load(open(a.car)).get("fake_car")))
         given = {"vin": a.vin, "make": a.make, "model": a.model, "year": a.year, "engine": a.engine}
-        car, r, path, notes = identify(cfg, human, reader, store, given)   # always first: which car is this
+        car, r, path, notes = identify(cfg, human, reader, store, given)
         for n in notes:
             out(f"[car] {n}")
         if car is None:

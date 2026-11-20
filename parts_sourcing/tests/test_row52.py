@@ -20,7 +20,7 @@ class TestRow52(unittest.TestCase):
         self.assertIn("Year=2002-2008", u)
         self.assertIn("ModelId=4149", u)
         self.assertIn("MakeId=226", u)
-        u = row52.search_url("Subaru", "98155", [2003], "Baja", table=self.t)     # model id unknown: make + years
+        u = row52.search_url("Subaru", "98155", [2003], "Baja", table=self.t)
         self.assertIn("ModelId=&", u)
         self.assertIn("Year=2003&", u)
         self.assertIsNone(row52.search_url("Honda", "98155", [2004], table=self.t))

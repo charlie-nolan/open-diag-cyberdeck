@@ -36,7 +36,7 @@ def part_block(s):
               if len(ic.numbers) > 1 else "")
            + (f" &middot; CHARM list price {html.escape(s['price'])}" if s.get("price") else "") + "</div>",
            '<div class="tiers">']
-    for ln in links:                       # every link in sites.json order (a short list since 2026-10-19)
+    for ln in links:
         out.append(_qr_cell(f"{ln.tier_label}: {ln.label}", ln.url, not ln.verified))
     if rep:
         for y in rep.yards[:3]:

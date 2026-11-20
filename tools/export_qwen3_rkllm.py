@@ -22,11 +22,11 @@ import random
 import sqlite3
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PRESETS = {
     "fast": ("Qwen/Qwen3-1.7B", "Qwen3-1.7B"),
     "deep": ("Qwen/Qwen3-4B-Instruct-2507", "Qwen3-4B-Instruct-2507"),
-    "think": ("Qwen/Qwen3-4B-Thinking-2507", "Qwen3-4B-Thinking-2507"),  # optional "think harder" verdict
+    "think": ("Qwen/Qwen3-4B-Thinking-2507", "Qwen3-4B-Thinking-2507"),
 }
 QUESTIONS = [
     "What does this section of the service manual say, and what should I check first?",
@@ -37,7 +37,6 @@ QUESTIONS = [
 
 
 def chat(user):
-    # Same template the GUI sets at runtime (thinking disabled).
     return (f"<|im_start|>system\nYou are a Subaru diagnostic assistant.<|im_end|>\n"
             f"<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n")
 

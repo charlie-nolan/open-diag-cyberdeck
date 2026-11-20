@@ -7,11 +7,11 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "kb"))
 import build_community as B  # noqa: E402
 
-TWELVE = "one two three four five six seven eight nine ten eleven twelve"   # 12 words, 9 four-word runs
+TWELVE = "one two three four five six seven eight nine ten eleven twelve"
 
 
 def seg(text, kind="reply", score=None):
@@ -33,29 +33,23 @@ class QuoteIn(unittest.TestCase):
         self.assertFalse(B.quote_in("  ,;  ", "anything at all"))
 
     def test_short_quote_must_be_exact(self):
-        # 7 words, one changed: below 8 words there is no fuzzy pass
         self.assertFalse(B.quote_in("one two three four five six SEVEN", "one two three four five six 7even"))
 
     def test_long_quote_at_threshold_passes(self):
-        # change word 1 and word 12: grams 1 and 9 lost, 7/9 = 0.78 >= 0.6
         text = TWELVE.replace("one", "uno").replace("twelve", "doce")
         self.assertTrue(B.quote_in(TWELVE, text))
 
     def test_long_quote_exactly_60_percent(self):
-        # 8 words -> 5 four-word runs; change word 1 and word 8 -> runs 1 and 5 lost, 3/5 = 0.6 passes
         q = "one two three four five six seven eight"
         self.assertTrue(B.quote_in(q, "uno two three four five six seven ocho"))
 
     def test_long_quote_below_threshold_fails(self):
-        # 8 words, word 4 changed: runs 1-4 lost, 1/5 = 0.2
         q = "one two three four five six seven eight"
         self.assertFalse(B.quote_in(q, "one two three FOUR five six seven eight".replace("FOUR", "cuatro")))
 
     def test_long_quote_just_under_60_percent(self):
-        # 12 words -> 9 runs; words 4 and 9 changed lose runs 1-4 and 6-9 (8 runs), 1/9 kept
         text = TWELVE.replace("four", "cuatro").replace("nine", "nueve")
         self.assertFalse(B.quote_in(TWELVE, text))
-        # words 1 and 5 changed: runs 1-5 lost, 4/9 = 0.44 < 0.6
         text = TWELVE.replace("one", "uno").replace("five", "cinco")
         self.assertFalse(B.quote_in(TWELVE, text))
 
@@ -68,7 +62,6 @@ class Supported(unittest.TestCase):
         self.assertFalse(B.supported("alternator", "the water pump was leaking"))
 
     def test_shares_only_stop_word(self):
-        # 'failed' and 'replaced' are on the STOP list: they can't carry support on their own
         self.assertFalse(B.supported("failed alternator", "the pump failed"))
         self.assertFalse(B.supported("replaced alternator", "I replaced the pump"))
 
@@ -91,7 +84,6 @@ class Supported(unittest.TestCase):
         self.assertFalse(B.supported("thermostat", "swapped the radiator"))
 
     def test_short_words_ignored(self):
-        # words under 3 letters are not content words
         self.assertFalse(B.supported("ox valve", "an ox was here"))
 
 
@@ -110,7 +102,7 @@ class NumbersIn(unittest.TestCase):
         self.assertTrue(B.numbers_in("120000 miles", "at 120,000 miles"))
         self.assertTrue(B.numbers_in("120,000 miles", "at 120000 miles"))
         self.assertFalse(B.numbers_in("120000 miles", "at 120,500 miles"))
-        self.assertTrue(B.numbers_in("1,2", "codes 1,2 and 3"))     # a list, not a thousands separator
+        self.assertTrue(B.numbers_in("1,2", "codes 1,2 and 3"))
 
     def test_no_numbers_is_true(self):
         self.assertTrue(B.numbers_in("good", "anything"))
@@ -197,7 +189,6 @@ class Validate(unittest.TestCase):
         self.assertEqual(rec["outcome"]["op_confirmed"], 1)
 
     def test_who_comes_from_segment_not_model(self):
-        # the model claims the OP said it; the segment is a reply
         raw = empty_raw(outcome={"fix": "replace", "component": "gizmo harness", "status": "confirmed", "who": "op",
                                  "came_back": "unknown", "seg": 3, "quote": "My guess was the gizmo harness"})
         rec, _ = B.validate(raw, self.SEGS, p90=10)
@@ -218,7 +209,7 @@ class Validate(unittest.TestCase):
                                  "mileage": "98k", "seg": 0, "quote": "my 2009 Examplecar with 98k miles"})
         rec, ck = B.validate(raw, self.SEGS, p90=10)
         self.assertEqual(rec["vehicle"].get("model"), "Examplecar")
-        self.assertNotIn("year", rec["vehicle"])        # 2010 is not in the quote
+        self.assertNotIn("year", rec["vehicle"])
         self.assertEqual(rec["vehicle"].get("mileage"), "98k")
         self.assertEqual(ck["num_fail"], 1)
 

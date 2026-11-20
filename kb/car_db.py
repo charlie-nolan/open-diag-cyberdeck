@@ -71,7 +71,7 @@ def ro(path):
 
 
 def open_rw(db):
-    c = sqlite3.connect(db, timeout=600, uri=True)    # uri=True: ATTACH file:...?mode=ro works
+    c = sqlite3.connect(db, timeout=600, uri=True)
     c.execute("PRAGMA foreign_keys=OFF")
     return c
 
@@ -113,13 +113,10 @@ def car_vehicle_ids(c, model, year, schema="main"):
                                     (model, int(year)))]
 
 
-# ------------------------------------------------------------------ extras (NHTSA, investigations, StackExchange)
 def cmd_extras(a):
     db = os.path.abspath(a.db)
     work = os.path.dirname(db)
     name = os.path.splitext(os.path.basename(db))[0]
-    # add_nhtsa: its SKIP list keeps the real subaru.db out of batch runs; this is a new file, so clear it.
-    # Marker files (".<make>.nhtsa" etc.) go next to the new DB instead of kb/.
     if not os.path.isfile(os.path.join(HERE, "nhtsa_all.db")):
         print("nhtsa: skipped (kb/nhtsa_all.db missing; build it with kb/add_nhtsa.py --rebuild-cache)")
     else:
@@ -128,10 +125,9 @@ def cmd_extras(a):
         an.HERE = work
         an.add(db)
     import knowledge_load
-    # import both loaders first: their data paths (RAW, CACHE) are computed from knowledge_load.HERE at import
     inv = importlib.import_module("add_investigations")
     se = importlib.import_module("add_stackexchange")
-    knowledge_load.HERE = work          # only write_kind's marker file reads it from here on
+    knowledge_load.HERE = work
     if os.path.isfile(os.path.join(inv.RAW, "FLAT_INV.zip")):
         data = inv.load(os.path.join(inv.RAW, "FLAT_INV.zip"))
         found = {}
@@ -150,7 +146,6 @@ def cmd_extras(a):
         print("stackexchange: skipped (kb/stackexchange_qa.db missing; kb/add_stackexchange.py builds it)")
 
 
-# ------------------------------------------------------------------ copy one car's pages from a make DB
 def cmd_copy_docs(a):
     c = open_rw(a.db)
     c.execute("ATTACH DATABASE ? AS s", (ro(a.src),))
@@ -167,7 +162,6 @@ def cmd_copy_docs(a):
     if not docs:
         print(f"copy-docs: {a.src} has no {'/'.join(kinds)} pages for {a.year} {a.model}")
         return
-    # vehicles: same (model, chassis, year, engine, market) -> reuse; else insert
     vmap = {}
     for vid, model, chassis, year, engine, trans, market in c.execute(
             f"SELECT id, model, chassis, year, engine, transmission, market FROM s.vehicle WHERE id IN ({q})", vids):
@@ -227,7 +221,6 @@ def cmd_copy_docs(a):
     print("copy-docs:", ", ".join(f"{k}: {v} pages" for k, v in st.items()), "| totals", n)
 
 
-# ------------------------------------------------------------------ schema copy for comm_* / telem_*
 def copy_schema(c, prefix):
     """Create the src tables (and indexes) whose name starts with prefix, vec0/fts5 shadow tables excluded."""
     objs = c.execute("SELECT type, name, tbl_name, sql FROM s.sqlite_master WHERE name LIKE ? AND sql IS NOT NULL",
@@ -268,7 +261,6 @@ def copy_vectors(c, vec, ids_sql):
     return c.execute(f"SELECT count(*) FROM main.{vec}").fetchone()[0]
 
 
-# ------------------------------------------------------------------ community
 COMM_KINDS = {"outcome": ("comm_outcome", "thread_id"), "ruled_out": ("comm_ruled_out", "id"),
               "suggestion": ("comm_suggestion", "id"), "test": ("comm_test", "id"),
               "chain": ("comm_chain", "id"), "symptom": ("comm_symptom", "id")}
@@ -283,8 +275,8 @@ def cmd_community(a, remap=True):
         return
     copy_schema(c, "comm_")
     names = model_names(a.model)
-    make = os.path.splitext(os.path.basename(a.db))[0].replace("_", " ").upper()   # built as <make>.db
-    names = names + [f"{make} {n}" for n in names]          # extracted records also write "<Make> <Model>"
+    make = os.path.splitext(os.path.basename(a.db))[0].replace("_", " ").upper()
+    names = names + [f"{make} {n}" for n in names]
     q = ",".join("?" * len(names))
     y = int(a.year)
     y0, y1 = (int(x) for x in a.years.split("-")) if getattr(a, "years", None) else (y - a.window, y + a.window)
@@ -306,9 +298,9 @@ def cmd_community(a, remap=True):
         n["comm_count"] = copy_rows(c, "comm_count", f"WHERE x.model IS NULL OR upper(x.model) IN ({q})", names)
     if has_table(c, "comm_link", "s"):
         c.execute("CREATE TEMP TABLE m (old INTEGER PRIMARY KEY, new INTEGER)")
-        if remap:     # make DB: its section ids -> this DB's by page text hash
+        if remap:
             c.executemany("INSERT INTO m VALUES (?,?)", section_map(c).items())
-        else:         # fresh tables step: links were made against this DB already
+        else:
             c.execute("INSERT INTO m SELECT id, id FROM main.section")
         for kind, (tab, key) in COMM_KINDS.items():
             if not has_table(c, tab):
@@ -324,7 +316,6 @@ def cmd_community(a, remap=True):
     print("community:", ", ".join(f"{k} {v}" for k, v in n.items()))
 
 
-# ------------------------------------------------------------------ community from the raw scrape (fresh extraction)
 def _bc(work_dir, make, log=None):
     """build_community.py as a library, its work/output folders pointed at work_dir (nothing in kb/ is written)."""
     bc = importlib.import_module("build_community")
@@ -351,7 +342,7 @@ def cmd_community_select(a):
     names = model_names(a.model)
     wre = _word_re(names)
     y0, y1 = a.year - a.window, a.year + a.window
-    if a.years:                      # explicit range, e.g. the car's generation: 1998-2002
+    if a.years:
         y0, y1 = (int(x) for x in a.years.split("-"))
     stage = os.path.join(os.path.abspath(a.work_dir), "_prefilter")
     bc = _bc(stage, make, a.log)
@@ -382,7 +373,6 @@ def cmd_community_select(a):
         why[hit] += 1
         why["year_in_window" if ys else "no_year"] += 1
         keep.append((src, tid))
-    # the extraction's own filters (build_community.thread_filter), so the budget counts what would really run
     ns = argparse.Namespace(pilot=False, min_replies=a.min_replies, any_of=a.any_of)
     where, args = bc.thread_filter(ns)
     w0.execute("CREATE TEMP TABLE k (src TEXT, tid TEXT, PRIMARY KEY (src, tid))")
@@ -399,7 +389,7 @@ def cmd_community_select(a):
     if w.execute("SELECT count(*) FROM extract").fetchone()[0] and not a.force:
         sys.exit(f"community-select: {out}/{make}.work.db already has extractions; --force replaces the selection")
     w.execute("DELETE FROM thread")
-    w.execute("ATTACH DATABASE ? AS p", (os.path.join(stage, f"{make}.work.db"),))   # our own staging copy
+    w.execute("ATTACH DATABASE ? AS p", (os.path.join(stage, f"{make}.work.db"),))
     w.execute("CREATE TEMP TABLE c (src TEXT, tid TEXT, PRIMARY KEY (src, tid))")
     w.executemany("INSERT INTO c VALUES (?,?)", chosen)
     w.execute("INSERT INTO thread SELECT t.* FROM p.thread t JOIN c ON c.src=t.src AND c.tid=t.tid")
@@ -424,7 +414,7 @@ def cmd_community_load(a):
     bc = _bc(a.work_dir, make, a.log)
     if not os.path.isfile(os.path.join(bc.WORK, f"{make}.work.db")):
         sys.exit(f"community-load: no {bc.WORK}/{make}.work.db (run community-select and the extraction first)")
-    bc.KB = os.path.dirname(db)          # links(): the manual sections searched are this DB's
+    bc.KB = os.path.dirname(db)
     t0 = time.time()
     bc.step_tables(make, argparse.Namespace(pilot=False, vec=False))
     t1 = time.time()
@@ -436,7 +426,6 @@ def cmd_community_load(a):
     print(f"community-load: tables {t1 - t0:.0f} s, embed {t2 - t1:.0f} s, copy {time.time() - t2:.0f} s")
 
 
-# ------------------------------------------------------------------ telemetry
 def cmd_telemetry(a):
     c = open_rw(a.db)
     load_vec(c)
@@ -464,7 +453,6 @@ def cmd_telemetry(a):
         cl = cols(c, t)
         sel = ", ".join("m.new" if k == "section_id" else f"x.{k}" for k in cl)
         join = "JOIN m ON m.old=x.section_id" if need else "LEFT JOIN m ON m.old=x.section_id"
-        # zones quote their row, so a zone whose page isn't in this DB keeps the quote with no page id
         c.execute(f"INSERT OR IGNORE INTO main.{t}({', '.join(cl)}) SELECT {sel} FROM s.{t} x {join} WHERE {scope}",
                   names + [y])
         n[t] = c.execute(f"SELECT count(*) FROM main.{t}").fetchone()[0]
@@ -474,7 +462,6 @@ def cmd_telemetry(a):
     print("telemetry:", ", ".join(f"{k} {v}" for k, v in n.items()))
 
 
-# ------------------------------------------------------------------ trim
 def cmd_trim(a):
     c = open_rw(a.db)
     load_vec(c)
@@ -499,7 +486,6 @@ def cmd_trim(a):
     if has_table(c, "section_vec"):
         c.execute(f"DELETE FROM section_vec WHERE id IN ({gone})")
     c.execute(f"DELETE FROM section WHERE id IN ({gone})")
-    # knowledge: rows with no model are make-wide and stay; others need this model and an overlapping year range
     kdel = (f"SELECT id FROM knowledge WHERE model IS NOT NULL AND trim(model) != '' AND NOT ("
             f"upper(model) IN ({q}) AND coalesce(year_min, 0) <= ? AND coalesce(year_max, year_min, 9999) >= ?)")
     if has_table(c, "knowledge_vec"):
@@ -523,7 +509,6 @@ def cmd_trim(a):
     print("trim:", ", ".join(f"{t} {before[t]} -> {after[t]}" for t in before))
 
 
-# ------------------------------------------------------------------ reuse vectors (optional)
 def cmd_reuse_vectors(a):
     c = open_rw(a.db)
     if not load_vec(c):
@@ -560,7 +545,6 @@ def cmd_reuse_vectors(a):
     c.commit()
 
 
-# ------------------------------------------------------------------ pictures inside the DB
 PICTURE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS picture (key TEXT PRIMARY KEY, data BLOB NOT NULL, fmt TEXT, width INTEGER, height INTEGER);
 CREATE TABLE IF NOT EXISTS picture_read (key TEXT PRIMARY KEY, state TEXT NOT NULL, text TEXT, unverified TEXT,
@@ -591,7 +575,6 @@ def cmd_images(a):
     c.executescript(PICTURE_SCHEMA)
     n = {"fsm": 0, "fsm missing": 0, "charm": 0, "charm missing": 0, "readings": 0}
     size = 0
-    # factory-manual figures: <fsm-dir>/<doc title>/<name>, as the PDF converter wrote them
     fsm_dirs = [os.path.expanduser(d) for d in (a.fsm_dir or [])]
     for doc_id, title in c.execute("SELECT id, title FROM doc WHERE kind='fsm'").fetchall():
         names = set()
@@ -608,7 +591,7 @@ def cmd_images(a):
                 continue
             try:
                 with open(src, "rb") as f:
-                    data, w, h = _webp(f.read(), a.max_px, a.quality, gray=True)   # line art: gray is enough
+                    data, w, h = _webp(f.read(), a.max_px, a.quality, gray=True)
             except Exception as e:
                 print(f"  skipped {src}: {e}", file=sys.stderr)
                 continue
@@ -616,12 +599,11 @@ def cmd_images(a):
             n["fsm"] += 1
             size += len(data)
         c.commit()
-    # CHARM page pictures: section.images keys ("/images/..."), bytes from the images LMDB
     keys = set()
     for (imgs,) in c.execute("SELECT images FROM section WHERE images LIKE '%/images/%'"):
         keys.update(x for x in json.loads(imgs) if x.startswith("/images/"))
     all_keys = set(keys)
-    keys = {k for k in keys if not c.execute("SELECT 1 FROM picture WHERE key=?", (k,)).fetchone()}  # stored already
+    keys = {k for k in keys if not c.execute("SELECT 1 FROM picture WHERE key=?", (k,)).fetchone()}
     lmdb_dir = os.path.expanduser(a.lmdb) if a.lmdb else ""
     if keys and lmdb_dir and os.path.isfile(os.path.join(lmdb_dir, "data.mdb")):
         import io
@@ -640,11 +622,11 @@ def cmd_images(a):
                 try:
                     with Image.open(io.BytesIO(data)) as im:
                         fmt, w, h = (im.format or "").lower(), im.width, im.height
-                    if w > a.charm_max_px or len(data) > a.charm_max_bytes:   # wiring diagrams keep their colour
+                    if w > a.charm_max_px or len(data) > a.charm_max_bytes:
                         data, w, h = _webp(data, a.charm_max_px, 82, gray=False)
                         fmt = "webp"
                 except Exception:
-                    pass                                                       # stored as it came
+                    pass
                 c.execute("INSERT INTO picture VALUES (?,?,?,?,?)", (key, data, fmt, w, h))
                 n["charm"] += 1
                 size += len(data)
@@ -655,7 +637,6 @@ def cmd_images(a):
     elif keys:
         print(f"images: {len(keys)} CHARM pictures listed, but no CHARM images LMDB at '{lmdb_dir}' (--lmdb); "
               "the app will fetch them from a picture server instead, if one is set")
-    # chart readings the PC's vision model already made (optional)
     reads = os.path.expanduser(a.reads_db)
     keys = all_keys
     if keys and os.path.isfile(reads):
@@ -672,8 +653,6 @@ def cmd_images(a):
           f"{total / 1e6:.0f} MB of pictures in the DB")
 
 
-
-# ------------------------------------------------------------------ HTML manual folder (LEMON download, CHARM-style pages)
 def _html_root(path, scratch):
     """A .zip is extracted into scratch; returns the folder that holds pages/ (or the HTML files)."""
     import zipfile
@@ -682,7 +661,7 @@ def _html_root(path, scratch):
         dest = os.path.join(scratch, os.path.splitext(os.path.basename(path))[0])
         if not os.path.isdir(dest):
             with zipfile.ZipFile(path) as z:
-                for m in z.namelist():                     # no absolute or ../ paths out of dest
+                for m in z.namelist():
                     if m.startswith("/") or ".." in m.split("/"):
                         sys.exit(f"html-manual: unsafe path in zip: {m}")
                 z.extractall(dest)
@@ -728,12 +707,12 @@ def cmd_html_manual(a):
     for fp in files:
         raw = open(fp, encoding="utf-8", errors="replace").read()
         if "id='expand-all'" in raw[:4000] or 'id="expand-all"' in raw[:4000]:
-            st["listing"] += 1                              # a list of links, no content
+            st["listing"] += 1
             continue
         soup = BeautifulSoup(raw, "lxml")
         crumbs = [x.get_text(" ", strip=True) for x in soup.select(".breadcrumb-part")]
         model_full = None
-        if len(crumbs) >= 4 and crumbs[2] == str(a.year):   # Home > Make > Year > Model ... (LEMON/CHARM layout)
+        if len(crumbs) >= 4 and crumbs[2] == str(a.year):
             model_full, crumbs = crumbs[3], crumbs[4:]
         elif not crumbs:
             h1 = soup.find("h1")
@@ -821,7 +800,6 @@ def cmd_html_manual(a):
     print("html-manual:", ", ".join(f"{k} {v}" for k, v in st.items()))
 
 
-# ------------------------------------------------------------------ check
 QUERIES = ("P0301", "P0420", "coolant capacity", "front brake caliper bolt torque", "spark plug replacement",
            "engine oil capacity")
 
@@ -884,7 +862,6 @@ def cmd_check(a):
             with open(a.json, "w") as f:
                 json.dump(report, f, indent=1)
         return
-    # retriever: open the DB under the make's file name (a symlink dir), as the app does
     app_db = a.app_db or a.db
     try:
         from kb_retriever import Retriever
@@ -912,8 +889,6 @@ def cmd_check(a):
             json.dump(report, f, indent=1)
 
 
-
-# ------------------------------------------------------------------ vision: read the DB's charts and spec tables
 VISION_PROMPT = (
     "This is a picture from a vehicle service manual. If it is a diagnostic chart or flowchart, transcribe it "
     "exactly. For each numbered step write:\n### Step N\nCheck: <the check, word for word>\nYES: <what the YES "
@@ -922,7 +897,7 @@ VISION_PROMPT = (
     "shown'. If it is a table, transcribe it as a markdown table. If it is not a chart or table (a wiring diagram, "
     "connector view, photo or drawing), reply with one line starting 'NOT A CHART:' saying what it shows, then list "
     "the printed labels and numbers. Do not add steps or advice. Write [illegible] for anything you can't read.")
-VISION_MARK = "[PICTURE READ"          # first line of every section this step writes (app/procedures.py keeps it)
+VISION_MARK = "[PICTURE READ"
 VISION_SCHEMA = """
 CREATE TABLE IF NOT EXISTS picture_section (section_id INTEGER PRIMARY KEY, src_section_id INTEGER NOT NULL,
   kind TEXT NOT NULL, keys TEXT NOT NULL);
@@ -992,7 +967,7 @@ def _read_one(data, a):
         if im.width < 200 or im.height < 120:
             return "skipped", "too small to be a chart (icon or arrow)", None, False, 0, 0, 0.0
         im = im.convert("RGB")
-        if im.width < 1000:      # small line art reads better at about 2x
+        if im.width < 1000:
             f = min(2.0, 1000 / im.width)
             im = im.resize((round(im.width * f), round(im.height * f)), Image.LANCZOS)
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as t:
@@ -1000,7 +975,7 @@ def _read_one(data, a):
             png = t.name
     try:
         tess = ""
-        if shutil.which("tesseract"):    # numbers the model writes that tesseract can't find are marked unverified
+        if shutil.which("tesseract"):
             tess = subprocess.run(["tesseract", png, "-", "--psm", "3"], capture_output=True, text=True,
                                   timeout=120).stdout
         payload = {"model": a.model, "stream": False, "think": False, "keep_alive": "10m",
@@ -1055,7 +1030,6 @@ def _vision_specs(text, path):
     lines = [ln.strip() for ln in (text or "").split("\n")]
     rows = list(b.table_specs(lines, path))
     used = {r[4] for r in rows}
-    # Subaru style: a header "N·m (kgf·m, ft·lb)" once, then values "22 (2.2, 16)" in rows or callouts ("T1: 22 (2.2, 16)")
     triple = re.compile(r"(?<![\d.])(\d+(?:\.\d+)?)\s*\(\s*\d+(?:\.\d+)?\s*,\s*(\d+(?:\.\d+)?)\s*\)")
     header = False
     for ln in lines:
@@ -1064,7 +1038,7 @@ def _vision_specs(text, path):
             if not triple.search(ln.split("ft", 1)[-1]):
                 continue
         if not header or not triple.search(ln) or b.TORQUE_RE.search(ln) or \
-                re.match(r"(?:#|check\s*:|yes\s*:|no\s*:)", ln, re.I):   # the chart form repeats the table
+                re.match(r"(?:#|check\s*:|yes\s*:|no\s*:)", ln, re.I):
             continue
         cells = [x.strip() for x in ln.strip("|").split("|")] if "|" in ln else [ln]
         for cell in cells[1:] if len(cells) > 1 else cells:
@@ -1073,8 +1047,8 @@ def _vision_specs(text, path):
                 continue
             label = cells[0] if len(cells) > 1 else re.sub(r"\s*:?\s*" + re.escape(m.group(0)) + r".*$", "", cell).strip()
             label = re.sub(r"N\s*[·.]?\s*m\s*\(.*?\)", "", label).strip(" :")
-            if re.fullmatch(r"T\d*", label or "T"):            # a callout on the drawing: what the drawing shows (the
-                d = re.search(r"NOT A CHART:.*?\b(?:of|shows?|showing)\s+(?:an?\s+|the\s+)?(.+?)"   # reader's own line)
+            if re.fullmatch(r"T\d*", label or "T"):
+                d = re.search(r"NOT A CHART:.*?\b(?:of|shows?|showing)\s+(?:an?\s+|the\s+)?(.+?)"
                               r"(?:\s+with\b|\s+and\b|\s+including\b|[.,;(]|$)", text or "", re.I | re.M)
                 what = d.group(1).strip() if d and len(d.group(1)) < 80 else b._page_subject(path)
                 label = f"{what} ({label or 'T'} on the picture; {b._page_subject(path)})"
@@ -1140,7 +1114,6 @@ def vision_apply(c, classes):
                 not reads[key][0].lstrip().upper().startswith("NOT A CHART")
                 or kind == "spec_table" and re.search(r"N\s*[·.]?\s*m|ft\s*[·.\-]?\s*lb", reads[key][0])):
             by_page.setdefault(sid, []).append((key, kind))
-    # spec rows
     c.execute("DELETE FROM spec WHERE raw LIKE 'image %'")
     n_spec = 0
     paths = dict(c.execute("SELECT id, path FROM section"))
@@ -1158,7 +1131,6 @@ def vision_apply(c, classes):
         c.execute("DELETE FROM spec_fts")
         c.execute("INSERT INTO spec_fts(rowid, component, context) SELECT p.id, p.component, "
                   "coalesce(s.topic,'') || ' ' || s.title FROM spec p JOIN section s ON s.id=p.section_id")
-    # one text section per page
     n_sec = n_steps_pages = 0
     for sid, keys in by_page.items():
         src = c.execute("SELECT doc_id, chapter, topic, title, path, page FROM section WHERE id=?", (sid,)).fetchone()
@@ -1213,7 +1185,6 @@ def cmd_vision(a):
     specs0 = c.execute("SELECT count(*) FROM spec").fetchone()[0]
     classes = vision_classes(c)
     have = {r[0] for r in c.execute("SELECT key FROM picture_read WHERE state IN ('done','skipped')")}
-    # codes whose procedure the manual already gives as text steps: their pictures are copies or wiring
     code_pages = {}
     for code, sid in c.execute("SELECT code, section_id FROM dtc_procedure"):
         code_pages.setdefault(sid, set()).add(code)
@@ -1278,8 +1249,6 @@ def cmd_vision(a):
         print("vision: the new sections have no vectors yet: run build_subaru_kb.py --db <db> embed --missing", flush=True)
 
 
-
-# ------------------------------------------------------------------ threads: this car's raw owner threads (optional)
 def cmd_threads(a):
     """This car's raw Reddit/forum threads, with their vectors, from an existing kb/<make>.threads.db (the file
     build_community.py raw + rawembed made) into <car db>.threads.db, the file app/community_ref.raw_threads reads
@@ -1335,7 +1304,6 @@ def cmd_threads(a):
     print(f"threads: {len(keep)} threads ({nv} with vectors) -> {out} ({os.path.getsize(out) / 1e6:.0f} MB)")
 
 
-# ------------------------------------------------------------------ scope: the car's own codes and telemetry (optional)
 CAR_DTC_SCHEMA = """
 CREATE TABLE IF NOT EXISTS car_dtc (code TEXT PRIMARY KEY, description TEXT, page INTEGER NOT NULL DEFAULT 0,
   named INTEGER NOT NULL DEFAULT 0, ssm INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL) WITHOUT ROWID;
@@ -1366,7 +1334,7 @@ def cmd_scope(a):
                              f"SELECT s.body FROM section s WHERE s.id IN (SELECT section_id FROM section_vehicle "
                              f"WHERE vehicle_id IN ({vq}))", veh):
         ranges = set(re.findall(r"\b([PBCU][0-3][0-9A-F]{3})\s*[-–]\s*([PBCU][0-3][0-9A-F]{3})\b", body or ""))
-        bounds = {x for pair in ranges for x in pair}          # "P0340 - P0505" is a range heading, not a code
+        bounds = {x for pair in ranges for x in pair}
         for code in set(code_re.findall(body or "")) - bounds:
             rows.setdefault(code, {"page": 0, "named": 0})["named"] = 1
     desc = dict(c.execute("SELECT code, description FROM dtc")) if has_table(c, "dtc") else {}
@@ -1377,7 +1345,6 @@ def cmd_scope(a):
         c.execute("INSERT INTO car_dtc VALUES (?,?,?,?,?,?)",
                   (code, desc.get(code), r["page"], r["named"], int(code in ssm), src))
     n_codes = len(rows)
-    # telemetry trims, each copied to the side file first
     side = (a.db[:-3] if a.db.endswith(".db") else a.db) + ".make_tables.db"
     c.execute("ATTACH DATABASE ? AS m", (side,))
     trims = []

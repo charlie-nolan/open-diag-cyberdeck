@@ -30,11 +30,10 @@ import time
 
 import pymupdf
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PDF_DIR = os.path.join(ROOT, "manual_pdfs")
 OUT_DIR = os.path.join(ROOT, "test_batch_out")
 
-# The manuals whose marker conversion damaged the diagnostic charts (found 2026-10-19).
 MANUALS = [
     "Forester_SG/USDM Forester FSM 2004 G8080BE_V14 (SG).pdf",
     "Impreza_GD/Subaru Impreza 2002.pdf",
@@ -42,27 +41,22 @@ MANUALS = [
     "Outback_BP/2005 Service Manual USDM.pdf",
     "Outback_BP/2008 Service Manual.pdf",
     "Outback_BP/2009 Service Manual USDM.pdf",
-    # Two-column manuals whose step charts print CHECK / YES / NO as pictures (2026-10-21).
     "Forester_SF/USDM Forester FSM 1999 MSA5TCD99F (SF).pdf",
     "Forester_SF/USDM Forester FSM 2000 G8030BE_V1 (SF).pdf",
     "Forester_SF/USDM Forester FSM 2001 G8040BE_V1 (SF).pdf",
 ]
 
-HEADER_BAND = 52        # running heads (chapter name, topic name) sit above this, in points
-FOOTER_BAND = 48        # page id ("EN(H4SO)-98") sits within this of the bottom
-FIGURE_FONT = 8.0       # lines whose largest font is smaller are figure labels (wiring diagrams, callouts)
-PAGE_ID_RE = re.compile(r"^([A-Z]{1,4}(?:\([A-Za-z0-9 ]+\)){0,2})\s*-\s*\d+$")   # EN(H4SO)-98, EN(H4SO)(diag)-158, ME-87
-# The 1999-2001 Subaru FSM step-chart icons: the CHECK / YES / NO marks in front of a step's question and its two
-# answers are small pictures, so the text layer has only ': ...'. Matched by image digest (first 8 hex digits),
-# never by xref: 1999 puts YES and NO inline, with no xref.
+HEADER_BAND = 52
+FOOTER_BAND = 48
+FIGURE_FONT = 8.0
+PAGE_ID_RE = re.compile(r"^([A-Z]{1,4}(?:\([A-Za-z0-9 ]+\)){0,2})\s*-\s*\d+$")
 ICON_LABELS = {"e9b070c3": "CHECK", "bab6e7e6": "YES", "2e7a1dbc": "NO"}
-STEP_LABEL_RE = re.compile(r"^(?:#+\s*)?(\d{1,2}[A-Z]{1,3})(\d{1,2})\s*:\s*(.*)$")     # '10AC1 :', '1B2 : CHECK ...'
+STEP_LABEL_RE = re.compile(r"^(?:#+\s*)?(\d{1,2}[A-Z]{1,3})(\d{1,2})\s*:\s*(.*)$")
 CHART_LABEL_RE = re.compile(r"^(CHECK|YES|NO): (.*)$")
 NEW_ITEM_RE = re.compile(r"^(\d{1,2}\)|\(\d{1,2}\)|[•·▪●]|NOTE|CAUTION|WARNING|Connector|Terminal|"
                          r"[A-Z]\s*:|\*\d|#\d|\(\w{1,4}\)\s*No\.|[A-Z][A-Z ]{3,}:$)")
 
 
-# ---------------------------------------------------------------------------------------------- text helpers
 def join_lines(lines):
     """Wrapped lines -> logical lines. A line continues the previous one unless it starts a new item
     (numbered step, bullet, NOTE, connector line), the previous one ended a sentence, or the font changed
@@ -75,11 +69,11 @@ def join_lines(lines):
         if not ln:
             continue
         prev = out[-1] if out else ""
-        open_ref = prev.count("<") > prev.count(">")          # '<Ref.' wrapped onto the next line
+        open_ref = prev.count("<") > prev.count(">")
         same_font = bold is None or last_bold is None or bold == last_bold
         if out and (open_ref or (same_font and not NEW_ITEM_RE.match(ln) and not re.search(r"[.:?!]$", prev))):
             if prev.endswith("-") and re.match(r"[a-zA-Z]", ln) and not re.search(r"\s-$", prev):
-                out[-1] = prev[:-1] + ln                    # "chas-" + "sis ground" -> "chassis ground"
+                out[-1] = prev[:-1] + ln
             else:
                 out[-1] = prev + " " + ln
         else:
@@ -116,7 +110,6 @@ def md_cell(s):
     return s.replace("\n", "; ").replace("|", "/").strip()
 
 
-# ---------------------------------------------------------------------------------------------- tables
 STEP_HEAD = ("step", "check", "yes", "no")
 
 
@@ -138,7 +131,7 @@ def table_md(page, tab, state):
         state["in_steps"], state["step_cols"] = True, len(texts[0])
         for cells in body:
             cells = cells + [""] * (5 - len(cells)) if len(cells) < 4 else cells
-            if len(cells) == 4:                     # number and step share the first column
+            if len(cells) == 4:
                 m = re.match(r"^(\d{1,2})(?:;\s*|\s+)(.*)$", cells[0], re.S)
                 num, step = (m.group(1), m.group(2)) if m else ("", cells[0])
                 cells = [num, step] + cells[1:]
@@ -155,7 +148,6 @@ def table_md(page, tab, state):
     return out
 
 
-# ---------------------------------------------------------------------------------------------- headings
 def classify_line(spans, text):
     """Markdown heading level for a line from its font, or 0 for body text."""
     size = max(s["size"] for s in spans)
@@ -163,17 +155,16 @@ def classify_line(spans, text):
     if not bold:
         return 0
     if size >= 15.5 and re.match(r"^\d{1,2}\.", text):
-        return 2                                   # "12.Inspection Mode"  (topic)
+        return 2
     if size >= 13.5 and re.match(r"^[A-Z]{1,2}\s*:", text):
-        return 3                                   # "A: OPERATION", "G: DTC P0066 — ..."  (procedure)
+        return 3
     if size >= 13.5:
         return 2
     if size >= 10.5 and text.endswith(":") and len(text) < 60:
-        return 4                                   # "CAUTION:", "DTC DETECTING CONDITION:"
+        return 4
     return 0
 
 
-# ---------------------------------------------------------------------------------------------- figures
 def figure_rects(page, tables, icons=()):
     """Areas that are pictures: raster images and clusters of vector drawing (wiring diagrams), minus tables
     and the step-chart icons."""
@@ -193,10 +184,10 @@ def figure_rects(page, tables, icons=()):
         if r.width < 60 or r.height < 40 or r.y1 < HEADER_BAND or r.y0 > page.rect.height - FOOTER_BAND:
             continue
         if any(pymupdf.Rect(t.bbox).intersects(r) and pymupdf.Rect(t.bbox).contains(r.tl) for t in tables):
-            continue                               # a table's own ruling lines
+            continue
         if any(abs(pymupdf.Rect(t.bbox) & r) > 0.6 * abs(r) for t in tables):
             continue
-        if rules_only(page, r):                    # ruled rows find_tables didn't take: text, not a picture
+        if rules_only(page, r):
             continue
         rects.append(r)
     merged = []
@@ -281,8 +272,7 @@ def ruled_table(page, r, min_gap=4):
             bounds.append(x0 + i - run / 2)
         run = 0
     cols = [area.x0] + bounds + [area.x1]
-    # a gap inside one cell (an indented line) makes a column no word starts in: merge it into its left neighbour
-    body = [w for w in words if (w[1] + w[3]) / 2 >= ys[1]] or words    # the header row may sit off-grid
+    body = [w for w in words if (w[1] + w[3]) / 2 >= ys[1]] or words
     starts = [w[0] for w in body]
     cols = [c for i, c in enumerate(cols) if i in (0, len(cols) - 1)
             or any(c <= x < cols[i + 1] for x in starts)]
@@ -346,16 +336,15 @@ def inside(rect, box, frac=0.6):
     return abs(rect) > 0 and abs(inter) >= frac * abs(rect)
 
 
-# ---------------------------------------------------------------------------------------------- one page
 def page_md(doc, pno, out_dir, images, state):
     page = doc[pno]
     H = page.rect.height
-    items = []                                     # (y, x, kind, payload, x1)
+    items = []
     try:
         tables = [t for t in page.find_tables().tables if t.row_count >= 1 and t.col_count >= 2]
     except Exception:
         tables = []
-    if not tables:                                 # rows ruled, columns not: read it as a table, not a picture
+    if not tables:
         try:
             for r in page.cluster_drawings():
                 r = pymupdf.Rect(r)
@@ -389,10 +378,10 @@ def page_md(doc, pno, out_dir, images, state):
             if not spans:
                 continue
             text = re.sub(r"\s+", " ", "".join(span_text(s) for s in line["spans"])).strip()
-            text = re.sub(r"^([A-Z]{1,2}):(?=\S)", r"\1: ", text)      # 'AT:DTC P0301' -> 'AT: DTC P0301'
+            text = re.sub(r"^([A-Z]{1,2}):(?=\S)", r"\1: ", text)
             x0, y0, x1, y1 = line["bbox"]
             if y1 <= HEADER_BAND:
-                continue                           # running heads: repeated on every page
+                continue
             if y0 >= H - FOOTER_BAND:
                 if PAGE_ID_RE.match(text):
                     page_id = text
@@ -400,12 +389,12 @@ def page_md(doc, pno, out_dir, images, state):
             if any(inside(line["bbox"], pymupdf.Rect(t.bbox)) for t in tables):
                 continue
             if any(inside(line["bbox"], f) for f in figs) or max(s["size"] for s in spans) < FIGURE_FONT:
-                continue                           # labels inside a picture
+                continue
             label = icon_label(icons, line["bbox"], text) if icons else None
             if label:
                 items.append((y0, x0, "label", f"{label}: {text[1:].strip()}", x1))
             elif icons and STEP_LABEL_RE.match(text):
-                items.append((y0, x0, "label", text, x1))     # '10AC1 :' starts a step, not a heading
+                items.append((y0, x0, "label", text, x1))
             else:
                 items.append((y0, x0, "text", (classify_line(spans, text), text), x1))
 
@@ -429,7 +418,7 @@ def page_md(doc, pno, out_dir, images, state):
             para = []
 
     for y, x, kind, payload, _ in items:
-        if kind == "label":                        # a step label or an icon-marked line: always its own line
+        if kind == "label":
             flush()
             last_head.clear()
             para.append(payload)
@@ -451,7 +440,7 @@ def page_md(doc, pno, out_dir, images, state):
             prev_head = last_head.get("i")
             if (prev_head is not None and level in (2, 3) and last_head["level"] == 3 and y - last_head["y"] < 24
                     and not re.match(r"^\d{1,2}\.|^[A-Z]{1,2}\s*:", text)):
-                h = lines[prev_head]               # a procedure title wrapped onto a second line
+                h = lines[prev_head]
                 lines[prev_head] = (h[:-1] + text) if h.endswith("-") and not h.endswith(" -") else h + " " + text
                 last_head["y"] = y
                 continue
@@ -478,7 +467,7 @@ def link_stacked_dtcs(lines):
         between = [l for l in lines[i + 1:j] if l.strip() and not l.startswith("<span id=\"page-")]
         if between:
             continue
-        last = nxt                                  # follow the stack to its last heading
+        last = nxt
         for m in range(n + 1, len(heads) - 1):
             a, b = heads[m], heads[m + 1]
             if [l for l in lines[a[0] + 1:b[0]] if l.strip() and not l.startswith("<span id=\"page-")]:
@@ -556,7 +545,7 @@ def chart_tables(lines):
             st["f"][lab.group(1)].append([lab.group(2)])
             st["cur"] = st["f"][lab.group(1)][-1]
         else:
-            st["cur"].append(s.lstrip("# "))     # continuation lines and NOTEs belong to the item above
+            st["cur"].append(s.lstrip("# "))
     end()
     return out
 
@@ -576,7 +565,6 @@ def chapter_names(doc):
     return out
 
 
-# ---------------------------------------------------------------------------------------------- driver
 def convert(pdf, out_md, pages=None, images=True):
     doc = pymupdf.open(pdf)
     out_dir = os.path.dirname(out_md)
@@ -592,7 +580,7 @@ def convert(pdf, out_md, pages=None, images=True):
         if i % 100 == 99:
             print(f"  page {pno + 1}/{doc.page_count}  ({time.time() - t0:.0f} s)", flush=True)
     with open(tmp, "w", encoding="utf-8") as f:
-        if state.get("icon_charts"):            # only manuals that print CHECK / YES / NO as icons
+        if state.get("icon_charts"):
             lines = chart_tables(lines)
         f.write("\n".join(link_stacked_dtcs(lines)) + "\n")
     os.replace(tmp, out_md)
@@ -636,7 +624,7 @@ def main():
             continue
         if os.path.isfile(out_md) and not a.out:
             bak = out_md + ".bak-" + time.strftime("%Y%m%d-%H%M%S")
-            shutil.move(out_md, bak)               # keep marker's version
+            shutil.move(out_md, bak)
             print(f"  kept the old one as {os.path.basename(bak)}")
         print(f"[CONVERT] {name}", flush=True)
         n = convert(pdf, out_md, pages, images=not a.no_images)

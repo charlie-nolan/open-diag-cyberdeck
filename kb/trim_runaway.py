@@ -1,5 +1,4 @@
-# Copy a marker .md, dropping runaway table rows: any table row over 20 KB or with more than 50 cells,
-# and runs of >=200 rows whose cells are all tiny fragments.
+"""Copy a marker .md, dropping runaway table rows: any table row over 20 KB or with more than 50 cells, and runs of >=200 rows whose cells are all tiny fragments."""
 import os, sys
 src, dst = sys.argv[1], sys.argv[2]
 wide = lambda ln: ln.startswith("|") and (len(ln) > 20000 or ln.count("|") > 51)

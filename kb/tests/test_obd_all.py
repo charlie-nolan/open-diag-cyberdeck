@@ -20,7 +20,7 @@ try:
     import obd  # noqa: E402
     import obd_all  # noqa: E402
     obd.logger.setLevel(100)
-except ImportError:            # python-obd is a deck dependency (requirements.txt), not needed for the KB tests
+except ImportError:
     obd = None
 
 
@@ -86,17 +86,17 @@ class Fake:
             return "NO DATA" if self.proto != "6" else "7E8 02 43 00 AA AA AA AA AA"
         if not u.startswith("01"):
             return "NO DATA"
-        if self.direct not in (None, self.proto):   # what the real truck replied on each wrong protocol
+        if self.direct not in (None, self.proto):
             return {"1": "NO DATA", "3": "BUS INIT: ...ERROR", "4": "BUS INIT: ...ERROR",
                     "5": "BUS INIT: ERROR"}.get(self.direct, "CAN ERROR")
         if self.searching and self.auto_fails:
             self.searching = False
             return "SEARCHING...\rUNABLE TO CONNECT"
-        if self.searching:              # a real adapter prints this, then stays silent while it tries each bus
+        if self.searching:
             self.searching = False
             os.write(self.master, b"SEARCHING...")
             if select.select([self.master], [], [], self.search_s)[0]:
-                return "\rSTOPPED"     # any byte received interrupts an ELM's search
+                return "\rSTOPPED"
         pid = int(u[2:4], 16)
         out = []
         for tx, vals in enumerate((self.values, self.other)):
@@ -150,7 +150,7 @@ class Cars(unittest.TestCase):
         m = obd_all.mode06(c)
         c.close()
         fake.stop = True
-        for s in fake.sent:   # read-only: only AT, 01, 03, 06, 09
+        for s in fake.sent:
             self.assertTrue(s.replace(" ", "").upper()[:2] in ("AT", "01", "03", "06", "09") or "\x7f" in s, s)
         return got, m
 
@@ -181,14 +181,14 @@ class Cars(unittest.TestCase):
                   0x18: b"\x60\xFF", 0x19: b"\x30\xFF", 0x2F: b"\x80"})
         got, _ = self.read(Fake("2", v))
         line = got["line"]
-        self.assertIn("O2 B3S1 0.48 V", line)   # PID 18 with PID 1D's layout
+        self.assertIn("O2 B3S1 0.48 V", line)
         self.assertIn("STFT2 -12.5 %", line)
         self.assertEqual(live_data.parse(line)["stft2"], -12.5)
         self.assertIn("Fuel level", line)
         v[0x13] = b"\x33"
         del v[0x1D]
         got, _ = self.read(Fake("2", v))
-        self.assertIn("O2 B2S1 0.48 V", got["line"])   # same PID, PID 13's layout
+        self.assertIn("O2 B2S1 0.48 V", got["line"])
         self.assertNotIn("PID 13", got["line"])
 
     def test_can_wideband_tcm_and_high_pids(self):
@@ -198,15 +198,15 @@ class Cars(unittest.TestCase):
         tcm = {0x0C: b"\x01\x01", 0x5C: b"\x70"}
         got, _ = self.read(Fake("6", v, tcm))
         line = got["line"]
-        self.assertIn("RPM 750", line)          # the engine's reply, not the transmission's
-        self.assertIn("Oil temp 72 °C", line)  # only the transmission ECU had it
+        self.assertIn("RPM 750", line)
+        self.assertIn("Oil temp 72 °C", line)
         self.assertIn("O2 B1S1 lambda 1.0", line)
         self.assertIn("O2 B1S1 WR 3.2 V", line)
         self.assertIn("O2 B1S1 current 0.5 mA", line)
         self.assertIn("Evap pressure -64", line)
         self.assertIn("Engine temp 2 86 °C", line)
         self.assertIn("Odometer 12345.6 km", line)
-        self.assertIn("PID 7A 01020304", line)  # no formula: raw, no guess
+        self.assertIn("PID 7A 01020304", line)
         self.assertIn("ECU volts", line)
         self.assertEqual(got["silent"], [])
         self.assertIn("A6", got["supported"])
@@ -230,7 +230,7 @@ class Cars(unittest.TestCase):
         self.assertEqual(got["silent"], ["0F"])
 
     def test_slow_search_then_protocol_reused(self):
-        f = Fake("2", core({}), search_s=4)     # longer than python-obd's old 2 s timeout
+        f = Fake("2", core({}), search_s=4)
         c, why = obd_all.connect(f.port)
         self.assertIsNotNone(c, why)
         c.close()
@@ -244,7 +244,7 @@ class Cars(unittest.TestCase):
         f.stop = True
 
     def test_auto_search_fails_direct_protocol_answers(self):
-        for proto in ("2", "3", "6"):             # J1850 VPW, ISO 9141, CAN: the search says UNABLE on each
+        for proto in ("2", "3", "6"):
             f = Fake(proto, core({}))
             f.auto_fails = True
             c, why = obd_all.connect(f.port)
@@ -253,14 +253,14 @@ class Cars(unittest.TestCase):
             self.assertIn("RPM 750", obd_all.read_all(c)["line"])
             c.close()
             n = len(f.sent)
-            c, _ = obd_all.connect(f.port)        # later reads go straight to it
+            c, _ = obd_all.connect(f.port)
             self.assertEqual([x.replace(" ", "") for x in f.sent[n:]].count("ATSP0"), 0)
             c.close()
             f.stop = True
             os.remove(obd_all.PROTOCOL_FILE)
 
     def test_wrong_saved_protocol_is_replaced(self):
-        obd_all._save_protocol("6")               # 'CAN ERROR' looks like a reply to python-obd
+        obd_all._save_protocol("6")
         f = Fake("2", core({}))
         f.auto_fails = True
         c, why = obd_all.connect(f.port)
@@ -271,7 +271,7 @@ class Cars(unittest.TestCase):
         f.stop = True
 
     def test_stale_protocol_falls_back(self):
-        obd_all._save_protocol("3")               # the last car was K-line; this one is CAN
+        obd_all._save_protocol("3")
         f = Fake("6", core({}))
         c, why = obd_all.connect(f.port)
         self.assertIsNotNone(c, why)

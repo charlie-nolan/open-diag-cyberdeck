@@ -12,7 +12,7 @@ import urllib.parse
 import urllib.request
 
 PREFIX = "/images/"
-_down = {"until": 0.0, "why": ""}   # after a failed fetch, don't try the PC again for a minute
+_down = {"until": 0.0, "why": ""}
 
 
 def is_charm(name):

@@ -19,15 +19,15 @@ import time
 
 from ssm2_capabilities import ECUCaps, read_addresses
 
-WRITE = 0xB8                      # single-address write; the ECU answers F8 <byte written>
+WRITE = 0xB8
 CLEAR_MEMORY = (0x60, 0x40)
 TEST_MODE_ADDR, TEST_MODE_MASK = 0x61, 1 << 5
-RPM_HIGH, RPM_LOW = 0x0E, 0x0F    # engine speed = (high * 256 + low) / 4
-ENGINE_RUNNING_RPM = 100          # FreeSSM: some ECUs don't report 0 with the engine off
-REPEAT_S = 0.1                    # FreeSSM writeAddress_permanent delay
+RPM_HIGH, RPM_LOW = 0x0E, 0x0F
+ENGINE_RUNNING_RPM = 100
+REPEAT_S = 0.1
 MAX_TEST_S = 30
-MAX_MISSED = 3                    # repeat writes in a row with no answer before the test is called off
-RPM_CHECK_S = 1.0                 # how often a running test re-checks that the engine is still off
+MAX_MISSED = 3
+RPM_CHECK_S = 1.0
 
 
 class Refused(Exception):
@@ -44,7 +44,7 @@ class KKLLink:
         self.p = poller
         self.init_raw = poller.init_raw
 
-    def send_ssm2_command(self, payload):      # reads (read_addresses uses this name)
+    def send_ssm2_command(self, payload):
         return self.p.send_ssm2_command(payload)
 
     def write(self, payload):
@@ -90,14 +90,13 @@ class SubaruTests:
         self.act_addrs = sorted({a["addr"] for a in self.actuators})
         self._allowed = {CLEAR_MEMORY} | {(a, 0x00) for a in self.act_addrs} | \
                         {(a["addr"], 1 << (a["addr_bit"] - 1)) for a in self.actuators}
-        self._lock = threading.Lock()         # one frame on the K-line at a time
+        self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
-        self.running = None                   # title of the test running now
-        self.ended = ""                       # why the last test ended, if it ended by itself
-        self.off_confirmed = True             # whether the ECU confirmed the switch-off when it ended by itself
+        self.running = None
+        self.ended = ""
+        self.off_confirmed = True
 
-    # ------------------------------------------------------------------ what this ECU allows
     @property
     def uses_flagbytes(self):
         return (self.caps.sys_id[0] & 0xF0) == 0xA0
@@ -112,7 +111,6 @@ class SubaruTests:
     def titles(self):
         return [a["title"] for a in self.actuators]
 
-    # ------------------------------------------------------------------ frames
     def _write(self, addr, value):
         """One allowlisted single-byte write. Returns the byte the ECU says it wrote, or None."""
         if (addr, value) not in self._allowed:
@@ -128,7 +126,6 @@ class SubaruTests:
         with self._lock:
             return read_addresses(self.link, addrs)
 
-    # ------------------------------------------------------------------ checks
     def test_mode_on(self):
         v = self._read([TEST_MODE_ADDR])
         return None if not v else bool(v[TEST_MODE_ADDR] & TEST_MODE_MASK)
@@ -146,7 +143,7 @@ class SubaruTests:
 
     def _check_test_mode(self):
         if not self.caps.has_test_mode:
-            return  # FreeSSM: the ECU would advertise the test-mode switch if it mattered
+            return
         on = self.test_mode_on()
         if on is None:
             raise Refused("Couldn't read the test-mode state from the ECU, so nothing was sent.")
@@ -161,7 +158,6 @@ class SubaruTests:
         self._check_test_mode()
         self._check_engine_off()
 
-    # ------------------------------------------------------------------ actuator tests
     def _zero_all(self):
         ok = True
         for a in self.act_addrs:
@@ -197,7 +193,7 @@ class SubaruTests:
             if time.monotonic() >= end:
                 self.ended = f"stopped by itself after {max_s} s"
                 break
-            if time.monotonic() >= next_rpm:  # someone started the engine mid-test: stop
+            if time.monotonic() >= next_rpm:
                 next_rpm = time.monotonic() + RPM_CHECK_S
                 try:
                     rpm = self.engine_rpm()
@@ -213,7 +209,7 @@ class SubaruTests:
             if missed >= MAX_MISSED:
                 self.ended = "stopped: the ECU stopped answering"
                 break
-        if not self._stop.is_set():   # ended by itself: switch the actuator off here, and say if that failed
+        if not self._stop.is_set():
             try:
                 ok = self._zero_all()
             except Exception:
@@ -235,7 +231,6 @@ class SubaruTests:
         No checks first: switching everything off is always allowed (only 0x00 writes, all allowlisted)."""
         return self.stop()
 
-    # ------------------------------------------------------------------ clear memory
     def clear_memory(self):
         """Erase the ECU's stored codes and learned values. Engine must be off. True if the ECU confirmed."""
         if self.running:
@@ -260,7 +255,7 @@ def open_subaru(adapter, port, variant_name="", cache_dir=None):
     if adapter == "kkl":
         from telemetry_logger import TelemetryPoller
         ports = candidates("kkl", port)
-        for attempt in range(2):  # the first try after plugging in often gets no answer
+        for attempt in range(2):
             for p in ports:
                 try:
                     poller = TelemetryPoller(port=p)

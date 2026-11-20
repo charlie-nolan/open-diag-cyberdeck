@@ -81,10 +81,9 @@ def main():
     if th:
         stop.set()
         th.join(timeout=15)
-    # wait4 gives the direct child; grandchildren that were waited on show in RUSAGE_CHILDREN of this process
     rc_all = resource.getrusage(resource.RUSAGE_CHILDREN)
     user, sys_ = max(ru.ru_utime, rc_all.ru_utime), max(ru.ru_stime, rc_all.ru_stime)
-    rss = max(ru.ru_maxrss, rc_all.ru_maxrss) / 1024          # KiB on Linux
+    rss = max(ru.ru_maxrss, rc_all.ru_maxrss) / 1024
     utils = [u for u, _ in samples]
     row = {"step": a.step, "started": started, "exit": rc, "wall_s": round(wall, 1), "cpu_s": round(user + sys_, 1),
            "user_s": round(user, 1), "sys_s": round(sys_, 1), "max_rss_mb": round(rss), "in_mb": size_mb(a.inp),

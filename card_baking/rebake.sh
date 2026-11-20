@@ -39,6 +39,5 @@ if [[ -z "$PY" ]]; then
   exit 0
 fi
 step "embed new rows with $PY" "$PY" "$KB/build_subaru_kb.py" embed --missing
-# card rows are replaced on each load but keep the same rowids, so --missing would keep the old cards' vectors
 step "re-embed all cards" "$PY" "$KB/build_subaru_kb.py" embed --only dtc_card
 log "ALL DONE. subaru.db ready to copy to the Pi."

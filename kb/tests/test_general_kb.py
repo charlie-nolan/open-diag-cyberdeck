@@ -13,7 +13,7 @@ import unittest
 from contextlib import redirect_stdout
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "kb"))
 import build_general_kb as G  # noqa: E402
 

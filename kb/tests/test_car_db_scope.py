@@ -46,11 +46,11 @@ class TestScope(unittest.TestCase):
         rows = dict(c.execute("SELECT code, source FROM car_dtc"))
         self.assertEqual(rows["P0301"], "diagnostic page for this car")
         self.assertEqual(rows["P0116"], "named on this car's manual pages")
-        self.assertNotIn("P0505", rows)                 # a range heading's bound, not a code the manual names
+        self.assertNotIn("P0505", rows)
         self.assertNotIn("P0340", rows)
         origins = {o for (o,) in c.execute("SELECT origin FROM telem_source_map")}
-        self.assertNotIn("OBDb Honda-Accord@1 (CC-BY-SA-4.0)", origins)   # another model's repo
-        self.assertIn("OBDb Honda@1 (CC-BY-SA-4.0)", origins)             # the make-wide one stays
+        self.assertNotIn("OBDb Honda-Accord@1 (CC-BY-SA-4.0)", origins)
+        self.assertIn("OBDb Honda@1 (CC-BY-SA-4.0)", origins)
         side = sqlite3.connect(os.path.join(d, "honda.make_tables.db"))
         self.assertEqual(side.execute("SELECT count(*) FROM telem_source_map").fetchone()[0], 1)
 

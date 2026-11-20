@@ -41,7 +41,7 @@ import prompts  # noqa: E402
 
 PY = os.path.join(ROOT, "venv", "bin", "python")
 VIN_RE = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
-ID_RE = re.compile(r"\[((?:[MSCOWYPB]\d+(?: t=\d+s)?)(?:\s*,\s*[MSCOWYPB]\d+(?: t=\d+s)?)*)\]")  # Y3 t=95s: a video moment
+ID_RE = re.compile(r"\[((?:[MSCOWYPB]\d+(?: t=\d+s)?)(?:\s*,\s*[MSCOWYPB]\d+(?: t=\d+s)?)*)\]")
 MEMBERS = {"gemini": "gemini-4-argon-medium", "gptoss": "gpt-oss-120b-medium"}
 LIMITS = {"ask_fast": 150, "final": 15 * 60, "brainstorm": 6 * 60, "agy_call": 7 * 60, "crosscheck": 4 * 60, "claude_call": 5 * 60,
           "baseline": 6 * 60}
@@ -76,7 +76,6 @@ class Run:
                 u[k] = round(u.get(k, 0) + v, 4)
 
 
-# ------------------------------------------------------------------ case and privacy
 def scrub(case):
     """The case without VIN/plate/customer fields. Raises if a VIN pattern survives in any value."""
     c = {k: v for k, v in case.items() if k in CLOUD_KEYS and v}
@@ -94,7 +93,7 @@ def case_text(case, kb_path):
     """The app's own case summary (cyberdeck_gui.Session.case_summary on a scratch session), in Home mode's room."""
     import cyberdeck_gui as G
     G.CFG["kb_db"] = kb_path
-    G.ACTIVE_MGR = type("PC", (), {"home": True, "pc_why": ""})()   # Home mode budgets (PC context)
+    G.ACTIVE_MGR = type("PC", (), {"home": True, "pc_why": ""})()
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False).name
     s = G.Session(tmp)
     v = case["vehicle_info"]
@@ -117,7 +116,6 @@ def evidence_pack(case_summary, v, kb_path):
     return G.case_context(r, case_summary, int(3500 * G.ctx_factor()))
 
 
-# ------------------------------------------------------------------ members
 def start_kb(run, v, codes, cloud_manual, web):
     args = [PY, os.path.join(HERE, "kb_mcp.py"), "--run", run.out, "--make", v["make"], "--codes", " ".join(codes)]
     for k in ("model", "year", "engine"):
@@ -140,7 +138,7 @@ def call_agy(run, who, prompt, port, web, timeout=LIMITS["agy_call"]):
     work = os.path.join(run.out, "work", who)
     gcfg = os.path.join(run.out, "gcfg", who)
     os.makedirs(work, exist_ok=True)
-    if not os.path.isdir(gcfg):     # agy's own config, minus Charlie's MCP list (it writes a projects/ dir here)
+    if not os.path.isdir(gcfg):
         shutil.copytree(os.path.expanduser("~/.gemini/config"), gcfg,
                         ignore=shutil.ignore_patterns("mcp_config.json", "projects"))
     with open(os.path.join(gcfg, "mcp_config.json"), "w") as f:
@@ -160,7 +158,7 @@ def call_agy(run, who, prompt, port, web, timeout=LIMITS["agy_call"]):
            "agy", "-p", "Read the file task.md in the current folder and do what it says. Reply with your answer only.",
            "--model", MEMBERS[who], "--settings", json.dumps({"permissions": {"allow": allow, "deny": deny}}),
            "--output-format", "json", "--print-timeout", f"{timeout - 20}s"]
-    with open(os.path.join(work, "task.md"), "w") as f:      # big inputs go in a file (128 KB argument limit)
+    with open(os.path.join(work, "task.md"), "w") as f:
         f.write(prompt)
     t = time.time()
     for attempt in (1, 2):
@@ -179,12 +177,12 @@ def call_agy(run, who, prompt, port, web, timeout=LIMITS["agy_call"]):
                   output_tokens=u.get("output_tokens", 0), thinking_tokens=u.get("thinking_tokens", 0),
                   cache_read_tokens=u.get("cache_read_tokens", 0))
     text = d.get("response", "") or ""
-    if text and d.get("status") != "SUCCESS":   # print timeout: keep what it wrote, marked
+    if text and d.get("status") != "SUCCESS":
         text = "[PARTIAL: this member ran out of time]\n" + text
     run.trace("agy", who=who, model=MEMBERS[who], status=d.get("status"), seconds=round(time.time() - t, 1),
               usage=u, prompt=prompt, reply=text, error=d.get("error") or (p.stderr[-800:] if not text and
                                                                                'p' in locals() else ""))
-    for name in os.listdir(work):              # scripts and notes a member left are kept in the trace, then deleted
+    for name in os.listdir(work):
         if name != "task.md":
             run.trace("agy_file", who=who, name=name)
     shutil.rmtree(work, ignore_errors=True)
@@ -335,7 +333,6 @@ def baseline(run, prompt, model):
     return text, ""
 
 
-# ------------------------------------------------------------------ checks
 def evidence(run):
     p = os.path.join(run.out, "evidence.jsonl")
     if not os.path.isfile(p):
@@ -382,7 +379,6 @@ def source_check(answer, case_summary, pack, ev):
     return probs, faithfulness.report(answer, prompt)
 
 
-# ------------------------------------------------------------------ stages
 def final(run, case, a):
     v = case["vehicle_info"]
     import vehicle_id
@@ -393,7 +389,7 @@ def final(run, case, a):
     run.progress("building the case summary and the manual pack")
     summary = case_text(case, kb_path)
     pack = evidence_pack(summary, v, kb_path)
-    if case.get("board"):       # the brainstorm so far is part of the case (handoff step 5); after the pack lookup
+    if case.get("board"):
         summary += ("\nTEAM BRAINSTORM SO FAR (hypothesis board from earlier team rounds; ideas weighed, not "
                     "findings):\n" + case["board"][:6000])
     codes = re.findall(r"\b[PBCU]\d{4}\b", case.get("dtcs", ""))
@@ -406,7 +402,7 @@ def final(run, case, a):
         home_prompt = prompts.home_verdict(summary, pack)
         dx_prompt = prompts.diagnose(summary, pack_id if a.cloud_manual else None, a.web)
 
-        def local_side():   # one GPU: Home's baseline, then the local member with tools
+        def local_side():
             b = baseline(run, home_prompt, a.local_model) if a.baseline else ("", "turned off for this run")
             loc = (call_local(run, prompts.diagnose(summary, pack_id if a.cloud_manual else None, False, local=True),
                               port, a.local_model) if a.local_member and a.cloud_manual else "")
@@ -456,7 +452,6 @@ def final(run, case, a):
         with open(os.path.join(run.out, f"{name}.txt"), "w") as f:
             f.write(text)
         if text:
-            # Home is checked against what Home was given (case + pack), as the app does; Team against everything
             probs, rep = source_check(text, summary, pack, ev if name == "verdict" else {})
             out[name] = {"source_check": len(probs), "bad_ids": check_ids(text, ev) if name == "verdict" else [],
                          "issues": len(re.findall(r"(?m)^[\s#*_]*=+\s*\**\s*ISSUE\s*\d+", text)), "report": rep}
@@ -475,7 +470,7 @@ def baseline_only(run, case, a):
     kb_path, _ = vehicle_id.kb_path_for(v["make"], os.path.join(ROOT, "kb"))
     summary = case_text(case, kb_path)
     pack = evidence_pack(summary, v, kb_path)
-    if case.get("board"):       # the brainstorm so far is part of the case (handoff step 5); after the pack lookup
+    if case.get("board"):
         summary += ("\nTEAM BRAINSTORM SO FAR (hypothesis board from earlier team rounds; ideas weighed, not "
                     "findings):\n" + case["board"][:6000])
     base, why = baseline(run, prompts.home_verdict(summary, pack), a.local_model)
@@ -618,7 +613,7 @@ def main():
     lock = open(os.path.join(ROOT, "logs", "team", ".run.lock"), "w")
     import fcntl
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)        # one Team run at a time
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         raise SystemExit("another Team run is going; one at a time")
     with open(a.case) as f:

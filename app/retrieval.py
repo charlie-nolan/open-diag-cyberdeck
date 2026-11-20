@@ -57,7 +57,6 @@ class Retriever:
             os.makedirs(cache_dir, exist_ok=True)
             self.fts = self._open_fts(os.path.join(cache_dir, "fsm_fts.db"), knowledge_db)
 
-    # ---------------------------------------------------------------- FSM full-text cache
     def _open_fts(self, path, knowledge_db):
         src_mtime = str(int(os.path.getmtime(knowledge_db)))
         conn = sqlite3.connect(path, check_same_thread=False)
@@ -76,7 +75,6 @@ class Retriever:
             conn.commit()
         return conn
 
-    # ---------------------------------------------------------------- lookups
     def dtc(self, code):
         """Definition + FSM procedure for one DTC from subaru_diag.db."""
         if self.diag is None:
@@ -116,9 +114,6 @@ class Retriever:
             (like, like, like, limit)).fetchall()
         out = []
         for sub, comp, ft, nm, sock, pn, notes in rows:
-            # Only rows parsed from the FSM's own tables. The hand-entered rows are Gemini's fabricated
-            # "hand-verified" specs and the JIS rows are generic bolt charts, not Subaru values: a
-            # wrong torque label is still a wrong torque, so neither is shown or fed to the model.
             if pn != "Catalog Ref":
                 continue
             src = "FSM table"

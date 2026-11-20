@@ -22,11 +22,9 @@ MAKES = ["Subaru", "Acura", "Audi", "BMW", "Buick", "Cadillac", "Chevrolet", "Ch
          "Toyota", "Volkswagen", "Volvo", "Alfa Romeo", "Dacia", "Fiat", "Jaguar", "Lada", "Land Rover", "Renault",
          "Seat", "Skoda", "Smart"]
 
-# Other file names a make's DB may have been saved under (first existing file wins).
 ALIASES = {"chevrolet": ["chevy"], "volkswagen": ["vw"], "mercedes-benz": ["mercedes", "mercedes_benz"],
            "mini": ["mini_cooper"], "ram": ["dodge_ram", "dodge"]}
 
-# Built-in World Manufacturer Identifiers (first 3 VIN chars). kb/vin.db, when present, covers every make.
 WMI = {
     "JF1": "Subaru", "JF2": "Subaru", "JF3": "Subaru", "4S3": "Subaru", "4S4": "Subaru", "4S6": "Subaru",
     "1G1": "Chevrolet", "1GC": "Chevrolet", "1GN": "Chevrolet", "2G1": "Chevrolet", "3GN": "Chevrolet",
@@ -49,13 +47,12 @@ WMI = {
     "YV4": "Volvo", "YS3": "Saab", "JTK": "Scion",
 }
 
-# Subaru chassis code (VIN positions 4-5) -> model. BE/BH/BL/BP/BR/BS are Legacy or Outback: not guessed.
 SUBARU_LINES = {"SF": "Forester", "SG": "Forester", "SH": "Forester", "SJ": "Forester", "SK": "Forester",
                 "GC": "Impreza", "GF": "Impreza", "GD": "Impreza", "GG": "Impreza", "GE": "Impreza",
                 "GH": "Impreza", "GJ": "Impreza", "GP": "Impreza", "BT": "Baja", "WX": "Tribeca",
                 "CX": "SVX", "GV": "WRX", "VA": "WRX"}
 
-YEAR_CODES = "ABCDEFGHJKLMNPRSTVWXY123456789"  # position 10, 1980..2009 (+30 when position 7 is a letter)
+YEAR_CODES = "ABCDEFGHJKLMNPRSTVWXY123456789"
 VIN_RE = re.compile(r"^[A-HJ-NPR-Z0-9]{17}$")
 
 
@@ -96,7 +93,7 @@ def vin_year(vin):
     if i < 0:
         return None
     year = 1980 + i
-    if vin[6].isalpha():  # from 2010 on, makers put a letter in position 7 for light vehicles
+    if vin[6].isalpha():
         year += 30
     return year
 
@@ -147,7 +144,7 @@ def nhtsa_decode(vin, cache_path, timeout=6):
     hit = nhtsa_cached(vin, cache_path)
     if hit:
         return hit
-    try:  # NHTSA's standalone database restored on this machine (tools/vpic_setup.sh): offline, same answer
+    try:
         from vpic_local import vpic_decode
         out = vpic_decode(vin)
     except ImportError:
@@ -207,13 +204,13 @@ def decode_vin(text, vin_db=None, nhtsa_cache=None):
     if out["make"] == "Subaru":
         out["model"] = SUBARU_LINES.get(vin[3:5], "")
     full = decoded_from_vin_db(vin, vin_db)
-    if full:  # NHTSA's own decode wins: make, model, year, engine
+    if full:
         out["make"] = canon_make(full[0]) or out["make"]
         out["model"] = full[1] or out["model"]
         out["year"] = full[2] or out["year"]
         out["engine"] = full[3] or ""
     saved = nhtsa_cached(vin, nhtsa_cache) if nhtsa_cache else None
-    if saved:  # decoded online once before: everything NHTSA gave, offline
+    if saved:
         for k in ("make", "model", "year", "engine", "trans", "trim", "drive"):
             if saved.get(k):
                 out[k] = saved[k]
@@ -231,11 +228,6 @@ def make_from_ssm(ssm_id):
     return "Subaru" if ssm_id else ""
 
 
-# ------------------------------------------------------------------ Subaru ECU id -> year and model
-# Cars before ~2005 rarely give a VIN over any cable, but every Subaru ECU sends its 5-byte ECU id in the SSM
-# init reply. RomRaider's community ECU definitions list, per ECU id, the car it was built for (year, model,
-# market, transmission). build_rom_db() turns those XML files into kb/romid.db once on the PC; the deck
-# only reads that small table.
 def build_rom_db(xml_paths, out_db):
     """RomRaider ECU definition XML file(s) -> sqlite table rom(ecuid, xmlid, year, make, model, submodel,
     market, transmission). Returns the row count."""
@@ -285,7 +277,6 @@ def car_from_rom(rom_id, rom_db):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) >= 3 and sys.argv[1] == "--build-romdb":
-        # python3 vehicle_id.py --build-romdb kb/romid.db defs1.xml [defs2.xml ...]
         print(build_rom_db(sys.argv[3:], sys.argv[2]), "ECU ids")
     else:
         print("usage: vehicle_id.py --build-romdb <out.db> <RomRaider ECU definition .xml> ...")

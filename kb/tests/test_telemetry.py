@@ -11,7 +11,7 @@ import sys
 import tempfile
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "app"))
 sys.path.insert(0, os.path.join(ROOT, "kb"))
 import telemetry_ref as T  # noqa: E402
@@ -22,7 +22,6 @@ try:
 except ImportError:
     obd = None
 
-# Same physical quantity through both cables: (canonical key, SSM RomRaider id, J1979 PID)
 PAIRS = [("map", "P7", "0B"), ("baro", "P24", "33"), ("ect", "P2", "05"), ("iat", "P11", "0F"),
          ("stft1", "P3", "06"), ("ltft1", "P4", "07"), ("timing", "P10", "0E"), ("tps", "P13", "11"),
          ("speed", "P9", "0D"), ("rpm", "P8", "0C"), ("maf", "P12", "10"), ("o2_b1s1_v", "P14", "14"),
@@ -51,7 +50,7 @@ class Units(unittest.TestCase):
         self.assertAlmostEqual(T.convert(-40, "F", "C"), -40, places=6)
         self.assertAlmostEqual(T.convert(450, "mV", "V"), 0.45, places=9)
         self.assertAlmostEqual(T.convert(60, "mph", "km/h"), 96.56, places=2)
-        self.assertIsNone(T.convert(1, "kPa", "V"))          # different quantities never convert
+        self.assertIsNone(T.convert(1, "kPa", "V"))
         self.assertEqual(T.unit_norm("kilopascal"), "kPa")
         self.assertEqual(T.unit_norm("degree_Celsius"), "°C")
 
@@ -131,12 +130,11 @@ class BothCablesSameCanonical(unittest.TestCase):
                 e, ru, nb = T._source_def(self.db, "ssm", ssm_id)
                 lo, hi = sorted(T.canonical(T.evaluate(e, {"x": v}), ru)[0] for v in (0, (1 << (8 * (nb or 1))) - 1))
                 if not lo <= obd_r[0]["value"] <= hi:
-                    continue                           # outside what the SSM definition can encode
+                    continue
                 x = self._ssm_raw_for(ssm_id, obd_r[0]["value"], unit)
                 ssm_r = T.normalize([{"id": ssm_id, "raw": x}], "ssm", t=0, db=self.db)
                 self.assertEqual(ssm_r[0]["key"], key, ssm_id)
                 self.assertEqual(ssm_r[0]["unit"], obd_r[0]["unit"])
-                # equal within the coarser definition's resolution
                 step = max(abs(T.canonical(T.evaluate(T._source_def(self.db, "ssm", ssm_id)[0], {"x": x + 1}),
                                            T._source_def(self.db, "ssm", ssm_id)[1])[0] - ssm_r[0]["value"]), 1e-9)
                 self.assertLessEqual(abs(ssm_r[0]["value"] - obd_r[0]["value"]), step / 2 + 1e-6,
@@ -157,7 +155,6 @@ class BothCablesSameCanonical(unittest.TestCase):
         rel = lambda rs: next(r["value"] for r in rs if r["key"] == "map_rel")
         self.assertEqual(rel(s), rel(o))
         self.assertEqual(rel(o), 37 - 99)
-        # an ECU that reports relative pressure itself (SSM P25) is used as is, not derived again
         s2 = T.normalize([{"id": "P25", "raw": 128 - 62}, {"id": "P7", "raw": 37}, {"id": "P24", "raw": 99}],
                          "ssm", db=self.db)
         self.assertEqual([r["source"] for r in s2 if r["key"] == "map_rel"], ["ssm"])
@@ -173,7 +170,7 @@ class BothCablesSameCanonical(unittest.TestCase):
 
     def test_ssm_capability_bits(self):
         flags = bytearray(48)
-        flags[0] = 0b00000010                           # one bit set: the one RomRaider gates at byte 0 bit 1
+        flags[0] = 0b00000010
         yes, no = T.ssm_support(b"\xff" + bytes(8) + bytes(flags), self.db)
         gated = self.db.execute("SELECT raw_id FROM telem_source_map WHERE source='ssm' AND gate='flag byte 0, bit 1'"
                                 ).fetchall()
@@ -217,7 +214,7 @@ class JudgeAndPaths(unittest.TestCase):
         r = self.readings(rpm=750, speed=0, ect=88, map=45)
         j = {x["key"]: x for x in T.judge(r, car)}
         self.assertEqual(j["map"]["source_kind"], "manual")
-        self.assertAlmostEqual(j["map"]["high"], 300 * 0.1333224, places=3)    # 300 mmHg in kPa
+        self.assertAlmostEqual(j["map"]["high"], 300 * 0.1333224, places=3)
         self.assertEqual(j["map"]["status"], "high")
         self.assertEqual(j["rpm"]["status"], "no zone")
 
@@ -229,7 +226,7 @@ class JudgeAndPaths(unittest.TestCase):
     def test_condition_must_hold(self):
         car = {"model": "Alpha", "year": 2002, "db": self.path}
         cold = {x["key"]: x for x in T.judge(self.readings(rpm=1200, speed=0, ect=30, map=45), car)}
-        self.assertEqual(cold["map"]["status"], "no zone")      # warm-idle zone doesn't apply to a cold engine
+        self.assertEqual(cold["map"]["status"], "no zone")
         off = T.judge(self.readings(rpm=0, ecu_volts=12.0), car)
         self.assertEqual(T.condition(self.readings(rpm=0), car=car), "koeo")
         self.assertEqual({x["key"]: x["status"] for x in off}["ecu_volts"], "low")
@@ -270,7 +267,7 @@ class Parsers(unittest.TestCase):
         self.assertEqual(B.conditions_from("Idling", "After warm-up the engine.")[0][0], "idle_warm")
         self.assertEqual(B.conditions_from("Ignition SW ON (Engine OFF)")[0][0], "koeo")
         self.assertEqual(B.conditions_from("2,500 rpm racing")[0][0], "rpm2500")
-        self.assertEqual(B.conditions_from('Idle speed [A/C "ON", no load]'), [])   # A/C state can't be checked
+        self.assertEqual(B.conditions_from('Idle speed [A/C "ON", no load]'), [])
         self.assertFalse(B.checkable("Throttle fully closed."))
         self.assertTrue(B.checkable("Engine idling after warm-up."))
 

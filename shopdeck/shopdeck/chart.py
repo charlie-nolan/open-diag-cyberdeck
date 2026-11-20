@@ -28,12 +28,11 @@ def lines_of(cell):
     return [x.strip() for x in clean(cell).split(";") if x.strip()]
 
 
-# ---------------------------------------------------------------------------------------------- outcomes
 @dataclass
 class Outcome:
-    kind: str                 # goto | other_code | intermittent | action | end
-    text: str                 # the manual's words
-    step: int = None          # goto target (also set on an action that continues to a step)
+    kind: str
+    text: str
+    step: int = None
     codes: list = field(default_factory=list)
 
     @property
@@ -61,7 +60,6 @@ def parse_outcome(cell):
     return Outcome("action", text, int(goto.group(1)) if goto else None)
 
 
-# ---------------------------------------------------------------------------------------------- limits
 UNIT = r"(k\s*Ω|M\s*Ω|Ω|mV|V|kPa|mmHg|°C|°F|A|%|mm|ms|rpm|Hz|g/s|deg|°)"
 NUM = r"(-?\d+(?:\.\d+)?)"
 SCALE = {"kΩ": 1e3, "MΩ": 1e6, "mV": 1e-3}
@@ -69,7 +67,7 @@ SCALE = {"kΩ": 1e3, "MΩ": 1e6, "mV": 1e-3}
 
 @dataclass
 class Limit:
-    op: str          # '>', '<', '>=', '<=', 'between'
+    op: str
     lo: float
     hi: float = None
     unit: str = ""
@@ -102,10 +100,9 @@ def parse_limit(question):
     if m:
         unit = (m.group(4) or m.group(2) or "").replace(" ", "")
         return Limit("between", float(m.group(1)), float(m.group(3)), unit)
-    # every bound in the question, ignoring the converted units in brackets: (eq, word, number, unit)
     found = re.findall(r"(equal to (?:or )?)?\b(more|greater|higher|less|lower) than\s+" + NUM + r"\s*" + UNIT + "?",
                        re.sub(r"\([^)]*\)", "", q))
-    if len(found) == 2:   # "equal to or more than 0.85 and equal to less than 1.15": a range
+    if len(found) == 2:
         lows = [f for f in found if f[1] in ("more", "greater", "higher")]
         highs = [f for f in found if f[1] in ("less", "lower")]
         if len(lows) == 1 and len(highs) == 1 and float(lows[0][2]) < float(highs[0][2]):
@@ -133,7 +130,6 @@ def parse_reading(text, limit):
     return vals
 
 
-# ---------------------------------------------------------------------------------------------- steps
 @dataclass
 class Step:
     n: int
@@ -143,7 +139,7 @@ class Step:
     yes: Outcome
     no: Outcome
     raw: list
-    broken: bool = False      # didn't convert: shown as the manual's text, the mechanic reads the page and jumps
+    broken: bool = False
 
     @property
     def limit(self):
@@ -159,7 +155,7 @@ class Step:
         if re.search(r"only one DTC", q, re.I):
             return "Yes" if len(have) == 1 else "No"
         if re.search(r"any other DTC|other DTC on display", q, re.I):
-            mine = set(CODE_RE.findall(self.yes.text + " " + self.no.text))   # the NOTE: 'not necessary to inspect ...'
+            mine = set(CODE_RE.findall(self.yes.text + " " + self.no.text))
             others = have - mine - set(own) if own else (have - mine if mine else (have if len(have) > 1 else set()))
             return "Yes" if others else "No"
         listed = CODE_RE.findall(q)
@@ -174,13 +170,13 @@ class Step:
 class Chart:
     code: str
     title: str
-    sections: list            # kb.Section objects, in page order
-    head: list                # detecting condition, symptoms, cautions (lines)
+    sections: list
+    head: list
     steps: dict
-    problems: list            # why the chart can't be trusted as a tree, empty when it can
-    via: str = None           # the code whose page said "refer to DTC <this one>"
-    variant: str = ""         # set when the manual has more than one procedure under this code
-    alternates: list = field(default_factory=list)   # the other procedures for the same code
+    problems: list
+    via: str = None
+    variant: str = ""
+    alternates: list = field(default_factory=list)
 
     @property
     def ok(self):
@@ -212,12 +208,12 @@ def own_lines(sections, code):
     for sec in sections:
         body = sec.body.splitlines()
         continued = any(l.startswith("(continued") for l in body[:3])
-        if not continued:   # a new manual section: its own heading says whose chart it is
+        if not continued:
             m = re.search(r"DTC\s*([PBCU][0-9A-F]\d{3})", sec.title or "")
             current = m.group(1) if m else code
         for i, line in enumerate(body):
             h = DTC_HEAD_RE.match(line.strip())
-            if h and not (continued and i == 0):   # a continued part repeats the section title on top: not a heading
+            if h and not (continued and i == 0):
                 current = h.group(1)
             if current == code:
                 yield line
@@ -235,7 +231,7 @@ def parse(sections, code=None):
         if s.startswith("|"):
             c = _cells(s)
             if c and c[0] in ("No.", "") and len(c) >= 2 and c[1] in ("Step", "Step Check Yes No"):
-                continue          # repeated table header
+                continue
             if len(c) >= 5 and c[0].isdigit():
                 n = int(c[0])
                 if n in rows:
@@ -249,7 +245,7 @@ def parse(sections, code=None):
             elif isinstance(last, tuple) and c and (c[0] == "" or re.match(r"\d+\)$", c[0])):
                 cut[last[1]].append(" ".join(x for x in c if x))
             elif c and c[0] == "" and last is not None and len(c) >= 5:
-                for i, extra in enumerate(c[1:5]):     # continuation row: the manual cell went on
+                for i, extra in enumerate(c[1:5]):
                     if extra:
                         rows[last][i] = (rows[last][i] + " " + extra).strip()
             elif c and c[0].isdigit():
@@ -285,8 +281,6 @@ def _broken(n, texts):
                 broken=True)
 
 
-# Older manuals (1999-2001) print each step as '10AA2 : CHECK ...' followed by the question and two answer lines
-# whose YES / NO marks are pictures, so the converted text keeps the answers but not their labels.
 LABEL_STEP_RE = re.compile(r"^(?:#+\s*)?(\d{1,2}[A-Z]{1,3})(\d{1,2})\s*:\s*(.+)$")
 LABEL_QUESTION_RE = re.compile(r"^(?:CHECK\s*)?:\s*\*?(.+\?)\*?\s*$")
 LABEL_ANSWER_RE = re.compile(r"^:\s*(.+)$")
@@ -318,7 +312,7 @@ def parse_labelled(lines):
         cur["lines"].append(s)
         s = re.sub(r"^-\s+", "", s)
         lab = re.match(r"^(CHECK|YES|NO)\s*:\s*(.+)$", s)
-        if lab:                                   # labels survived: use them, no guessing
+        if lab:
             key = {"CHECK": "q", "YES": "yes", "NO": "no"}[lab.group(1)]
             cur[key].append(clean(lab.group(2).strip("* ")))
             cur["last"] = key
@@ -339,8 +333,8 @@ def parse_labelled(lines):
             cur["last"] = "ans"
         elif cur["last"] in ("ans", "yes", "no") and cur[cur["last"]]:
             tail = re.split(r"\s+:\s+(?=\S)", s) if cur["last"] == "ans" and len(cur["ans"]) == 1 else [s]
-            cur[cur["last"]][-1] += " " + clean(tail[0].lstrip("#- "))    # a NOTE under an answer belongs to it
-            if len(tail) == 2:                    # '...NOTE text : Go to step 10AA13.': the next answer, run on
+            cur[cur["last"]][-1] += " " + clean(tail[0].lstrip("#- "))
+            if len(tail) == 2:
                 cur["ans"].append(clean(tail[1]))
         elif not cur["q"]:
             cur["ins"].append(clean(s.lstrip("#- ")))
@@ -363,7 +357,7 @@ def parse_labelled(lines):
             answers = r["ans"] if len(r["ans"]) == 2 else None
             by_order = by_order or answers is not None
         if len(r["q"]) != 1 or not answers:
-            steps[n] = _broken(n, [r["title"]] + r["lines"])     # shown as the page text, never guessed
+            steps[n] = _broken(n, [r["title"]] + r["lines"])
             continue
         yes, no = (local(x) for x in answers)
         steps[n] = Step(n, r["title"], r["ins"], r["q"][0], parse_outcome(yes), parse_outcome(no),
@@ -410,7 +404,7 @@ def load(kb, veh, code, _seen=None):
         return None
     sections = _chart_chapter(sections, code)
     procs = _procedures(sections)
-    if len(procs) > 1:              # e.g. 'W: DTC C0041 ECM' and 'X: DTC C0041 PARAMETER SELECTION ERROR'
+    if len(procs) > 1:
         charts = [_build(kb, veh, code, part, seen) for part in procs]
         charts = [c for c in charts if c]
         for c in charts:
@@ -487,13 +481,12 @@ class _Ref:
         return self._code
 
 
-# ---------------------------------------------------------------------------------------------- walking
 @dataclass
 class Answer:
     step: int
-    answer: str          # Yes / No
-    how: str             # scan | measured | mechanic
-    detail: str = ""     # "13.2 V, limit more than 10 V" / "codes P0303, P0304"
+    answer: str
+    how: str
+    detail: str = ""
 
 
 class Walk:
@@ -502,9 +495,9 @@ class Walk:
     def __init__(self, chart, codes):
         self.chart = chart
         self.codes = list(codes)
-        self.trail = []            # [Answer]
+        self.trail = []
         self.current = chart.first()
-        self.result = None         # the Outcome the walk ended on
+        self.result = None
         self.auto()
 
     def step(self):

@@ -102,7 +102,7 @@ def main(argv=None):
     cfg = load_settings(a.config)
     if a.file:
         raw = sys.stdin.buffer.read() if a.file == "-" else open(a.file, "rb").read()
-        if not re.match(rb"(?im)^[\w-]+:", raw):              # pasted text, not a whole email
+        if not re.match(rb"(?im)^[\w-]+:", raw):
             raw = b"Content-Type: text/plain; charset=utf-8\n\n" + raw
         raws = [raw]
     else:

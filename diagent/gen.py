@@ -40,9 +40,9 @@ def _reading(cmp_, want_yes, rng):
     }[op]
     v = round(pick(), 3)
     if dim in ("Ω", "A", "V") and v < 0:
-        v = round(max(lo, 0) * rng.uniform(0.0, 0.9), 3)   # these can't be negative: the low branch near zero
+        v = round(max(lo, 0) * rng.uniform(0.0, 0.9), 3)
     if dim == "Ω" and ((op in (">", ">=") and want_yes) or (op in ("<", "<=") and not want_yes)) and lo >= 1e5:
-        return "OL"                         # 'more than 1 MΩ' answered as an open circuit on the meter
+        return "OL"
     return f"{v:g} {UNIT_TEXT.get(dim, dim)}"
 
 
@@ -63,7 +63,7 @@ def _walk_inner(steps, codes, rng, cant_p, car, cable, cur, path, replies, seen,
             return replies, path, {"result": "unconfirmed"}
         ans = kb.scan_answers({cur: s}, codes).get(cur)
         trig = watch.until_trigger(s["step"], (car or {}).get("telemetry_db")) if car else None
-        if trig and live.readable(car, cable, trig["key"]):     # the car's value ramps past the manual's mark
+        if trig and live.readable(car, cable, trig["key"]):
             x, unit = trig["value"], watch.T.CANON.get(trig["key"], (None, ""))[1]
             lo, hi = (x - abs(x) * 0.6 - 10, x + abs(x) * 0.1 + 2) if trig["op"] == "above" else \
                 (x + abs(x) * 0.6 + 10, x - abs(x) * 0.1 - 2)
@@ -105,8 +105,8 @@ def _walk_inner(steps, codes, rng, cant_p, car, cable, cur, path, replies, seen,
                 got = units.parse_reply(r, "number", cmp_[3])
                 v = units.judge(s["check"], got["value"], got["unit"])
                 if v:
-                    ans = v[0]                     # the reply is what counts: expect Python's own verdict on it
-                    replies[f"step:{cur}"] = ["done", r] if rng.random() < 0.15 else r   # 'done' must be re-asked
+                    ans = v[0]
+                    replies[f"step:{cur}"] = ["done", r] if rng.random() < 0.15 else r
                 else:
                     replies[f"step:{cur}"] = ans.lower()
             else:
@@ -152,16 +152,15 @@ def step_cases(rng, n_per_family=2):
     db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     cars = _cars(db, True)
     out = []
-    fams = dict(FAMILIES, live_data=r"P\d{4}", watch=r"P\d{4}")   # charts that read / watch a live value
+    fams = dict(FAMILIES, live_data=r"P\d{4}", watch=r"P\d{4}")
     tdb = live.telemetry_db("Subaru", path)
     for fam, rx in fams.items():
         pool = []
         for model, year in rng.sample(cars, len(cars)):
             engines, scope = kb.engine_choices(Retriever(path), model, year)
-            eng = rng.choice(engines) if len(engines) > 1 else None   # the engine first: it scopes the charts
+            eng = rng.choice(engines) if len(engines) > 1 else None
             r = Retriever(path, model=model, year=year)
             r.vehicle_ids = scope.get(eng) if eng else [i for ids in scope.values() for i in ids] or r.vehicle_ids
-            # the same scope identify() gives the run (FSM engine-code rows join every engine)
             if not r.vehicle_ids:
                 continue
             q = ",".join(map(str, r.vehicle_ids))
@@ -192,7 +191,7 @@ def step_cases(rng, n_per_family=2):
                 break
         for model, year, eng, code, p, cands, v in pool:
             label_ix = next(i for i, c in enumerate(cands) if c["label"] == v["label"])
-            v = cands[label_ix]                      # the fake the user picks by label: the first of equal labels
+            v = cands[label_ix]
             eng_name = eng or (_engines(Retriever(path), model, year) or [None])[0]
             car = {"make": "Subaru", "model": model, "year": year, "engine": eng_name,
                    "telemetry_db": live.telemetry_db("Subaru", path)}
@@ -294,11 +293,11 @@ def ident_cases(rng):
         if len(engines) == 1:
             eng = engines[0]
         elif len(hits) == 1:
-            eng = hits[0]                        # the ECU's trim names it: no question
+            eng = hits[0]
         elif want and not hits:
-            eng = None                           # the kb has no such engine: all sections, nothing asked
+            eng = None
         else:
-            eng = rng.choice(hits or engines)    # truly ambiguous: the user picks
+            eng = rng.choice(hits or engines)
             choose = {"Which engine": "^" + re.escape(eng) + "$"}
         kb_markets = {x for (x,) in r.db.execute("SELECT DISTINCT upper(market) FROM vehicle WHERE model=? AND year=?",
                                                  (m, year)) if x}
@@ -353,7 +352,7 @@ def write(seed, out_dir=None):
     out_dir = out_dir or os.path.join(HERE, "scenarios")
     os.makedirs(out_dir, exist_ok=True)
     for f in glob.glob(os.path.join(out_dir, "gen_*.json")):
-        os.remove(f)                                   # only the generator's own files
+        os.remove(f)
     cases = generate(seed)
     for c in cases:
         with open(os.path.join(out_dir, c["name"] + ".json"), "w") as f:

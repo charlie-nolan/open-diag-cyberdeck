@@ -2,7 +2,7 @@
 the frame layout (3 header bytes, data, CRC) is what an ELM/STN prints with ATH1 on J1850."""
 
 
-def crc(b):                       # J1850 CRC-8 (poly 0x1D, init 0xFF, inverted)
+def crc(b):
     c = 0xFF
     for x in b:
         c ^= x
@@ -16,7 +16,7 @@ def frame(*b):
 
 
 class FakeVPW:
-    VIN = b"1GNEK13T23R000000"           # test VIN, not a real car
+    VIN = b"1GNEK13T23R000000"
 
     def __init__(self):
         self.out, self.header, self.proto, self.sent = b"", "686AF1", "0", []
@@ -73,7 +73,7 @@ class FakeVPW:
         if c.startswith("01") and pid in vals:
             return frame(*h, 0x41, int(pid, 16), *vals[pid])
         if c == "03":
-            return frame(*h, 0x43, 0x01, 0x71, 0x04, 0x42, 0x00, 0x00)   # P0171, P0442 (arbitrary test codes)
+            return frame(*h, 0x43, 0x01, 0x71, 0x04, 0x42, 0x00, 0x00)
         if c == "07":
             return frame(*h, 0x47, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
         if c == "0902":

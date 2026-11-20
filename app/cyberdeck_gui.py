@@ -41,103 +41,86 @@ from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, Q
                              QStackedWidget, QTextEdit, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(1, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssm"))  # ssm_tests, telemetry_logger
+sys.path.insert(1, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssm"))
 from llm_backend import (ClaudeModel, CliModel, OllamaModel, OpenAICompatModel, RKLLMModel, mem_available_gb, mem_total_gb, ollama_models,  # noqa: E402
                          probe_rkllm)
 from retrieval import Retriever as LegacyRetriever  # noqa: E402
 from vehicle_id import MAKES, car_from_rom, decode_vin, kb_path_for, make_from_ssm, nhtsa_decode  # noqa: E402
-import car_records  # one SQLite history file per car (records/<VIN>.db)
+import car_records
 import charm_pics
 import common_issues
 import drive_file
 import live_data
 import maintenance
 import procedures
-import sanity_check  # DATA CHECK: impossible/contradictory case data, in Python, before the models
-import answer_check  # ANSWER CHECK: issue 1 vs the case's verified-good/replaced parts and the car's manual
-import verdict_steps  # Final Diagnosis in short steps (opt-in), and the deck's own NEEDS MORE DATA stop
-import obd_all  # every OBD-II PID the car offers, through the EX
-import telemetry_ref  # live readings vs the car's manual zones (kb telem_* tables, kb/build_telemetry.py)
+import sanity_check
+import answer_check
+import verdict_steps
+import obd_all
+import telemetry_ref
 import voice  # noqa: E402
-import theme as T  # The user's palette, shared with diagent (dark only)
+import theme as T
 from ui_fit import FitRoot, ReflowRow  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 DEFAULT_CONFIG = {
-    "vehicle": "",  # no default car: pick it in Intake (remembered per session)
-    "backend": "auto",  # auto | rkllm | ollama | openai | claude | cli
-    # backend "cli": a command-line AI tool you're signed into (Claude Code, Gemini CLI/agy, Codex CLI), no API key.
-    # The command as a list; "{prompt}" is replaced by the prompt, else the prompt goes to stdin. Examples in
-    # docs/SINGLE_CAR_LAPTOP.md. Optional per role: "cli_cmd_fast", "cli_cmd_deep", "cli_cmd_think".
+    "vehicle": "",
+    "backend": "auto",
     "cli_cmd": [], "cli_timeout": 900,
-    # backend "openai": any OpenAI-compatible server (LM Studio, llama.cpp, Jan, vLLM, OpenRouter, ...). Its key, if
-    # it needs one, is read from the environment variable named in openai_key_env, never stored here.
     "openai_url": os.environ.get("CYBERDECK_OPENAI_URL", "http://127.0.0.1:1234/v1"),
     "openai_key_env": "OPENAI_API_KEY",
-    "openai_fast": "", "openai_deep": "", "openai_think": "",   # model names as the server lists them
-    # backend "claude": the Claude API (pip install anthropic; key in ANTHROPIC_API_KEY or `ant auth login`)
+    "openai_fast": "", "openai_deep": "", "openai_think": "",
     "claude_fast": "claude-opus-5-5", "claude_deep": "claude-opus-5-5", "claude_think": "claude-opus-5-5",
     "claude_effort": {"fast": "low", "deep": "high", "think": "high"},
-    # Lists = first file that exists wins, so the Qwen3 exports take over from Qwen2.5 with no config edit.
     "rkllm_lib": [f"{ROOT}/rknn-llm/rkllm-runtime/Linux/librkllm_api/aarch64/librkllmrt.so", "/usr/lib/librkllmrt.so"],
     "fast_model": [f"{ROOT}/models/rkllm/Qwen3-1.7B_W8A8_RK3588.rkllm",
                    f"{ROOT}/models/rkllm/qwen2.5-3b-w8a8-rk3588.rkllm"],
-    # No Qwen2.5-7B fallback: that old export fails rkllm_init on runtime 1.3.1. Missing 4B = the fast model.
     "deep_model": f"{ROOT}/models/rkllm/Qwen3-4B-Instruct-2507_W8A8_RK3588.rkllm",
-    "think_model": f"{ROOT}/models/rkllm/Qwen3-4B-Thinking-2507_W8A8_RK3588.rkllm",  # opt-in "think harder"
+    "think_model": f"{ROOT}/models/rkllm/Qwen3-4B-Thinking-2507_W8A8_RK3588.rkllm",
     "ollama_fast": "qwen3:1.7b",
     "ollama_deep": "qwen3:4b-instruct-2507-q4_K_M",
     "ollama_think": "qwen3:4b-thinking-2507-q4_K_M",
     "max_context_len": 4096,
-    # Cyberdeck Home (--home, or CYBERDECK_HOME=1): the models run on the home PC's Ollama over Tailscale;
-    # the deck's own models take over whenever the PC can't be reached
     "home": False,
-    "home_url": os.environ.get("CYBERDECK_HOME_URL", "http://127.0.0.1:11434"),  # your PC's Ollama, e.g. its Tailscale address
-    # 10-21: Qwen3.6 35B for chat, Qwen3-Next 80B instruct for verdict/repair, its thinking twin for
-    # THINK HARDER; Ollama swaps them in the PC's RAM as needed
+    "home_url": os.environ.get("CYBERDECK_HOME_URL", "http://127.0.0.1:11434"),
     "home_fast": "qwen3.6:35b-a3b-q4_K_M",
     "home_deep": "qwen3-next:80b-a3b-instruct-q4_K_M",
     "home_think": "qwen3-next:80b-a3b-thinking-q4_K_M",
     "home_context_len": 16384,
-    "keep_both_loaded": "auto",  # auto = both if >= 12 GB RAM, else swap on demand
-    "verdict_blind_first": True,  # FINAL DIAGNOSIS in two passes: evidence only, then the opinions (OPINION_FIELDS)
-    "verdict_steps": False,  # FINAL DIAGNOSIS in short steps (app/verdict_steps.py). Off: sim v5 (blind) steps 25/25 vs
-                             # one prompt 30/32 on Qwen 80B. "auto" = on for local models
-                              # (Ollama/RKLLM), off for Claude/OpenAI-style APIs and team mode
-    "kb_dir": f"{ROOT}/kb",  # one knowledge DB per make: kb/subaru.db, kb/chevrolet.db ... picked in Intake
-    "vin_db": f"{ROOT}/kb/vin.db",  # optional: NHTSA vPIC makes for every WMI (see VIN_DECODING.md)
-    "rom_db": f"{ROOT}/kb/romid.db",  # optional: Subaru ECU id -> year/model (vehicle_id.py --build-romdb)
-    "kb_db": "",  # set from the car's make at startup and whenever the make changes
+    "keep_both_loaded": "auto",
+    "verdict_blind_first": True,
+    "verdict_steps": False,
+    "kb_dir": f"{ROOT}/kb",
+    "vin_db": f"{ROOT}/kb/vin.db",
+    "rom_db": f"{ROOT}/kb/romid.db",
+    "kb_db": "",
     "make": "",
-    "kb_model": None,  # follows the car picked in Intake
+    "kb_model": None,
     "kb_year": None,
     "diag_db": f"{ROOT}/subaru_diag.db",
     "knowledge_db": f"{ROOT}/test_subaru_knowledge.db",
     "session_db": f"{ROOT}/session_active.db",
     "cache_dir": f"{ROOT}/cache",
-    "pic_url": os.environ.get("CYBERDECK_PIC_URL", "http://127.0.0.1:8765"),  # home PC's tools/charm_pic_server.py: CHARM page pictures
-    "charm_pics_max": 8,  # most CHARM pictures shown per page
-    "voice_enabled": True,  # Vosk "hey deck" + whisper.cpp dictation; off automatically if not installed
+    "pic_url": os.environ.get("CYBERDECK_PIC_URL", "http://127.0.0.1:8765"),
+    "charm_pics_max": 8,
+    "voice_enabled": True,
     "vosk_model": f"{ROOT}/models/voice/vosk-model-small-en-us-0.15",
-    "whisper_bin": f"{ROOT}/models/voice/whisper.cpp/build/bin/whisper-cli",  # or "whisper-cli" on PATH
+    "whisper_bin": f"{ROOT}/models/voice/whisper.cpp/build/bin/whisper-cli",
     "whisper_model": f"{ROOT}/models/voice/ggml-base.en.bin",
-    "whisper_model_fallback": f"{ROOT}/models/voice/ggml-tiny.en.bin",  # used if base.en is missing
+    "whisper_model_fallback": f"{ROOT}/models/voice/ggml-tiny.en.bin",
     "whisper_threads": 4,
-    "piper_bin": "",  # optional nicer voice, e.g. "piper"; else pyttsx3, else espeak-ng
+    "piper_bin": "",
     "piper_model": "",
-    "mic_device": "",  # empty = system default
-    "tts_rate": 145,  # speaking speed, words per minute (espeak's own default of 175+ was too fast)
-    "obd_adapter": "obdlink",  # obdlink = OBDLink EX: OBD-II + VIN, then Subaru SSM over it | kkl = bare KKL fallback
-    "ex_ssm_variant": "",  # STN settings that last got an SSM answer through the EX (remembered)
-    # Other programs per make, opened from Intake with the cable handed over, e.g.
-    # "Ford": {"name": "FORScan", "cmd": "wine '~/.wine/drive_c/Program Files (x86)/FORScan/FORScan.exe'"}
+    "mic_device": "",
+    "tts_rate": 145,
+    "obd_adapter": "obdlink",
+    "ex_ssm_variant": "",
     "launchers": {},
-    "obd_port": "",  # empty = auto (ssm/cables.py tells the KKL cable and the OBDLink EX apart)
-    "embed_model": "",  # vector search: "" = find Qwen3-Embedding-0.6B by itself (models/qwen3emb, then the
-                        # Hugging Face cache), a folder path = use that, "off" = keyword search only
+    "obd_port": "",
+    "embed_model": "",
     "embed_threads": 4,
-    "parts_sourcing_dir": f"{ROOT}/parts_sourcing",  # Parts tab (part numbers, QR links, junkyard quote)
+    "parts_sourcing_dir": f"{ROOT}/parts_sourcing",
 }
 
 OLD_HOME_MODELS = {"qwen3:8b", "qwen3:30b-a3b-instruct-2507-q4_K_M", "qwen3:30b-a3b-thinking-2507-q4_K_M"}
@@ -149,28 +132,23 @@ def load_config():
         try:
             with open(CONFIG_PATH) as f:
                 cfg.update(json.load(f))
-        except (OSError, ValueError) as e:  # half-written file: start on the defaults instead of not at all
+        except (OSError, ValueError) as e:
             print(f"config.json unreadable ({e}); using defaults")
-    # PC model names from an earlier setup left in config.json would hide newer defaults: drop them
     for key in ("home_fast", "home_deep", "home_think"):
         if cfg.get(key) in OLD_HOME_MODELS:
             cfg[key] = DEFAULT_CONFIG[key]
     cfg = {k: os.path.expanduser(v) if isinstance(v, str) and v.startswith("~") else v for k, v in cfg.items()}
     for key in ("rkllm_lib", "fast_model", "deep_model", "think_model"):
-        # config value(s) first, then the defaults; a stale path in config.json falls through
         cands = [cfg[key]] if isinstance(cfg[key], str) else list(cfg[key])
         default = DEFAULT_CONFIG[key]
         cands += [default] if isinstance(default, str) else default
         cands = [os.path.expanduser(c) for c in cands]
         cfg[key] = next((c for c in cands if os.path.isfile(c)), cands[0])
-    # The deep (and think) model not copied yet: use the fast one and say so, rather than fail on a missing file.
     cfg["stand_in"] = {}
     for key in ("deep_model", "think_model"):
         if not os.path.isfile(cfg[key]) and os.path.isfile(cfg["fast_model"]):
             cfg["stand_in"][key[:-6]] = "file not on the deck yet"
             cfg[key] = cfg["fast_model"]
-    # Voice files: models/voice/ (README) or models/vosk/ + models/whisper/ (The user's PC). A path in
-    # config.json that doesn't exist must not switch voice off when the files are in the other layout.
     for key, exists in (("vosk_model", os.path.isdir), ("whisper_model", os.path.isfile),
                         ("whisper_model_fallback", os.path.isfile)):
         name = os.path.basename(DEFAULT_CONFIG[key])
@@ -187,7 +165,7 @@ sys.path.insert(0, PS_DIR)
 try:
     import parts_sourcing as PS
     from parts_sourcing import qr as PSQR, sheet as PSSHEET
-    from parts_sourcing.interchange import is_part_number   # any make's format, not only Subaru's
+    from parts_sourcing.interchange import is_part_number
 except ImportError:
     PS = PSQR = PSSHEET = None
 
@@ -223,7 +201,7 @@ class NullRetriever:
     def context_for(self, *a, **k):
         return ""
 
-    def __getattr__(self, name):  # search_fsm, specs, labor ...: nothing, never a crash
+    def __getattr__(self, name):
         return lambda *a, **k: []
 
 
@@ -286,7 +264,7 @@ def squeeze(t):
     return re.sub(r"-{4,}", "---", t)
 
 
-FIG_W = 460  # widest a manual figure is drawn, in px
+FIG_W = 460
 
 
 def fsm_hits(r, text, k=3, chars=900):
@@ -298,7 +276,7 @@ def fsm_hits(r, text, k=3, chars=900):
         return [(h, []) for h in r.search_fsm(text, k=k, chars=chars)]
     img_dir = os.path.join(os.path.dirname(kb), "images")
     out, seen = [], set()
-    for sid in r.search_ids(text, k * 3):  # same picks as kb_retriever.search_fsm
+    for sid in r.search_ids(text, k * 3):
         row = r._row(sid)
         if row is None:
             continue
@@ -313,11 +291,11 @@ def fsm_hits(r, text, k=3, chars=900):
             try:
                 figs = []
                 for n in json.loads(meta[1]):
-                    if charm_pics.is_charm(n):            # CHARM: from the DB or the PC when shown
+                    if charm_pics.is_charm(n):
                         figs.append(n)
                         continue
                     f = os.path.join(img_dir, str(meta[0]), os.path.splitext(n)[0] + ".webp")
-                    if not os.path.isfile(f):             # a one-car DB keeps its figures inside it
+                    if not os.path.isfile(f):
                         f = charm_pics.fsm_figure(kb, CFG["cache_dir"], meta[0], n) or f
                     figs.append(f)
             except (ValueError, TypeError):
@@ -355,7 +333,6 @@ def spaced(text):
     return re.sub(r"\n\s*\n*", "\n\n", (text or "").strip())
 
 
-# Words that start a repair job but aren't part of a part's name. Vocabulary only (no car or cause in it).
 JOB_VERBS = ("replace", "replacing", "install", "reinstall", "remove", "renew", "repair", "rebuild", "clean", "inspect",
              "check", "test", "tighten", "retighten", "torque", "retorque", "re-torque", "adjust", "reseal",
              "resurface", "fit", "swap", "change", "flush", "bleed", "refill", "top up", "lubricate", "reconnect",
@@ -370,9 +347,9 @@ def parts_from_job(job):
     if not job:
         return []
     v = "|".join(re.escape(x) for x in JOB_VERBS)
-    t = re.sub(r"\([^)]*\)", " ", job.strip())                              # '(belt, tensioner, idlers)'
-    t = re.sub(r"(?i)^\s*(?:(?:%s)\b\s*(?:(?:and|&|,|/)\s*)?)+" % v, "", t)   # 'Clean and inspect ...'
-    t = re.split(r"[,;:.]|\s+(?:and then|then|and)\s+(?=(?:%s)\b)" % v, t, maxsplit=1)[0]  # stop at the next job
+    t = re.sub(r"\([^)]*\)", " ", job.strip())
+    t = re.sub(r"(?i)^\s*(?:(?:%s)\b\s*(?:(?:and|&|,|/)\s*)?)+" % v, "", t)
+    t = re.split(r"[,;:.]|\s+(?:and then|then|and)\s+(?=(?:%s)\b)" % v, t, maxsplit=1)[0]
     t = re.sub(r"(?i)\s+(?:if|as needed|per|with|to spec|on|at|for|from|in)\b.*$", "", t)
     out = []
     for n in re.split(r"(?i)\s+(?:and|&)\s+|\s*/\s*", t):
@@ -433,7 +410,7 @@ def community_block(r, text, codes, cap, raw=True):
                          f"({x['car_match']})" + (f" {x['urls'][0]}" if x["urls"] else ""))
         if lines:
             lines.insert(0, "[COMMUNITY REPORTS: from owner threads; they suggest what to test, the manual confirms]")
-        if not raw:     # chat: forum fixes the owner said fixed it, found by the case's and the question's words
+        if not raw:
             fx = confirmed_fixes(r, text, k=3, chars=max(150, cap // 5))
             if fx:
                 lines.append("[CONFIRMED OWNER FIXES: same model; the owner reported this fixed it]")
@@ -445,8 +422,6 @@ def community_block(r, text, codes, cap, raw=True):
             for x in t["threads"]:
                 lines.append(f"- {x['title']} ({x['car_match']}) {x['url'] or ''}\n  "
                              + " ".join(re.sub(r"\[S\d+[^\]]*\]", " ", x["excerpt"]).split()))
-        # whole entries only: slicing the joined text cut a thread off mid-sentence. A header with nothing
-        # under it is dropped too.
         out, used = [], 0
         for i, ln in enumerate(lines):
             if used + len(ln) + 1 > cap:
@@ -474,7 +449,7 @@ def case_context(r, text, budget=2500, scraped=True, verified_only=False):
     if not codes or not hasattr(r, "card") or not getattr(r, "db", None):
         if scraped or not hasattr(r, "search_fsm"):
             comm = community_block(r, text, [], budget // 6, raw=not verified_only) if scraped else ""
-            if verified_only and hasattr(r, "search_fsm"):     # manual pages only (no complaint/TSB snippets)
+            if verified_only and hasattr(r, "search_fsm"):
                 manual = "\n\n".join(r.search_fsm(text, k=2))[:max(0, budget - len(comm))]
             else:
                 manual = r.context_for(text, budget=budget - len(comm))
@@ -498,25 +473,23 @@ def case_context(r, text, budget=2500, scraped=True, verified_only=False):
     for p, code in procs:
         if p:
             blocks.append(procedures.render(p, codes, share))
-        else:  # no step table in the kb for this code: the raw text, cleaned
+        else:
             raw = squeeze(re.sub(r"(?m)^\|?[\s\-:|]+\|?$|^\[DTC\].*$", "", r.dtc(code, chars=share) or ""))
             if raw.strip():
                 blocks.append("[MANUAL TEXT for " + code + "]\n" + raw)
     cards = []
     for code in (codes if scraped else []):
         c = r.card(code)
-        if c:  # likely causes only: the card's "manual procedure outline" was summarised from cut-off text
+        if c:
             c = c.split("Manual procedure outline:", 1)[0].strip()
             cards.append(c[:max(200, budget // (6 * len(codes)))])
     cards = (["[REPORTED CAUSES: owner-reported forum and TSB fixes counted for this car. Supporting evidence only, "
               "ranked by how often owners reported them, not by the manual. The manual's procedure above decides the "
               "order of work]"] + cards if cards else [])
-    # the codes' own names find the right manual page when the question's words don't ("explain deeper")
     query = " ".join([text] + [d.split(":", 1)[-1] for d in defs])
-    # a page about one of the case's own codes is already covered by its procedure above
     pages = [h for h in r.search_fsm(query, k=2) if not any(c in h.split("\n", 1)[0] for c in codes)][:1]
     parts = [x for x in [head] + defs + blocks + cards + pages if x]
-    comm = (community_block(r, query, codes, budget // 6, raw=not verified_only)   # last, in its own share
+    comm = (community_block(r, query, codes, budget // 6, raw=not verified_only)
             if scraped else "")
     out, used = [], len(comm)
     for part in parts:
@@ -531,7 +504,7 @@ def cited_pages(ctx, plan):
     """The FSM DATA blocks a first-pass plan used: every code's diagnostic procedure and definition, plus each other
     block whose heading words (or a number from its text) the plan repeats. Pass 2 of the blind verdict reads these
     instead of all of FSM DATA."""
-    import faithfulness                     # its block splitter (the deck's prompts tag each block "[...]")
+    import faithfulness
     plan_l = (plan or "").lower()
     plan_nums = set(re.findall(r"\d+(?:\.\d+)?", plan_l))
     keep = []
@@ -542,7 +515,7 @@ def cited_pages(ctx, plan):
             continue
         words = {w for w in re.findall(r"[a-z]{5,}", lab)} - {"repair", "diagnosis", "testing", "inspection",
                                                                "description", "operation", "manual"}
-        nums = {n for n in re.findall(r"\d+\.\d+|\d{2,}", text) if not re.fullmatch(r"(19|20)\d\d", n)}  # not years
+        nums = {n for n in re.findall(r"\d+\.\d+|\d{2,}", text) if not re.fullmatch(r"(19|20)\d\d", n)}
         if sum(w in plan_l for w in words) >= 2 or len(nums & plan_nums) >= 2:
             keep.append(text.strip())
     return "\n\n".join(keep) or "(none cited)"
@@ -569,20 +542,20 @@ def make_retriever(cfg):
         return NullRetriever()
     if kb and os.path.isfile(kb):
         sys.path.insert(0, os.path.dirname(kb))
-        if f"{ROOT}/kb" not in sys.path:    # a one-car DB lives in kb/cars/<car>/: the retriever stays in kb/
+        if f"{ROOT}/kb" not in sys.path:
             sys.path.insert(1, f"{ROOT}/kb")
         from kb_retriever import Retriever
         embed = None
         model_dir = find_embed_model(cfg)
-        if model_dir:                       # Qwen3-Embedding-0.6B folder: turns on vector search
+        if model_dir:
             try:
                 import embedder
                 embed = embedder.shared(model_dir, threads=cfg.get("embed_threads", 4))
-                embed.warm()                # loads in the background, so the first question doesn't wait
+                embed.warm()
             except Exception as e:
                 print(f"vector search off: {e}")
         r = Retriever(kb, model=cfg.get("kb_model"), year=cfg.get("kb_year"), embed=embed)
-        r.kb_path = kb                      # community_block finds kb/<make>.threads.db next to it
+        r.kb_path = kb
         ctx, fsm = r.context_for, r.search_fsm
         r.context_for = lambda *a, **k: squeeze(ctx(*a, **k))
         r.search_fsm = lambda *a, **k: [squeeze(h) for h in fsm(*a, **k)]
@@ -590,7 +563,6 @@ def make_retriever(cfg):
     return LegacyRetriever(cfg["diag_db"], cfg["knowledge_db"], cfg["cache_dir"])
 
 
-# Words that say where or what kind of fastener, not which part ("front" pulled in ABS sensors and brake hoses).
 GENERIC = set("front rear left right upper lower inner outer side new old gasket gaskets seal bolt bolts nut nuts "
               "screw screws replace replacement repair removal install installation leak leaking cause causing "
               "most likely bad worn cylinder cylinders bank misfire".split())
@@ -615,17 +587,12 @@ def focus_specs(job, specs):
     return [r for n, r in sorted(scored, key=lambda x: -x[0]) if n > 0]
 
 
-# --------------------------------------------------------------------------- session state
 CASE_MAX_CHARS = 2500
-CHART_READS_MAX = 6000   # chart readings in the case (PC models only, after the cut)
-MAINT_PAGE = 6           # the Maintenance screen's place in the page stack (shown second in the nav bar)
-# A test drive is added after the case (its own room). On the PC models there's room for more readings.
-DRIVE_KEY = {"key": lambda: "drive_log_short"}   # the app points it at "drive_log" while the PC models answer
+CHART_READS_MAX = 6000
+MAINT_PAGE = 6
+DRIVE_KEY = {"key": lambda: "drive_log_short"}
 
 
-# Intake fields that hold opinions, not evidence: guesses, another shop's idea, earlier unconfirmed diagnoses.
-# The blind first pass of FINAL DIAGNOSIS ("verdict_blind_first") leaves these out; pass 2 weighs them on the evidence.
-# Decided by field, never by words in the text. (key, label for pass 2)
 OPINION_FIELDS = (("suspect", "Suspect / known defects (the owner's or another shop's idea)"),
                   ("earlier_visits", "Earlier visits and their verdicts (deck's records; verdicts not confirmed by a test)"),
                   ("saved_debate", "Saved debate (competing explanations weighed, unresolved)"),
@@ -733,20 +700,20 @@ class Session:
                 ("history", "History"), ("earlier_visits", "Earlier visits to this car (deck's records)"),
                 ("intake_summary", "Intake note summary"),
                 ("maint_selected", "Maintenance the customer approved for this visit")]
-        if not self.get("intake_summary"):  # the raw note only when there's no summary of it (prompt room)
+        if not self.get("intake_summary"):
             keys.append(("intake_note", "Intake note (raw, as dictated)"))
         if self.get("mode06"):
             keys.insert(3, ("mode06", "Mode 06 on-board tests that failed"))
-        if self.get("past_readings"):   # the car's record file: the same values at earlier visits
+        if self.get("past_readings"):
             keys.insert(3, ("past_readings", "Same readings at this car's earlier visits (deck's records)"))
         keys = [(k, label) for k, label in keys if k not in exclude]
         out = "\n".join(f"{label}: {(live_data.for_prompt(self.get(k)) if k == 'telemetry' else self.get(k)) or '(none)'}"
                         for k, label in keys)
         meaning = live_data.explain(self.get("telemetry"))
-        if meaning:  # the models misread raw numbers (12 C coolant became "overheating"); Python says what they mean
+        if meaning:
             out += "\nWhat the live data means (worked out by the deck, generic ranges):\n" + \
                    "\n".join(f"- {m}" for m in meaning)
-        zones = self.telemetry_zones()   # TELEMETRY: only when the make DB has telem_* tables
+        zones = self.telemetry_zones()
         if zones:
             out += "\nLive data against this car's manual (zones and status worked out by the deck):\n" + zones
         if self.get("saved_debate") and "saved_debate" not in exclude:
@@ -754,23 +721,22 @@ class Session:
         if self.get("saved_wildcard") and "saved_wildcard" not in exclude:
             out += ("\nSaved wildcard ideas (long shots the mechanic wanted kept; unproven, weigh against the "
                     "evidence):\n" + self.get("saved_wildcard"))
-        if len(out) > CASE_MAX_CHARS:  # with the manual text and history it must still fit 4096 tokens
+        if len(out) > CASE_MAX_CHARS:
             out = out[:CASE_MAX_CHARS] + " [...]"
-        if drive:  # after the cut, so a long case never drops the drive
+        if drive:
             out += "\nTEST DRIVE LOG (a series of readings taken while driving, not one snapshot):\n" + drive
         notes = self.get("chat_notes")
-        if notes:   # after the cut: what the mechanic said must never be the part that gets dropped
+        if notes:
             room = 3500 if DRIVE_KEY["key"]() == "drive_log" else 900
             out += ("\nTHE MECHANIC'S OWN NOTES FROM CHAT (their words, newest last; anything they say they replaced, "
                     "checked or tested counts as verified unless the case shows otherwise):\n" + notes[-room:])
-        if self.get("chart_reads") and DRIVE_KEY["key"]() == "drive_log":   # PC models only: too long for the deck's
+        if self.get("chart_reads") and DRIVE_KEY["key"]() == "drive_log":
             out += ("\nCHARM DIAGNOSTIC CHARTS for this case's codes (read from the manual's pictures by a vision "
                     "model; follow their steps, but numbers marked unverified need checking on the picture):\n"
                     + self.get("chart_reads")[:CHART_READS_MAX])
         return out
 
 
-# --------------------------------------------------------------------------- model manager
 class ModelManager:
     """Loads FAST/DEEP lazily; keeps both resident only when RAM allows."""
 
@@ -784,11 +750,10 @@ class ModelManager:
         self.keep_both = (mem_total_gb() >= 12) if kb == "auto" else bool(kb)
         self.models = {}
         self.home = bool(cfg.get("home"))
-        self.on_pc = set()        # roles whose loaded model is the PC's
-        self.pc_checked = {}      # role -> time the PC was last found unreachable for it
+        self.on_pc = set()
+        self.pc_checked = {}
         self.pc_why = ""
-        self._lock = threading.RLock()   # the launch preload and a model request can arrive together
-        # DECK ONLY switch (Home mode): skips the PC check and uses the deck's RKLLM models; remembered in config
+        self._lock = threading.RLock()
         self.deck_only = False
         if self.home and cfg.get("deck_only"):
             self.set_deck_only(True)
@@ -827,8 +792,6 @@ class ModelManager:
         self.pc_why = ""
         system = FAST_SYSTEM if role == "fast" else DEEP_SYSTEM
         temp = {"fast": 0.4, "deep": 0.1, "think": 0.6}[role]
-        # Qwen's settings for thinking mode: top_p 0.95, top_k 20, and a presence penalty, which Qwen advises
-        # against the endless "wait... but..." loops quantized thinking models fall into (11-01 saw them)
         opts = ({"top_p": 0.95, "top_k": 20, "min_p": 0.0, "presence_penalty": self.cfg.get("think_presence_penalty", 1.5)}
                 if role == "think" else {})
         return OllamaModel(name, system_prompt=system, url=self.cfg["home_url"], temperature=temp,
@@ -866,11 +829,9 @@ class ModelManager:
                 self.models[role] = m
                 self.on_pc.add(role)
                 return m
-            self.pc_checked[role] = time.time()   # try the PC again in a minute, the deck's model meanwhile
+            self.pc_checked[role] = time.time()
         if role in self.models:
             return self.models[role]
-        # loading a model briefly needs about 1.5x its file in free RAM; short of that the deck swaps until it
-        # freezes, so the loaded ones go first (they reload in seconds)
         try:
             need = os.path.getsize(self.cfg[f"{role}_model"]) / 2**30 * 1.5 + 1 if self.backend == "rkllm" else 0
         except OSError:
@@ -878,23 +839,18 @@ class ModelManager:
         domain = 0 if role == "fast" else 1
         if self.backend == "rkllm" and role != "fast" and self.cfg[f"{role}_model"] != self.cfg["fast_model"]:
             domain = self._trial(role)
-            if domain is None:  # it can't run here: the fast model's file stands in, labelled with the reason
+            if domain is None:
                 return self.get(role)
         for other in list(self.models):
-            # one 4B at a time (deep and think swap); swap all on small boards;
-            # a model that only loads in domain 0 shares it with nothing
             if not self.keep_both or domain == 0 and role != "fast" or {role, other} == {"deep", "think"}:
                 self.models.pop(other).release()
-        # 11-02: keep the 1.7B and one 4B loaded together. Only when RAM is still short after the other 4B
-        # went does the rest go too (short loads made the deck swap until it froze). Checked after the swap: before,
-        # the RAM the other 4B was about to free counted as used, so every switch reloaded everything.
         if need and self.models and mem_available_gb() < need:
             print(f"models: {mem_available_gb():.1f} GB free, {need:.1f} GB needed to load {role}: "
                   f"unloading {', '.join(self.models)} first")
             for other in list(self.models):
                 self.models.pop(other).release()
         system = FAST_SYSTEM if role == "fast" else DEEP_SYSTEM
-        temp = {"fast": 0.4, "deep": 0.1, "think": 0.6}[role]  # 0.6 is Qwen's setting for thinking models
+        temp = {"fast": 0.4, "deep": 0.1, "think": 0.6}[role]
         think = role == "think"
         if self.backend == "rkllm":
             def load():
@@ -907,7 +863,7 @@ class ModelManager:
                 if role == "fast":
                     raise
                 m = None
-                if self.models:  # maybe the NPU wouldn't hold both: try this one alone, once
+                if self.models:
                     for other in list(self.models):
                         self.models.pop(other).release()
                     try:
@@ -917,7 +873,6 @@ class ModelManager:
                 if m is None:
                     if self.cfg[f"{role}_model"] == self.cfg["fast_model"]:
                         raise
-                    # remember it and load the fast model's file in this role (its own prompt), labelled so
                     self.cfg.setdefault("stand_in", {})[role] = f"wouldn't load: {str(e).split('(')[0].strip()}"
                     self.cfg[f"{role}_model"] = self.cfg["fast_model"]
                     return self.get(role)
@@ -956,7 +911,6 @@ class ModelManager:
         except (OSError, ValueError):
             cache = {}
         if key not in cache:
-            # the child needs the RAM and NPU memory this process is holding
             for other in list(self.models):
                 self.models.pop(other).release()
             tried = []
@@ -998,7 +952,7 @@ class PreloadWorker(QThread):
     def run(self):
         try:
             self.mgr.get("fast")
-        except Exception as e:      # the first question tries again and shows the error
+        except Exception as e:
             print(f"fast model preload: {e}")
 
 
@@ -1020,7 +974,7 @@ class GenWorker(QThread):
             self.status.emit(f"{self.mgr.label(self.role)} generating...")
             text = model.generate(self.prompt, self.token.emit, keep_history=self.keep_history,
                                   max_new_tokens=self.max_new_tokens, temperature=self.temperature)
-        except Exception as e:  # surface load/run errors in the UI instead of crashing
+        except Exception as e:
             text = f"\n[LLM error: {e}]"
             self.token.emit(text)
             self.mgr.pc_failed(self.role)
@@ -1038,7 +992,7 @@ class CaseContextWorker(QThread):
     def run(self):
         try:
             self.result.emit(case_context(self.retriever, self.case, budget=self.budget, **self.kw))
-        except Exception as e:      # a failed lookup only loses the manual text, never the answer
+        except Exception as e:
             print(f"manual lookup failed: {e}")
             self.result.emit("")
 
@@ -1053,7 +1007,7 @@ class WarmWorker(QThread):
     def run(self):
         try:
             self.retriever.search_ids("engine", 1)
-        except Exception as e:      # only a speed-up: the first real search loads them instead
+        except Exception as e:
             print(f"retriever warm-up: {e}")
 
 
@@ -1071,7 +1025,7 @@ class VinWorker(QThread):
 
 class PicWorker(QThread):
     """CHARM page pictures from the home PC, off the UI thread (cache/charm/ keeps them for offline)."""
-    done = pyqtSignal(list, str)     # cached files, problem ('' when all came)
+    done = pyqtSignal(list, str)
 
     def __init__(self, names):
         super().__init__()
@@ -1085,7 +1039,7 @@ class PicWorker(QThread):
 class ChartWorker(QThread):
     """Asks the PC to read chart pictures (35B vision, queued there behind other GPU jobs) and polls until
     each one is read. Emits each reading as it lands."""
-    result = pyqtSignal(str, dict)   # picture name, the PC's answer
+    result = pyqtSignal(str, dict)
     note = pyqtSignal(str)
     POLL_S, GIVE_UP_S = 15, 45 * 60
 
@@ -1136,29 +1090,28 @@ class OBDWorker(QThread):
     result fires only with real data; problems go to note, so an error never lands in the Live data box."""
     result = pyqtSignal(str, str)
     note = pyqtSignal(str)
-    # how ("vin" | "ssm" | "hint"), value (VIN | SSM id | maker hint), engine (SSM only), ECU id (ROM/CAL id)
     ident = pyqtSignal(str, str, str, str)
-    mode06 = pyqtSignal(str)   # failed on-board tests, for the case ('' when none)
+    mode06 = pyqtSignal(str)
     read_mode06 = True
 
     def __init__(self, adapter, port, make=""):
         super().__init__()
         self.adapter, self.port = adapter, port or None
-        self.make, self.protocol = make, ""   # the Make picked in Intake; the bus the EX found
+        self.make, self.protocol = make, ""
 
     def run(self):
         try:
             self._read()
-        except Exception as e:  # a missing cable or driver must never close the app
+        except Exception as e:
             self.note.emit(f"Read failed: {e}")
 
     def _ssm_note(self, note):
         self.note.emit(note)
         m = re.match(r"SSM (\S+) \(([^)]*)\) ROM (\S+)", note)
-        if m:  # only Subaru ECUs answer the SSM init, so this alone says the make
+        if m:
             self.ident.emit("ssm", m.group(1), m.group(2), f"ROM {m.group(3)}")
             v = re.search(r"\bVIN ([A-HJ-NPR-Z0-9]{17})\b", note)
-            if v:  # newer Subaru ECUs keep the VIN; read with 0xA8 like everything else
+            if v:
                 self.ident.emit("vin", v.group(1), m.group(2), f"ROM {m.group(3)}")
         return bool(m)
 
@@ -1180,8 +1133,7 @@ class OBDWorker(QThread):
             if codes or live:
                 self.result.emit(codes, live)
             return
-        # No VIN, or a Subaru VIN: ask for SSM through the same EX (more codes and live values on a Subaru).
-        if CFG.get("_ex_ssm_failed"):  # it already got no SSM answer this run: don't spend the time again
+        if CFG.get("_ex_ssm_failed"):
             self.note.emit("Skipping Subaru SSM through the EX (no answer earlier). For SSM codes and live data "
                            "on a Subaru, pick the KKL cable.")
             if codes or live:
@@ -1192,7 +1144,7 @@ class OBDWorker(QThread):
         s_codes, s_live, note, variant = read_ssm_ex(self.port, CFG["session_db"], CFG["cache_dir"],
                                                      CFG.get("ex_ssm_variant", ""))
         ok = self._ssm_note(note)
-        if not ok and (codes or live):  # the EX itself works on this car, only SSM through it doesn't
+        if not ok and (codes or live):
             CFG["_ex_ssm_failed"] = True
         if not ok:
             if not vin_make:
@@ -1204,7 +1156,7 @@ class OBDWorker(QThread):
         if s_live and s_live != "(no live data)":
             ssm_labels = {x.strip().split(" ")[0] for x in s_live.split("|")}
             extra = [x.strip() for x in live.split("|") if x.strip() and x.strip().split(" ")[0] not in ssm_labels]
-            live = " | ".join([s_live] + extra)   # SSM first; generic values SSM doesn't have stay in the line
+            live = " | ".join([s_live] + extra)
             CFG["_live"] = ("ssm", live)
             self._seen_ssm(note, "EX", "ecu_init_reply_ex.hex")
         if codes or live:
@@ -1251,8 +1203,6 @@ class OBDWorker(QThread):
         except Exception as e:
             print(f"mode 06: {e}")
 
-    # TELEMETRY: what this car answered, kept per device (cache/telemetry_seen.db) for telemetry_ref.capabilities().
-    # Reads only what the connection already learned; never sends anything extra. A failure never stops a read.
     def _seen_obd(self, conn, got):
         try:
             car = getattr(self, "seen_car", None)
@@ -1285,7 +1235,7 @@ class OBDWorker(QThread):
             cmd = getattr(obd.commands, name, None)
             if cmd is None or not (force or conn.supports(cmd)):
                 return ""
-            r = conn.query(cmd, force=force)  # force: some libraries don't read the 0900 bitmap; VIN is a read
+            r = conn.query(cmd, force=force)
             if r.is_null():
                 return ""
             v = r.value
@@ -1308,8 +1258,8 @@ class OBDWorker(QThread):
 class DriveWorker(OBDWorker):
     """TEST DRIVE: the same read-only READ CAR snapshot, repeated every `every` seconds until stopped.
     Holds the cable for the whole drive, so READ CAR, TEST MODE and other programs wait."""
-    sample = pyqtSignal(float, str, str)   # time.time(), codes, live
-    read_mode06 = False                    # slow and doesn't change while driving; READ CAR has it
+    sample = pyqtSignal(float, str, str)
+    read_mode06 = False
 
     def __init__(self, adapter, port, every, make=""):
         super().__init__(adapter, port, make)
@@ -1322,7 +1272,7 @@ class DriveWorker(OBDWorker):
             t0 = time.time()
             try:
                 self._read()
-            except Exception as e:  # one bad read (a bump, a loose plug) mustn't end the drive log
+            except Exception as e:
                 self.note.emit(f"Read failed: {e}")
             self.stop_flag.wait(max(1.0, self.every - (time.time() - t0)))
 
@@ -1331,14 +1281,12 @@ class TestWorker(QThread):
     """TEST MODE: holds the cable while the switch is on and runs only what a confirmed button asked for.
     Subaru actuator tests and clear memory go through ssm/ssm_tests.py (FreeSSM's checks: test-mode
     connector joined, engine off); clear codes for any car is OBD-II mode 04 through python-obd."""
-    msg = pyqtSignal(str, str)      # text, colour
-    tests = pyqtSignal(list)        # actuator tests this ECU advertises ([] = none, or not connected)
-    running = pyqtSignal(str)       # test running now, '' when none
+    msg = pyqtSignal(str, str)
+    tests = pyqtSignal(list)
+    running = pyqtSignal(str)
 
     def __init__(self, port):
         super().__init__()
-        # 10-19: Subaru tests and clears always go over the KKL cable (the EX got NO DATA over SSM);
-        # the EX is only for mode 04 on other cars. cables.py tells the two apart when both are plugged in.
         self.adapter, self.port = "kkl", port or None
         self.q = queue.Queue()
         self.t = None
@@ -1347,7 +1295,7 @@ class TestWorker(QThread):
 
     def do(self, op, arg=None):
         if op == "quit":
-            self.quitting = True  # a CONNECT in progress gives up before trying the next cable
+            self.quitting = True
         self.q.put((op, arg))
 
     def emergency_stop(self):
@@ -1403,7 +1351,7 @@ class TestWorker(QThread):
     def _release(self):
         if self.t is not None:
             try:
-                self.t.close()  # stops a running test and writes 0x00 to every actuator byte first
+                self.t.close()
             except Exception as e:
                 self.msg.emit(f"[!] Couldn't confirm the actuators stopped ({e}). Key OFF to be sure.", T.RED)
             self.t = None
@@ -1416,7 +1364,6 @@ class TestWorker(QThread):
         self._release()
         from ssm_tests import NoLink
         self.msg.emit("[*] Connecting to the Subaru engine ECU...", T.MUTED)
-        # Each job uses whichever cable answers: the KKL cable first for SSM, then the EX.
         try:
             self.t, variant = open_subaru("kkl", self.port, "", CFG["cache_dir"])
         except NoLink as e:
@@ -1486,7 +1433,7 @@ class TestWorker(QThread):
     def _mode04(self):
         from ssm_tests import NoLink, Refused
         from cables import ex_port
-        self._release()  # python-obd needs the port to itself
+        self._release()
         try:
             import obd
         except ImportError:
@@ -1523,7 +1470,7 @@ _CONFIG_LOCK = threading.Lock()
 
 def save_config_key(key, value):
     """Remember a choice (mic, cable) in config.json without touching the rest of it."""
-    with _CONFIG_LOCK:  # the GUI and the cable workers can both save a choice
+    with _CONFIG_LOCK:
         data = {}
         try:
             with open(CONFIG_PATH) as f:
@@ -1531,25 +1478,24 @@ def save_config_key(key, value):
         except OSError:
             pass
         except ValueError:
-            return  # never replace a file we couldn't read with a one-key file
+            return
         data[key] = value
         tmp = CONFIG_PATH + ".tmp"
         try:
             with open(tmp, "w") as f:
                 json.dump(data, f, indent=2)
-            os.replace(tmp, CONFIG_PATH)  # a power cut leaves the old file or the new one, never half of one
+            os.replace(tmp, CONFIG_PATH)
         except OSError:
             pass
 
 
-# --------------------------------------------------------------------------- intake bubbles
 MODELS = ["Forester", "Impreza", "Legacy", "Outback", "WRX", "WRX STI", "Baja", "Crosstrek", "Tribeca", "SVX",
           "Ascent", "BRZ", "XV Crosstrek"]
 TRANS = ["", "Manual", "Automatic"]
 REPAIRS = sorted(["exhaust manifold gasket", "spark plugs", "ignition coil", "spark plug wires", "timing belt",
                   "head gasket", "valve cover gasket", "front O2 sensor", "rear O2 sensor", "PCV valve", "thermostat",
                   "water pump", "intake manifold gasket", "fuel injector", "knock sensor", "crankshaft position sensor",
-                  "camshaft position sensor"], key=str.lower)  # alphabetical: list order must not favor a repair
+                  "camshaft position sensor"], key=str.lower)
 
 
 VERDICT_KEYWORDS = [("exhaust manifold", "exhaust manifold gasket"), ("coil", "ignition coil"), ("plug wire", "spark plug wires"),
@@ -1560,7 +1506,6 @@ VERDICT_KEYWORDS = [("exhaust manifold", "exhaust manifold gasket"), ("coil", "i
 
 def repair_from_verdict(verdict):
     """The repair named in the verdict's root cause (section 1 only, so ruled-out parts don't count)."""
-    # section 2 starts at a line like "2.", "**2.**", "## 2)" or "2. WHAT RULES OUT"
     root = re.split(r"\n[\s#*_>-]*2\s*[.):]", verdict, maxsplit=1)[0].lower()
 
     def named(word):
@@ -1574,7 +1519,6 @@ def repair_from_verdict(verdict):
             return m.start()
         return -1
 
-    # the repair the verdict names first wins, not the one listed first here
     hits = [(i, r) for r in REPAIRS if (i := named(r.lower())) >= 0]
     hits = hits or [(i, r) for k, r in VERDICT_KEYWORDS if (i := named(k)) >= 0]
     return min(hits)[1] if hits else None
@@ -1594,7 +1538,7 @@ class Bubbles(QWidget):
         self.buttons = []
         self.group = QButtonGroup(self) if single else None
         if self.group:
-            self.group.setExclusive(False)  # exclusive by hand, so a second tap can clear it
+            self.group.setExclusive(False)
         row = 0
         for head, labels in sections:
             col0 = 0
@@ -1684,7 +1628,6 @@ def vehicle_table(retriever):
     return out
 
 
-# --------------------------------------------------------------------------- GUI
 STYLE = T.qss()
 IDLE, BUSY, ERR = T.fg(T.MUTED), T.fg(T.AMBER, bold=True), T.fg(T.RED, bold=True)
 
@@ -1693,16 +1636,16 @@ class CyberdeckApp(QMainWindow):
     def __init__(self, bus=None):
         super().__init__()
         self.session = Session(CFG["session_db"])
-        try:  # manual lookups start on the car picked last time, if any
+        try:
             v = json.loads(self.session.get("vehicle_info") or "{}")
         except ValueError:
             v = {}
         if v.get("model"):
             CFG["kb_model"], CFG["kb_year"] = v["model"], int(v["year"]) if str(v.get("year", "")).isdigit() else None
-        if "make" not in v and v.get("model"):  # cases saved before makes existed were all Subaru
+        if "make" not in v and v.get("model"):
             v["make"] = "Subaru"
         self.kb_msg = use_make(v.get("make", ""))
-        try:  # a kb mid-copy or a missing kb_retriever.py must not stop the window opening
+        try:
             self.retriever = make_retriever(CFG)
             self._warm_retriever()
         except Exception as e:
@@ -1710,20 +1653,20 @@ class CyberdeckApp(QMainWindow):
             self.kb_msg = f"manual database failed to open: {e}"
         self.mgr = ModelManager(CFG)
         self.preload = None
-        if self.mgr.backend == "rkllm":   # in Home this checks the PC at launch, and loads the deck's model if it's away
+        if self.mgr.backend == "rkllm":
             self.preload = PreloadWorker(self.mgr)
             self.preload.start()
         DRIVE_KEY["key"] = lambda: "drive_log" if self.mgr.home and not self.mgr.pc_why else "drive_log_short"
         self.worker = None
         self.obd_worker = None
-        self.test_worker = None  # TEST MODE; always off at start
+        self.test_worker = None
         self.chat_started = False
         self.chat_hist = []
         self.last_case = self.session.case_summary()
-        self.last_debate = ""  # held in memory; only SAVE DEBATE (/save) writes it to the session DB
+        self.last_debate = ""
         self.dictate_target = None
-        self.dictate_widget = None   # the text box that had the cursor when dictation started
-        self.last_edit = None        # the last text box the cursor was in, on any page
+        self.dictate_widget = None
+        self.last_edit = None
         self.voice = None
 
         self.setWindowTitle("CYBERDECK HOME // PC MODELS" if CFG.get("home") else "CYBERDECK // DIAGNOSTIC OS")
@@ -1731,7 +1674,7 @@ class CyberdeckApp(QMainWindow):
         self.resize(min(1180, avail.width()) if avail else 1180, min(720, avail.height()) if avail else 720)
         self.setStyleSheet(STYLE)
 
-        root = FitRoot()   # scrolls only when the screen is below the minimum, never at 150% scaling
+        root = FitRoot()
         lay = QVBoxLayout(root)
         top = QHBoxLayout()
         self.lbl_title = title = QLabel(self._title_text())
@@ -1742,10 +1685,10 @@ class CyberdeckApp(QMainWindow):
             lbl.setWordWrap(True)
             lbl.setMinimumWidth(120)
         self.lbl_llm.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        self.lbl_llm.setObjectName("chip")   # the Home/RKLLM mode label (theme.qss)
+        self.lbl_llm.setObjectName("chip")
         top.addWidget(title, 1)
         top.addWidget(self.lbl_llm, 1)
-        if self.mgr.home:   # skip the PC and use the deck's RKLLM models
+        if self.mgr.home:
             self.b_deck_only = QPushButton("DECK ONLY")
             self.b_deck_only.setCheckable(True)
             self.b_deck_only.setChecked(self.mgr.deck_only)
@@ -1754,8 +1697,7 @@ class CyberdeckApp(QMainWindow):
             top.addWidget(self.b_deck_only)
         lay.addLayout(top)
 
-        nav = ReflowRow()   # wraps onto two rows on a portrait screen
-        # self.nav is in page (stack) order; Maintenance was added last but sits second on screen
+        nav = ReflowRow()
         self.nav = [QPushButton(t) for t in ("1. INTAKE && SCAN", "3. BRAINSTORM / CHAT", "4. FINAL DIAGNOSIS",
                                              "5. REPAIR GUIDE (SOP)", "6. PARTS", "7. TESTS", "2. MAINTENANCE")]
         for i, b in enumerate(self.nav):
@@ -1775,20 +1717,18 @@ class CyberdeckApp(QMainWindow):
         self._maint_view()
         lay.addWidget(self.stack, 1)
 
-        # bottom bar: voice + stop, on every screen
         bar = QHBoxLayout()
         self.b_mic = QPushButton("🎤 MIC")
         self.b_mic.setToolTip("Or press F2, or say 'hey deck'. Talk, then stay quiet for 2 s. The words go "
                               "into the box the cursor is in (Chat and Parts then run it); with no box picked: "
                               "Intake notes, Chat question, Repair job, Parts search.")
-        # pressing MIC must not take the cursor out of the box the words are meant for
         self.b_mic.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         QApplication.instance().focusChanged.connect(self._track_focus)
         QShortcut(QKeySequence("F2"), self, activated=self.act_mic)
         self.b_mic.clicked.connect(self.act_mic)
-        self.cmb_mic = PopupCombo(lambda: self._fill_mics(refresh=True))  # earbuds that connect later show up
+        self.cmb_mic = PopupCombo(lambda: self._fill_mics(refresh=True))
         self.cmb_mic.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        self.cmb_mic.setMinimumContentsLength(12)  # long PortAudio names mustn't widen the window
+        self.cmb_mic.setMinimumContentsLength(12)
         self._fill_mics()
         self.cmb_mic.currentIndexChanged.connect(self.act_mic_changed)
         b_test = QPushButton("🔊 TEST")
@@ -1807,8 +1747,6 @@ class CyberdeckApp(QMainWindow):
         bar.addWidget(self.b_stop)
         lay.addLayout(bar)
 
-        # The whole window scrolls when the screen is smaller than the layout's minimum (desktop scaled to
-        # 160% leaves ~1200x675 logical px), so nothing is ever placed off screen.
         root.setObjectName("page")
         frame = QScrollArea()
         frame.setWidgetResizable(True)
@@ -1820,7 +1758,6 @@ class CyberdeckApp(QMainWindow):
             bus.error.connect(self.on_error)
         self._start_voice()
 
-    # ------------------------------------------------------------------ plumbing
     def on_error(self, msg):
         self.lbl_llm.setText(f"error: {msg[:120]}")
         self.lbl_llm.setStyleSheet(ERR)
@@ -1829,7 +1766,7 @@ class CyberdeckApp(QMainWindow):
         self._say(out, f"[error] {msg}", T.RED)
 
     def act_deck_only(self, on):
-        if self.worker is not None and self.worker.isRunning():   # don't swap models under a running answer
+        if self.worker is not None and self.worker.isRunning():
             self.b_deck_only.blockSignals(True)
             self.b_deck_only.setChecked(not on)
             self.b_deck_only.blockSignals(False)
@@ -1839,7 +1776,7 @@ class CyberdeckApp(QMainWindow):
         self.mgr.set_deck_only(on)
         save_config_key("deck_only", bool(on))
         if on and self.mgr.backend == "rkllm" and "fast" not in self.mgr.models:
-            self.preload = PreloadWorker(self.mgr)   # load the deck's 1.7B now, not at the next question
+            self.preload = PreloadWorker(self.mgr)
             self.preload.start()
         self._llm_idle()
 
@@ -1937,15 +1874,15 @@ class CyberdeckApp(QMainWindow):
 
     def switch(self, i):
         if self.stack.currentIndex() == 0 and i != 0:
-            self._store_case()  # no SAVE needed: whatever is on Intake follows you to the other screens
+            self._store_case()
         if self.stack.currentIndex() == 5 and i != 5 and self.test_worker is not None \
                 and self.lbl_testmode.text().startswith("RUNNING"):
-            self.test_worker.emergency_stop()  # STOP ALL lives on this screen: no test keeps running out of sight
+            self.test_worker.emergency_stop()
         if i == 2 and hasattr(self, "txt_notes"):
             self.txt_notes.setPlainText(self.session.get("chat_notes"))
             verdict = self.session.get("final_verdict")
             if verdict and self.tabs_verdict.count() == 1 and not self.txt_verdict.toPlainText().strip():
-                self._say(self.txt_verdict, verdict)     # a loaded visit's verdict, back in its tabs
+                self._say(self.txt_verdict, verdict)
                 self._build_verdict_tabs(verdict)
         if i == MAINT_PAGE:
             self._maint_fill()
@@ -1981,7 +1918,6 @@ class CyberdeckApp(QMainWindow):
             self.lbl_llm.setStyleSheet(BUSY)
             return True
         if self.test_worker is not None and self.lbl_testmode.text().startswith("RUNNING"):
-            # a model crash would take the running test's repeat thread with it before the switch-off
             self.lbl_llm.setText("a test is running: STOP it first (TESTS screen)")
             self.lbl_llm.setStyleSheet(BUSY)
             return True
@@ -1997,13 +1933,10 @@ class CyberdeckApp(QMainWindow):
         11-01: fixed caps per mode (700 for wildcard, 300 for chat...) cut answers off mid-sentence."""
         on_pc = bool(getattr(self.mgr, "home", False)) and not getattr(self.mgr, "pc_why", None)
         ctx = CFG["home_context_len"] if on_pc else CFG["max_context_len"]
-        return max(256, ctx - int(len(prompt) / 3.0) - 128)    # ~3 chars a token, rounded toward safe
+        return max(256, ctx - int(len(prompt) / 3.0) - 128)
 
     def _run(self, role, prompt, out: QTextEdit, on_done, keep_history=False, max_new_tokens=None, temperature=None,
              check=True, check_against=None):
-        # check / check_against: the source check (app/faithfulness.py) where it is wired; accepted here so callers
-        # can pass them
-        # a caller's number is ignored on purpose: only the context limit applies (see answer_room)
         max_new_tokens = self.answer_room(prompt)
         self.worker = GenWorker(self.mgr, role, prompt, keep_history, max_new_tokens, temperature)
         plain = QTextCharFormat()
@@ -2012,7 +1945,7 @@ class CyberdeckApp(QMainWindow):
         def tok(t):
             c = out.textCursor()
             c.movePosition(QTextCursor.MoveOperation.End)
-            c.insertText(t, plain)  # plain text, so the coloured label before it doesn't bleed into the answer
+            c.insertText(t, plain)
             out.setTextCursor(c)
             out.ensureCursorVisible()
 
@@ -2038,7 +1971,6 @@ class CyberdeckApp(QMainWindow):
             if model:
                 model.abort()
 
-    # ------------------------------------------------------------------ voice
     def _start_voice(self):
         listen, dictate, why = voice.voice_status(CFG) if CFG["voice_enabled"] else (False, False, "voice off in config")
         self.lbl_voice.setText(why)
@@ -2082,7 +2014,7 @@ class CyberdeckApp(QMainWindow):
         "CyberVecordio Check" into Notes)."""
         if self.voice is not None:
             self.voice.send("pause")
-            ms = int(1500 + len(text) * 1000 / (CFG.get("tts_rate", 145) * 5.5 / 60))  # ~5.5 chars per word
+            ms = int(1500 + len(text) * 1000 / (CFG.get("tts_rate", 145) * 5.5 / 60))
             QTimer.singleShot(ms, lambda: self.voice is not None and self.voice.send("resume"))
         return voice.speak(CFG, text)
 
@@ -2091,13 +2023,13 @@ class CyberdeckApp(QMainWindow):
             self.lbl_voice.setText("no speech engine: sudo apt install espeak-ng")
 
     def act_mic(self):
-        if self.voice is not None and not self.voice.isRunning():  # the voice process died: start it again
+        if self.voice is not None and not self.voice.isRunning():
             self._stop_voice()
             self._start_voice()
         if self.voice is None:
             self.lbl_voice.setText("dictation needs whisper.cpp set up (see README)")
             return
-        if self.b_mic.text().startswith("●"):  # already listening: this press means "done talking"
+        if self.b_mic.text().startswith("●"):
             self.voice.send("dictate")
             return
         self._start_dictation(self.stack.currentIndex())
@@ -2112,7 +2044,7 @@ class CyberdeckApp(QMainWindow):
         w = self.last_edit
         try:
             return w if w is not None and w.isVisible() and w.isEnabled() and not w.isReadOnly() else None
-        except RuntimeError:   # the box was deleted (a page rebuilt)
+        except RuntimeError:
             return None
 
     def _start_dictation(self, page):
@@ -2160,7 +2092,7 @@ class CyberdeckApp(QMainWindow):
             self.act_save_case()
         elif cmd == "new_case":
             self.act_new_case()
-        elif cmd == "verdict":  # shown on screen, never spoken
+        elif cmd == "verdict":
             self.switch(2)
             self.act_verdict()
         elif cmd == "torque":
@@ -2186,7 +2118,7 @@ class CyberdeckApp(QMainWindow):
                          "maintenance": MAINT_PAGE}[arg])
         elif cmd == "stop":
             self.act_stop()
-        elif cmd == "dictating":  # "hey deck" started whisper: the text goes where MIC would put it
+        elif cmd == "dictating":
             if arg == "intake":
                 self.switch(0)
                 self.last_edit = self.txt_note
@@ -2232,7 +2164,7 @@ class CyberdeckApp(QMainWindow):
             elif w is self.in_part:
                 self.act_find_parts()
             return
-        if alive:   # the intake notes box: typed in where the cursor was, then summarized below
+        if alive:
             self.switch(0)
             self._insert_text(w, text)
             self._summarize_note()
@@ -2266,7 +2198,6 @@ class CyberdeckApp(QMainWindow):
     def _note_summary_done(self, text):
         self.session.set("intake_summary", "" if "[LLM error" in text else text.strip())
 
-    # ------------------------------------------------------------------ 1. intake
     def _intake_view(self):
         page = QWidget()
         outer = QVBoxLayout(page)
@@ -2325,10 +2256,10 @@ class CyberdeckApp(QMainWindow):
         vbox.addLayout(vin_row)
         vr = QHBoxLayout()
         vbox.addLayout(vr)
-        self.vehicles = vehicle_table(self.retriever)  # {(model, year): {engines}} from the manuals
+        self.vehicles = vehicle_table(self.retriever)
         self.cmb_year, self.cmb_make, self.cmb_model, self.cmb_trans = QComboBox(), QComboBox(), QComboBox(), QComboBox()
         self._fill_years(self.cmb_year)
-        self.cmb_make.addItems([""] + MAKES)  # each make loads its own kb/<make>.db
+        self.cmb_make.addItems([""] + MAKES)
         self.cmb_make.currentTextChanged.connect(self._switch_make)
         self.cmb_trans.addItems(TRANS)
         self.in_miles = QLineEdit()
@@ -2355,7 +2286,7 @@ class CyberdeckApp(QMainWindow):
         self.bub_dtcs.setPlaceholderText("filled by READ CAR, or type them (e.g. P0420, P0171)")
         self.in_live = QLineEdit()
         self.in_live.setPlaceholderText("filled by READ CAR, or type readings (e.g. LTFT +12%, idle 650)")
-        self.bub_symptoms = Field()  # typed or dictated; a button list can't cover what cars do
+        self.bub_symptoms = Field()
         self.bub_symptoms.setPlaceholderText("what it does, when (e.g. ticks when cold, stalls at lights)")
         self.bub_good = Field()
         self.bub_good.setPlaceholderText("already checked and fine (optional)")
@@ -2379,7 +2310,7 @@ class CyberdeckApp(QMainWindow):
         mf.addRow("Notes:", self.txt_note)
         lay.addWidget(case)
 
-        btns = ReflowRow()   # wraps on a narrow (portrait) window
+        btns = ReflowRow()
         b_save = QPushButton("SAVE CASE + SHOW WHAT THE MANUAL HAS")
         b_save.setStyleSheet(f"background-color: {T.FOREST}; color: {T.TEXT};")
         b_save.clicked.connect(self.act_save_case)
@@ -2403,7 +2334,7 @@ class CyberdeckApp(QMainWindow):
         scroll.setWidget(inner)
         outer.addWidget(scroll)
         self.stack.addWidget(page)
-        self._clear_case()  # 10-19: every start is a fresh case; LOAD LAST CASE brings the old one back
+        self._clear_case()
         self._load_case()
         self._say(self.txt_intake, "[*] New case. LOAD LAST CASE brings back the previous one.", T.MUTED)
 
@@ -2427,7 +2358,7 @@ class CyberdeckApp(QMainWindow):
         self.cmb_model.blockSignals(True)
         self.cmb_model.clear()
         self.cmb_model.addItems([""] + names)
-        self.cmb_model.setEditable(not names)  # no manuals for this make: type the model
+        self.cmb_model.setEditable(not names)
         self.cmb_model.blockSignals(False)
         self.cmb_model.setCurrentText(keep if (keep in names or not names) else "")
         self._show_engine()
@@ -2513,7 +2444,7 @@ class CyberdeckApp(QMainWindow):
             self.retriever = NullRetriever()
             self.kb_msg = f"{make} database failed to open: {e}"
         self.vehicles = vehicle_table(self.retriever)
-        self.lbl_engine.setText("")  # another make's engine must not carry over
+        self.lbl_engine.setText("")
         self._fill_years(self.cmb_year)
         self._fill_models(self.cmb_year.currentText())
         if hasattr(self, "cmb_p_make"):
@@ -2531,7 +2462,7 @@ class CyberdeckApp(QMainWindow):
             self._say(self.txt_intake, f"[VIN] {d['note']}", T.AMBER)
             return
         self.in_vin.setText(d["vin"])
-        if getattr(self, "last_ecu", "") and d.get("vin"):  # typed after a read: remember it for this ECU now
+        if getattr(self, "last_ecu", "") and d.get("vin"):
             remember_ecu_vin(self.last_ecu, d["vin"])
         if d["make"]:
             self.cmb_make.setCurrentText(d["make"])
@@ -2546,7 +2477,6 @@ class CyberdeckApp(QMainWindow):
             self.lbl_engine.setText(f"Engine: {d['engine']}")
         self._set_trans(d.get("trans", ""))
         if not d.get("engine") and not getattr(self, "vin_worker", None):
-            # nothing saved for this car yet: ask NHTSA (free) if there's internet; the answer is kept offline
             self.vin_worker = VinWorker(d["vin"])
             self.vin_worker.result.connect(self._nhtsa_done)
             self.vin_worker.finished.connect(lambda: setattr(self, "vin_worker", None))
@@ -2564,7 +2494,7 @@ class CyberdeckApp(QMainWindow):
 
     def _nhtsa_done(self, vin, d):
         if vin != self.in_vin.text().strip().upper():
-            return   # the VIN was changed while NHTSA answered
+            return
         if not d:
             self._say(self.txt_intake, "[VIN] No internet (or NHTSA doesn't know it): engine and transmission "
                       "come from the manuals once you pick the model.", T.MUTED)
@@ -2595,8 +2525,6 @@ class CyberdeckApp(QMainWindow):
         """What the car itself said: a VIN over OBD-II, an SSM reply (always a Subaru), or only a hint.
         A VIN typed in once is remembered against the ECU's ROM/calibration id, so the next read fills it."""
         self.last_ecu = ecu
-        # a VIN already on screen may be the previous car's (NEW CASE keeps the car): only one typed after
-        # this read gets tied to this ECU
         self.vin_at_read = self.in_vin.text().strip().upper()
         known = ecu_vins().get(ecu, "") if ecu else ""
         if how == "vin":
@@ -2619,7 +2547,6 @@ class CyberdeckApp(QMainWindow):
         if car and car["year"]:
             self.cmb_year.setCurrentText(str(car["year"]))
             self._fill_models(self.cmb_year.currentText())
-            # the definition's model name must match one the manuals use ('Forester', not 'Forester XT 5MT')
             hit = next((self.cmb_model.itemText(i) for i in range(self.cmb_model.count())
                         if self.cmb_model.itemText(i) and car["model"].lower().startswith(
                             self.cmb_model.itemText(i).lower())), "")
@@ -2644,7 +2571,7 @@ class CyberdeckApp(QMainWindow):
         except ValueError:
             year = None
         engines = sorted(e for e in self.vehicles.get((self.cmb_model.currentText(), year), ()) if e)
-        if engines or self.vehicles:  # keep an engine the SSM reply gave when there are no manuals
+        if engines or self.vehicles:
             self.lbl_engine.setText(f"Engine: {' or '.join(engines)}" if engines else "")
 
     def _title_text(self):
@@ -2656,7 +2583,7 @@ class CyberdeckApp(QMainWindow):
             v = json.loads(self.session.get("vehicle_info") or "{}")
         except ValueError:
             pass
-        if "make" not in v and v.get("model"):  # cases saved before makes existed were all Subaru
+        if "make" not in v and v.get("model"):
             v["make"] = "Subaru"
         self.cmb_make.blockSignals(True)
         self.cmb_make.setCurrentText(v.get("make", ""))
@@ -2697,12 +2624,10 @@ class CyberdeckApp(QMainWindow):
         extra = ", ".join(x for x in (v["engine"], v["trans"], f"{v['miles']} mi" if v["miles"] else "") if x)
         self.session.set("vehicle", desc + (f" ({extra})" if extra else ""))
         self.lbl_title.setText(self._title_text())
-        # "(pending)" / "(history)" etc. stay with their code, so the models see the status the scan tool gave
         codes = [f"{c} ({st})" if st else c for c, st in sanity_check.parse_codes(self.bub_dtcs.text())
                  if re.fullmatch(r"[PBCU]\d{4}", c)]
         self.session.set("dtcs", ", ".join(dict.fromkeys(codes)))
         self.session.set("telemetry", self.in_live.text().strip())
-        # TELEMETRY: which reader wrote the live line (ssm / obd01); unknown once it's typed or edited by hand
         read = CFG.get("_live") or ("", "")
         self.session.set("telemetry_source", read[0] if self.in_live.text().strip() == read[1].strip() else "")
         self.session.set("symptoms", self.bub_symptoms.text())
@@ -2713,7 +2638,6 @@ class CyberdeckApp(QMainWindow):
         self.session.set("intake_note", note)
         if not note:
             self.session.set("intake_summary", "")
-        # follow the picked car in the manual lookups
         model = v["model"] or None
         year = int(v["year"]) if v["year"].isdigit() else None
         if (model, year) != (CFG.get("kb_model"), CFG.get("kb_year")):
@@ -2736,7 +2660,6 @@ class CyberdeckApp(QMainWindow):
         self._file_visit()
         return case
 
-    # ------------------------------------------------------------------ work history per car (VIN)
     def _file_visit(self):
         """File the open case under its car's VIN (one row per case, updated as it changes)."""
         try:
@@ -2758,15 +2681,12 @@ class CyberdeckApp(QMainWindow):
                 self._records_warn(e)
             self._flush_records()
 
-    # ------------------------------------------------------------------ per-car record file (records/<VIN>.db)
-    # Every reading (READ CAR and test drive), the chat and each visit's case go into the car's own SQLite file.
-    # Until the car has a VIN or customer key they wait in the session (records_pending), then get filed.
     def _rec_car(self, v):
         return {"make": v.get("make"), "model": v.get("model"), "year": v.get("year"), "engine": v.get("engine"),
                 "transmission": v.get("trans"), "vin": v.get("vin"), "db": os.path.expanduser(CFG.get("kb_db") or "")}
 
     def _records_warn(self, e):
-        if not getattr(self, "_rec_warned", False):   # once per run, not every reading
+        if not getattr(self, "_rec_warned", False):
             self._rec_warned = True
             self._say(self.txt_intake, f"[!] Car record file not written (kept to try again): {e}", T.AMBER)
 
@@ -2845,7 +2765,6 @@ class CyberdeckApp(QMainWindow):
         self.b_visits.setEnabled(bool(rows))
         self.b_visits.setText(f"PAST VISITS ({len(rows)})" if rows else "PAST VISITS")
         lines = [self._visit_line(started, case) for _, started, _, case in rows]
-        # the models see a short version too, so "it came back" is part of the case
         self.session.set("earlier_visits", "; ".join(lines[:3])[:600])
         if rows:
             self._say(self.txt_intake, f"[history] {len(rows)} earlier visit(s) for this car (PAST VISITS opens one):\n"
@@ -2899,12 +2818,11 @@ class CyberdeckApp(QMainWindow):
             self._say(self.txt_intake, f"[*] Codes before this scan: {old}", T.MUTED)
         if live:
             self.in_live.setText(live)
-        self._say(self.txt_intake, f"[✓] Codes: {codes or 'none stored'} | {live}", T.AQUA)  # live values: aqua
+        self._say(self.txt_intake, f"[✓] Codes: {codes or 'none stored'} | {live}", T.AQUA)
         self._record("read", codes=codes, live=live, source=self._live_source(live))
 
-    # ------------------------------------------------------------------ TEST DRIVE
     def act_test_drive(self):
-        if self.drive_worker is not None:   # second tap: stop
+        if self.drive_worker is not None:
             self.drive_worker.stop_flag.set()
             self.b_drive.setEnabled(False)
             self.b_drive.setText("STOPPING...")
@@ -2927,11 +2845,11 @@ class CyberdeckApp(QMainWindow):
         self._say(self.txt_intake, f"[*] Test drive started: reading the car every {every} s. Drive through idle, "
                   "cruise and some harder acceleration, then tap STOP TEST DRIVE. Eyes on the road.", T.FOREST_TEXT)
         w = DriveWorker(self.cmb_adapter.currentData(), CFG["obd_port"], every, self.cmb_make.currentText())
-        self.drive_worker = self.obd_worker = w   # READ CAR, TEST MODE and other programs see the cable is busy
+        self.drive_worker = self.obd_worker = w
         w.sample.connect(self._drive_sample)
         first = {"done": False}
 
-        def ident(*a):   # who the car is: once per drive is enough
+        def ident(*a):
             if not first["done"]:
                 first["done"] = True
                 self._apply_ident(*a)
@@ -2944,7 +2862,7 @@ class CyberdeckApp(QMainWindow):
         w.start()
 
     def _drive_note(self, n):
-        if n not in self.drive_notes:   # every 30 s the same note would bury the screen
+        if n not in self.drive_notes:
             self.drive_notes.add(n)
             self._say(self.txt_intake, f"[car] {n}", T.AMBER)
 
@@ -2953,7 +2871,7 @@ class CyberdeckApp(QMainWindow):
                                    self.cmb_model.currentText()) if x)
         try:
             return drive_file.start(drive_id, car)
-        except (OSError, ValueError) as e:     # the drive still goes on, into the session DB
+        except (OSError, ValueError) as e:
             self._say(self.txt_intake, f"[!] Couldn't start a drive file: {e}", T.AMBER)
             return ""
 
@@ -3054,18 +2972,15 @@ class CyberdeckApp(QMainWindow):
         if w is not None and w.isRunning():
             return
         self._say(self.txt_intake, "[*] Looking up what the manual has for it...", T.MUTED)
-        # this goes on the screen, not into a model, so it gets the whole procedure (config intake_show_chars)
         self.case_worker = CaseContextWorker(self.retriever, case, CFG.get("intake_show_chars", 16000))
         self.case_worker.result.connect(lambda ctx: self._say(self.txt_intake, ctx or "(nothing matched)"))
         self.case_worker.start()
 
-    # One case's fields: cleared by a new case, saved with each visit, restored by LOAD LAST CASE / PAST VISITS.
-    # Anything Session.case_summary() reads must be here or in CAR_KEYS (kb/tests/test_gui_pure.py checks).
     CASE_KEYS = ("dtcs", "telemetry", "telemetry_source", "mode06", "past_readings", "symptoms", "ruled_out",
                  "suspect", "history", "intake_note", "intake_summary", "final_verdict", "saved_debate",
                  "saved_wildcard", "drive_log", "drive_log_short", "chart_reads", "chat_notes", "drive_id",
                  "maint_selected", "maint_status")
-    CAR_KEYS = ("vehicle", "vehicle_info", "earlier_visits")   # the car: kept across its cases
+    CAR_KEYS = ("vehicle", "vehicle_info", "earlier_visits")
 
     def _clear_case(self):
         """Empty the case fields (the car stays). The old case is kept for LOAD LAST CASE."""
@@ -3074,7 +2989,7 @@ class CyberdeckApp(QMainWindow):
             self.session.set("prev_case", json.dumps(dict(old, visit_id=self.session.get("visit_id"))))
         for k in self.CASE_KEYS:
             self.session.set(k, "")
-        self.session.set("visit_id", "")   # the next case gets its own history row
+        self.session.set("visit_id", "")
 
     def act_load_last(self):
         try:
@@ -3084,7 +2999,7 @@ class CyberdeckApp(QMainWindow):
         if not old:
             self._say(self.txt_intake, "[!] No earlier case saved.", T.AMBER)
             return
-        self._clear_case()  # what's on screen now becomes the "last case"
+        self._clear_case()
         for k in self.CASE_KEYS:
             self.session.set(k, old.get(k, ""))
         self.session.set("visit_id", old.get("visit_id", ""))
@@ -3107,7 +3022,6 @@ class CyberdeckApp(QMainWindow):
         self._say(self.txt_intake, "[*] New case.", T.MUTED)
         self.last_case = self._store_case()
 
-    # ------------------------------------------------------------------ 2. chat (fast model)
     def _chat_view(self):
         w = QWidget()
         lay = QVBoxLayout(w)
@@ -3125,7 +3039,7 @@ class CyberdeckApp(QMainWindow):
         row.addWidget(b)
         lay.addLayout(row)
         acts = ReflowRow()
-        for label, tip, fn in [   # 10-24: TORQUE and MANUAL buttons dropped (typed /torque, /fsm still work)
+        for label, tip, fn in [
             ("COMMON ISSUES", "What this model is known for and at what mileage (NHTSA, recalls, TSBs, forums). "
              "Good for a pre-purchase call", lambda: self._chat_cmd("/common")),
             ("CHARTS", "The manual's diagnostic chart pictures for the case's codes (or codes typed above), read "
@@ -3179,10 +3093,9 @@ class CyberdeckApp(QMainWindow):
         self.in_chat.clear()
         self._say(self.txt_chat, msg, T.FOREST_TEXT, who="You")
 
-        # Slash commands never write to the session DB; only /save and /savewild do, on purpose.
         low = msg.lower()
         m = re.match(r"(?s)(.*\S)\s+(/debate|/wildcard)$", msg.strip(), re.I)
-        if m and not m.group(1).startswith("/"):   # "is it the coil or the injector? /debate": the text is the topic
+        if m and not m.group(1).startswith("/"):
             self._note_chat(m.group(1))
             msg = f"{m.group(2).lower()} {m.group(1)}"
             low = msg.lower()
@@ -3192,7 +3105,7 @@ class CyberdeckApp(QMainWindow):
         if low in bare:
             self._say(self.txt_chat, f"  usage: {bare[low]}", T.AMBER)
             return
-        if low.startswith(("/fluids ", "/fluid ")):  # no fluids table yet: closest manual sections, never the model
+        if low.startswith(("/fluids ", "/fluid ")):
             hits = fsm_hits(self.retriever, msg.split(" ", 1)[1] + " fluid capacity specification", k=2, chars=700)
             if hits:
                 self._say_hits(self.txt_chat, hits)
@@ -3236,7 +3149,7 @@ class CyberdeckApp(QMainWindow):
         if low in ("/chart", "/charts") or low.startswith(("/chart ", "/charts ")):
             self.act_charts(msg.split(" ", 1)[1] if " " in msg else "")
             return
-        if low.startswith(("/maintenance", "/maint", "/addmaint")):   # 10-25: a screen, not chat commands
+        if low.startswith(("/maintenance", "/maint", "/addmaint")):
             if "severe" in low:
                 self.cmb_maint_kind.setCurrentIndex(1)
             self.switch(MAINT_PAGE)
@@ -3261,16 +3174,11 @@ class CyberdeckApp(QMainWindow):
         self.session.log("user", msg)
         self._record("chat", sender="user", message=msg)
         self._note_chat(msg)
-        if not self.chat_started:  # a new case or CLEAR started the chat over
+        if not self.chat_started:
             self.chat_hist = []
             self.chat_started = True
-        # Every turn is a fresh prompt: the case, manual text found for the case AND the question, and the
-        # last few exchanges. The model's own memory isn't used, so it never fills up and resets, and a vague
-        # follow-up ("explain deeper") can't pull in unrelated manual pages (it once answered about bumpers).
         anchor = " ".join(x for x in (self.session.get("dtcs"), self.session.get("symptoms")) if x)
         recent = " ".join(u for u, _ in self.chat_hist[-2:])
-        # the codes in the query pull in the manual's diagnostic procedure first; then only owner-confirmed fixes
-        # (11-01: manual-biased, plus verified fix threads; unchecked threads stay out of chat)
 
         def go(ctx):
             hist, used = [], 0
@@ -3281,7 +3189,7 @@ class CyberdeckApp(QMainWindow):
                 hist.insert(0, turn)
                 used += len(turn)
             dc = self._data_check()
-            if dc and dc != getattr(self, "_shown_dc", ""):     # shown once per change, not every turn
+            if dc and dc != getattr(self, "_shown_dc", ""):
                 self._shown_dc = dc
                 self._say(self.txt_chat, dc, T.AMBER)
             prompt = ((f"{dc}\n\n" if dc else "") +
@@ -3298,10 +3206,9 @@ class CyberdeckApp(QMainWindow):
                       "pages for that part when there are any. Not being on the diagnostic tree is no reason to set it "
                       "aside: the tree only covers what the computer can detect. Don't agree just because they said it "
                       "either.)\n" + CHAT_STYLE)
-            # 10-19 18:07Z: chat on the fast model, fed only manual text; config "chat_model": "deep" for the 4B
             role = "deep" if CFG.get("chat_model", "fast") == "deep" and "deep" not in CFG.get("stand_in", {}) else "fast"
             if self.mgr.home and not self.mgr.pc_why:
-                role = "fast"   # on the PC the fast model is already big; the deep one is kept for verdicts/repairs
+                role = "fast"
 
             def done(t):
                 self.session.log(role, t)
@@ -3368,7 +3275,7 @@ class CyberdeckApp(QMainWindow):
                                 line = f"{c}: {d['cause']} (rejected: {d.get('reason') or 'no reason given'})"
                                 if line not in out:
                                     out.append(line)
-        except sqlite3.Error:  # no card table (kb built before cards), or mid-copy
+        except sqlite3.Error:
             return []
         return out[:15]
 
@@ -3428,7 +3335,7 @@ class CyberdeckApp(QMainWindow):
         label = f"{code} picture {i} ({path.split(' > ')[-1] if path else 'CHARM'})"
         state = res.get("state")
         if state == "skipped":
-            return   # icons and arrows: nothing to say
+            return
         if state == "error":
             self._say(self.txt_chat, f"  {label}: the PC couldn't read it ({res.get('why', '')[:120]}). Tap CHARTS "
                       "to try again.", T.AMBER)
@@ -3452,7 +3359,6 @@ class CyberdeckApp(QMainWindow):
         entry = f"[{code} chart, {path}, picture {i}]\n{text}" + (f"\n(unverified numbers: {', '.join(bad)})" if bad else "")
         self.session.set("chart_reads", (reads + "\n\n" + entry).strip())
 
-    # ------------------------------------------------------------------ maintenance screen
     MAINT_STATES = ("", "done before", "doing today", "declined")
     MAINT_GROUPS = {"past": "SHOULD HAVE BEEN DONE in the last {lb:,} mi (ask the customer)",
                     "next": "DUE NOW: next service at {next:,} mi",
@@ -3486,7 +3392,7 @@ class CyberdeckApp(QMainWindow):
         self.tree_maint.setColumnWidth(0, 300)
         self.tree_maint.setColumnWidth(1, 320)
         self.tree_maint.setColumnWidth(2, 150)
-        self.tree_maint.setEditTriggers(QTreeWidget.EditTrigger.NoEditTriggers)  # only "Done at", by tapping it
+        self.tree_maint.setEditTriggers(QTreeWidget.EditTrigger.NoEditTriggers)
         self.tree_maint.itemClicked.connect(self._maint_clicked)
         self.tree_maint.itemChanged.connect(self._maint_edited)
         lay.addWidget(self.tree_maint, 3)
@@ -3551,7 +3457,7 @@ class CyberdeckApp(QMainWindow):
             return
         status = self._maint_status()
         past = self._maint_past_done()
-        for k, at in past.items():     # done on an earlier visit: already ticked, with when
+        for k, at in past.items():
             if k not in status:
                 status[k] = {"s": "done before", "at": at, "earlier": True}
         self.session.set("maint_status", json.dumps(status) if status else "")
@@ -3602,7 +3508,7 @@ class CyberdeckApp(QMainWindow):
             again = maintenance.next_after(e, done_mi)
             if again:
                 due = f"done {done_mi:,}; again at {again:,}"
-        self.tree_maint.blockSignals(True)    # colours and texts set here are not the mechanic's edits
+        self.tree_maint.blockSignals(True)
         for c in (0, 1, 3):
             it.setForeground(c, QColor(colour))
         it.setText(1, due)
@@ -3780,7 +3686,6 @@ class CyberdeckApp(QMainWindow):
                   "line, the clue in the case that points to it, and a cheap test to rule it in or out. "
                   "Never contradict anything listed as verified good.")
         self._say(self.txt_chat, "", T.PURPLE_TEXT, who="Wildcard (speculative)")
-        # Runs on the deep model: the small one drifts into nonsense at high temperature.
         def done(t):
             if "[LLM error" not in t:
                 self.last_wildcard = t.strip()
@@ -3792,18 +3697,16 @@ class CyberdeckApp(QMainWindow):
         self.last_debate = text
         self._say(self.txt_chat, "  (not saved: tap SAVE DEBATE to add it to the case)", T.MUTED)
 
-    # ------------------------------------------------------------------ 3. verdict (deep model)
     def _verdict_view(self):
         w = QWidget()
         lay = QVBoxLayout(w)
-        row = ReflowRow()   # wraps on a narrow (portrait) window
+        row = ReflowRow()
         b = QPushButton("SYNTHESIZE ALL EVIDENCE && BUILD VERDICT")
         b.setStyleSheet(f"background-color: {T.AMBER}; color: {T.BG};")
         b.clicked.connect(self.act_verdict)
         row.add(b)
         self.chk_think = QCheckBox("THINK HARDER (slower)")
         if self.mgr.backend == "rkllm" and "think" in CFG.get("stand_in", {}):
-            # no Thinking 4B: the 1.7B thinks instead (it gave usable verdicts on the deck); say so
             self.chk_think.setText("THINK HARDER (1.7B thinking)")
             self.chk_think.setToolTip("The Qwen3-4B-Thinking .rkllm isn't in models/rkllm/ yet, so the 1.7B thinks instead")
         row.add(self.chk_think)
@@ -3824,8 +3727,6 @@ class CyberdeckApp(QMainWindow):
         self.txt_notes.setPlaceholderText("What you type in chat shows up here: parts you replaced, things you checked, "
                                           "your theories. You can also type here.")
         lay.addWidget(self.txt_notes)
-        # 10-25: one tab per issue (up to 5), cheapest/likeliest first, each with its own test, parts and
-        # manual pages; the first tab is the summary with every part to order, the last the whole answer as written
         self.tabs_verdict = QTabWidget()
         self.txt_verdict = QTextEdit()
         self.txt_verdict.setReadOnly(True)
@@ -3863,26 +3764,20 @@ class CyberdeckApp(QMainWindow):
     def act_verdict(self):
         if self._busy():
             return
-        self.session.set("chat_notes", self.txt_notes.toPlainText().strip())   # their edits to the list win
+        self.session.set("chat_notes", self.txt_notes.toPlainText().strip())
         case = self.session.case_summary()
         on_pc = self.mgr.home and not self.mgr.pc_why
-        most = 5 if on_pc else 3            # the deck's 4096-token models can't write 5 full issues
+        most = 5 if on_pc else 3
         maint = self.session.get("maint_selected")
         flags = self._data_flags()
         dc = sanity_check.block(flags)
         top = f"{dc}\n\n" if dc else ""
-        flagged = dc.startswith("DATA CHECK")   # real data problems, not only coverage notes
+        flagged = dc.startswith("DATA CHECK")
         self._verdict_redo, self._verdict_retried = None, False
-        # Not enough data and no brainstorm yet: the plan may stop and ask for tests instead (Charlie 11-13). After a
-        # brainstorm chat it diagnoses with what it has.
         gate = not (self.session.get("chat_notes") or getattr(self, "chat_hist", None))
-        # Blind first pass (config "verdict_blind_first", default on): pass 1 sees the evidence only, without the
-        # OPINION_FIELDS; pass 2 gets its ranking plus the opinions and says whether the evidence supports them.
         opinions = self.session.opinions()
         blind = bool(CFG.get("verdict_blind_first", True) and opinions)
         case1 = self.session.case_summary(exclude=[k for k, _ in OPINION_FIELDS]) if blind else case
-        # The deck's own stop (no model): no brainstorm yet and the data check flags the codes or readings a diagnosis
-        # would rest on. The models diagnosed impossible data even when the prompt told them not to (sim v4).
         stop = verdict_steps.hard_stop(flags) if gate else ""
         if stop:
             self._reset_verdict_tabs()
@@ -3931,12 +3826,9 @@ class CyberdeckApp(QMainWindow):
                          if maint else "") +
                       "Keep each issue under 120 words.")
             fmt = prompt[prompt.index("Write exactly this format:"):]
-            # pass 2: the same case with the opinions, the first-pass plan, a short job (no re-ranking on opinion)
             full = f"{top}CASE:\n{case}\n\nFSM DATA:\n{ctx or '(none)'}\n\n"
 
             def pass2_prompt(plan):
-                # only the pages pass 1 used (the code procedures always): pass 2 re-read all of them before and took
-                # as long as pass 1. The source check still runs against every page (check_against=full).
                 short = f"{top}CASE:\n{case}\n\nFSM DATA (the pages your first pass used):\n{cited_pages(ctx, plan)}\n\n"
                 return (short + "YOUR FIRST-PASS PLAN (written from the evidence only, before the opinions below were "
                         "shown):\n" + plan.strip() + "\n\nOPINIONS LEFT OUT OF THE FIRST PASS (guesses and earlier "
@@ -3960,7 +3852,7 @@ class CyberdeckApp(QMainWindow):
                           "against the evidence...", T.MUTED)
                 w = self.worker
                 if re.search(r"(?m)^\W*NEEDS MORE DATA", plan) and not re.search(r"(?im)^\W*=+\s*ISSUE", plan):
-                    self._verdict_done(plan)        # pass 1 stopped for more data: no plan for pass 2 to weigh
+                    self._verdict_done(plan)
                     return
                 self._verdict_redo = (pass2_prompt(plan), full + opinions)
                 go2 = lambda: self._run("deep", pass2_prompt(plan), self.txt_verdict, self._verdict_done,
@@ -3978,9 +3870,6 @@ class CyberdeckApp(QMainWindow):
                                     check_against=full + opinions)
                 return
             if self.chk_think.isChecked():
-                # 11-01: the thinking model writing the plan from scratch did worse than the plain one and
-                # looped on doubts. Now THINK HARDER = the plain model writes the plan, then the thinking model
-                # reviews it against the case and fixes only what the evidence says is wrong.
                 def draft_done(draft):
                     if "[LLM error" in draft or not draft.strip():
                         return
@@ -3996,8 +3885,8 @@ class CyberdeckApp(QMainWindow):
                               "manual shows it is wrong or missing something, and say what evidence made you change it. "
                               "Decide once per point and move on; don't reopen a point you have settled. Then write "
                               "the final plan in exactly the format above.")
-                    self._draft_verdict = draft.strip()      # kept if the review fails or runs out of room
-                    w = self.worker                          # the draft's thread is still finishing: start after it
+                    self._draft_verdict = draft.strip()
+                    w = self.worker
                     go = lambda: self._run("think", review, self.txt_verdict, self._think_done)
                     self._after_thread(w, go)
                 self._draft_verdict = ""
@@ -4030,7 +3919,7 @@ class CyberdeckApp(QMainWindow):
             fire()
             return
 
-        def poll():   # on the GUI thread, so go() never runs on the finishing worker's thread
+        def poll():
             if fired[0]:
                 return
             if w.isRunning():
@@ -4050,7 +3939,7 @@ class CyberdeckApp(QMainWindow):
                 return
             cands = V.parse_candidates(text) + V.opinion_candidates(opinions)
             self._steps_log.append(("candidates", text))
-            if not cands:            # the model ignored the format: fall back to the one-prompt plan
+            if not cands:
                 self._say(self.txt_verdict, "[!] No candidate list came back; writing the plan in one pass.", T.AMBER)
                 self._chain("deep", V.write_prompt(top, case, ctx, [], fmt, most, opinions), self._verdict_done,
                             max_new_tokens=2200 if on_pc else 900, check_against=check_against)
@@ -4152,7 +4041,7 @@ class CyberdeckApp(QMainWindow):
             row.addWidget(b1)
             if PS is not None:
                 b2 = QPushButton("PARTS + PRICES FOR THIS")
-                pq = (self._issue_parts(d) or [part_from_job(job)])[0]   # a part name, not the repair sentence
+                pq = (self._issue_parts(d) or [part_from_job(job)])[0]
                 b2.clicked.connect(lambda _=False, j=pq: (self.in_part.setText(j), self.act_find_parts(),
                                                           self.switch(4)))
                 row.addWidget(b2)
@@ -4182,7 +4071,6 @@ class CyberdeckApp(QMainWindow):
                 self._say(t, "=== MANUAL ===", T.TEXT)
                 self._say_hits(t, hits)
             t.moveCursor(QTextCursor.MoveOperation.Start)
-        # the summary tab: the order to work in and everything to order
         t = QTextEdit()
         t.setReadOnly(True)
         self.tabs_verdict.insertTab(0, t, "SUMMARY")
@@ -4205,7 +4093,7 @@ class CyberdeckApp(QMainWindow):
                 self._verdict_done(self._draft_verdict)
             return
         answer = re.sub(r"(?s)^.*</think>", "", text).strip()
-        if "</think>" not in text or not answer:  # ran out of room mid-thought: keep the draft it was checking
+        if "</think>" not in text or not answer:
             draft = getattr(self, "_draft_verdict", "")
             if draft:
                 self.txt_verdict.clear()
@@ -4228,8 +4116,6 @@ class CyberdeckApp(QMainWindow):
             return
         redo = getattr(self, "_verdict_redo", None)
         if redo and not getattr(self, "_verdict_retried", False):
-            # the deck's answer check sends the plan back once when issue 1 blames a part the case lists as verified
-            # good or the history says was just replaced (Qwen led with a just-replaced thermostat, sim v4)
             try:
                 notes = answer_check.check(self.parse_verdict(text)[1],
                                            {k: self.session.get(k) for k in ("ruled_out", "history")}, None)
@@ -4276,14 +4162,11 @@ class CyberdeckApp(QMainWindow):
             self.act_find_parts()
             self._say(self.txt_verdict, f"[✓] Parts tab ready for: {part[0]}. Tap PARTS →", T.OK)
 
-    # ------------------------------------------------------------------ 4. SOP (deep model)
     def _sop_view(self):
         w = QWidget()
         lay = QVBoxLayout(w)
         box = QGroupBox("REPAIR (type or say it, or leave empty to use the verdict)")
         bl = QVBoxLayout(box)
-        # typed, not a chip grid: no fixed repair list (and the 6-wide grid made the window wider than a
-        # 160%-scaled screen)
         self.bub_repair = Field()
         self.bub_repair.setPlaceholderText("e.g. the repair the verdict named, or any job")
         bl.addWidget(self.bub_repair)
@@ -4318,7 +4201,7 @@ class CyberdeckApp(QMainWindow):
         self._say(self.txt_sop, "\n".join(" • " + s for s in specs) or "(none matched: check the FSM)", T.OK)
         self._say(self.txt_sop, "=== FSM SOURCES ===", T.TEXT)
         for h, figs in hits:
-            self._say(self.txt_sop, h.split("\n", 1)[0], T.PURPLE_TEXT)   # sources read as reference
+            self._say(self.txt_sop, h.split("\n", 1)[0], T.PURPLE_TEXT)
             self._say_figs(self.txt_sop, figs, label=h.split("\n", 1)[0])
         if not hits:
             self._say(self.txt_sop, "(none)")
@@ -4331,7 +4214,6 @@ class CyberdeckApp(QMainWindow):
         self._say(self.txt_sop, "")
         self._run("deep", prompt, self.txt_sop, lambda t: None, max_new_tokens=900)
 
-    # ------------------------------------------------------------------ 5. parts (no model)
     def _ps_cfg(self, parts_row=False):
         """parts_sourcing settings for a car: the Parts tab's own Year/Model row, else the Intake car."""
         cfg = PS.settings()
@@ -4368,7 +4250,7 @@ class CyberdeckApp(QMainWindow):
             return f"Parts finder not found in {PS_DIR}"
         try:
             return self._part_text(arg)
-        except sqlite3.Error as e:  # e.g. a subaru.db built before the CHARM labor table, or mid-copy
+        except sqlite3.Error as e:
             return f"Parts lookup failed: {e}. Rebuild/re-copy kb/subaru.db."
 
     def _part_text(self, arg):
@@ -4408,7 +4290,7 @@ class CyberdeckApp(QMainWindow):
         self.cmb_p_year, self.cmb_p_make, self.cmb_p_model = QComboBox(), QComboBox(), QComboBox()
         self._fill_years(self.cmb_p_year)
         self.cmb_p_make.addItems([""] + MAKES)
-        self.cmb_p_make.setEnabled(False)  # follows the Intake car: one make's DB is loaded at a time
+        self.cmb_p_make.setEnabled(False)
         self.cmb_p_year.currentTextChanged.connect(self._fill_p_models)
         self.in_part = QLineEdit()
         self.in_part.setPlaceholderText("part name or OEM part number")
@@ -4424,7 +4306,7 @@ class CyberdeckApp(QMainWindow):
         b.clicked.connect(self.act_find_parts)
         row.addWidget(b, 1)
         bl.addLayout(row)
-        box.hide()  # hidden until MANUAL SEARCH is tapped
+        box.hide()
         lay.addWidget(box)
         self.pn_box = QGroupBox("PART NUMBERS FOR THIS CAR (tap one)")
         self.pn_lay = QVBoxLayout(self.pn_box)
@@ -4434,7 +4316,7 @@ class CyberdeckApp(QMainWindow):
         mid = QHBoxLayout()
         self.txt_parts = QTextEdit()
         self.txt_parts.setReadOnly(True)
-        self.txt_parts.setStyleSheet("font-size: 18px;")  # 10-19: bigger, read at arm's length
+        self.txt_parts.setStyleSheet("font-size: 18px;")
         mid.addWidget(self.txt_parts, 3)
         self.qr_box = QWidget()
         self.qr_lay = QGridLayout(self.qr_box)
@@ -4445,7 +4327,7 @@ class CyberdeckApp(QMainWindow):
         qr_scroll.setMinimumWidth(240)
         mid.addWidget(qr_scroll, 1)
         lay.addLayout(mid, 1)
-        self.parts_shown = []  # sourcing() results on screen, for PRINT SHEET
+        self.parts_shown = []
         self.stack.addWidget(w)
         self._sync_parts_car()
         if PS is None:
@@ -4501,7 +4383,7 @@ class CyberdeckApp(QMainWindow):
     def _clear_qr(self):
         while self.qr_lay.count():
             w = self.qr_lay.takeAt(0).widget()
-            if w is not None:            # off the screen now: deleteLater alone left the old codes drawn under the new
+            if w is not None:
                 w.setParent(None)
                 w.deleteLater()
 
@@ -4517,7 +4399,7 @@ class CyberdeckApp(QMainWindow):
             return
         qdir = os.path.join(CFG["cache_dir"], "qr")
         os.makedirs(qdir, exist_ok=True)
-        for i, ln in enumerate(res["links"]):  # sites.json order: RockAuto, O'Reilly, AutoZone, Row52
+        for i, ln in enumerate(res["links"]):
             path = os.path.join(qdir, hashlib.sha1(ln.url.encode()).hexdigest()[:16] + ".png")
             if not os.path.isfile(path):
                 PSQR.qr_png(ln.url, path, scale=4)
@@ -4630,7 +4512,6 @@ class CyberdeckApp(QMainWindow):
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
         self._say(self.txt_parts, f"[✓] Sheet saved: {path}", T.OK)
 
-    # ------------------------------------------------------------------ 6. TESTS (two-way)
     def _tests_view(self):
         w = QWidget()
         lay = QVBoxLayout(w)
@@ -4707,11 +4588,9 @@ class CyberdeckApp(QMainWindow):
         return QMessageBox.question(self, title, text) == QMessageBox.StandardButton.Yes
 
     def act_test_mode(self):
-        if self.test_worker is not None:   # switching off: stop everything, hand the cable back
+        if self.test_worker is not None:
             tw = self.test_worker
             if tw.isRunning():
-                # Keep the reference until the thread really ends (dropping a running QThread aborts the app);
-                # READ CAR comes back only once the port is closed.
                 self.b_testmode.setEnabled(False)
                 self._say(self.txt_tests, "[*] Switching TEST MODE off (finishing the current step)...", T.MUTED)
                 tw.finished.connect(self._test_mode_off)
@@ -4756,7 +4635,7 @@ class CyberdeckApp(QMainWindow):
         if self.test_worker is None or item is None:
             self._say(self.txt_tests, "[!] Pick a test in the list first.", T.AMBER)
             return
-        if self.worker is not None and self.worker.isRunning():  # a model crash mustn't end a test mid-run
+        if self.worker is not None and self.worker.isRunning():
             self._say(self.txt_tests, "[!] A model is still answering. Wait for it (or press STOP), then run the test.",
                       T.AMBER)
             return
@@ -4767,7 +4646,7 @@ class CyberdeckApp(QMainWindow):
             self.test_worker.do("start", self.lst_tests.row(item))
 
     def act_stop_all(self):
-        if self.test_worker is not None:  # no question, no checks, no queue: stopping is always allowed
+        if self.test_worker is not None:
             self.test_worker.emergency_stop()
 
     def act_clear_memory(self):
@@ -4789,25 +4668,24 @@ class CyberdeckApp(QMainWindow):
             self.test_worker.do("clear_codes")
 
     def closeEvent(self, e):
-        if self.drive_worker is not None:   # letting Qt destroy a running thread aborts the whole app
+        if self.drive_worker is not None:
             self.drive_worker.stop_flag.set()
             if not self.drive_worker.wait(30000):
                 self._say(self.txt_intake, "[!] Still finishing a reading; close again in a moment.", T.AMBER)
                 e.ignore()
                 return
-        if self.tool_proc is not None:  # closing would kill it, maybe in the middle of a job on the car
+        if self.tool_proc is not None:
             self._say(self.txt_intake, "[!] Close the other program first; it's still using the cable.", T.AMBER)
             e.ignore()
             return
-        if self.test_worker is not None:  # actuators off before the deck lets go of the cable
+        if self.test_worker is not None:
             self.test_worker.do("quit")
-            if not self.test_worker.wait(20000):  # a CONNECT can take ~16 s; never drop a running thread
+            if not self.test_worker.wait(20000):
                 self._say(self.txt_tests, "[!] Still finishing a step on the cable; close again in a moment.",
                           T.AMBER)
                 e.ignore()
                 return
         self._stop_voice()
-        # Freeing an RKLLM handle while rkllm_run is still using it on the worker thread can crash on exit.
         self.act_stop()
         if self.worker is not None:
             self.worker.wait(5000)
@@ -4827,7 +4705,7 @@ class CyberdeckApp(QMainWindow):
 def install_home_icon():
     """Add "Cyberdeck Home" to the app list: this app with the home PC's models (the deck's own as fallback)."""
     here = os.path.dirname(os.path.abspath(__file__))
-    launcher = f"{ROOT}/start_deck.sh"    # switches the earbuds to headset mode first, when it's there
+    launcher = f"{ROOT}/start_deck.sh"
     run = (f"env CYBERDECK_HOME=1 {launcher}" if os.access(launcher, os.X_OK) else
            f"env CYBERDECK_HOME=1 sh -c 'cd \"{here}\" && exec \"{sys.executable}\" cyberdeck_gui.py'")
     apps = os.path.expanduser("~/.local/share/applications")
@@ -4842,7 +4720,6 @@ def install_home_icon():
 
 
 def main():
-    # a crash inside the NPU runtime closes the app with no Python error; this leaves the stack of every thread
     os.makedirs(f"{ROOT}/logs", exist_ok=True)
     crash_log = open(f"{ROOT}/logs/app_crash.log", "a")
     crash_log.write(f"\n=== app started {datetime.datetime.now():%Y-%m-%d %H:%M:%S}\n")

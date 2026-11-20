@@ -43,7 +43,7 @@ def main():
     if window:
         try:
             from .gui import main as run
-        except ImportError as e:              # no PyQt6 in this Python: the terminal version still works
+        except ImportError as e:
             print(f"no window ({e}); running in the terminal")
             from .tui import main as run
     else:

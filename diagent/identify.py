@@ -35,7 +35,7 @@ def ecu_vins(cfg):
 
 
 def bind_ecu_vin(cfg, ecu, vin):
-    path = cfg["ecu_vin_files"][-1]          # diagent's own file; the app's is never written from here
+    path = cfg["ecu_vin_files"][-1]
     known = _load(path)
     if known.get(ecu) != vin:
         known[ecu] = vin
@@ -71,7 +71,7 @@ def _match_engine(engines, vin, decoded):
                 and all(kb.engine_features(e).get(k) == want[k] for k in ("disp",) if k in want)]
         if len(hits) == 1:
             return hits[0]
-    if vin and len(vin) == 17:     # CHARM engine names carry the VIN engine code ('... VIN T')
+    if vin and len(vin) == 17:
         hits = [e for e in engines if re.search(rf"\bVIN {re.escape(vin[7])}\b", e)]
         if len(hits) == 1:
             return hits[0]
@@ -168,7 +168,7 @@ def identify(cfg, human, reader, store, given):
         if d.get("make"):
             decoded = d
             if not d.get("engine") or not d.get("model"):
-                nh = V.nhtsa_decode(d["vin"], cfg["nhtsa_cache"])     # local vPIC, then NHTSA online; cached
+                nh = V.nhtsa_decode(d["vin"], cfg["nhtsa_cache"])
                 if nh:
                     decoded.update({k: v for k, v in nh.items() if v})
             notes.append("VIN decoded: " + " ".join(str(decoded.get(k) or "") for k in ("year", "make", "model", "engine",
@@ -189,7 +189,7 @@ def identify(cfg, human, reader, store, given):
         elif from_car.get("ssm"):
             decoded = {"make": V.make_from_ssm(ecu)}
             notes.append(f"ECU {ecu} answered SSM2: a Subaru; this ECU id isn't in romid.db")
-    for k in ("make", "year", "model"):         # what was typed wins; a disagreement is asked, not guessed
+    for k in ("make", "year", "model"):
         if decoded.get(k) and car.get(k) and str(decoded[k]).lower() != str(car[k]).lower():
             i = human.choose(f"The {k} you typed ({car[k]}) differs from the car's ({decoded[k]}). Which is right?",
                              [str(car[k]), str(decoded[k])])
@@ -241,7 +241,7 @@ def identify(cfg, human, reader, store, given):
             for e in engines):
         notes.append(f"The car's engine ({said}) isn't among {os.path.basename(path)}'s engines for {car['year']} {m} "
                      f"({', '.join(engines)}). All engine sections are loaded; charts are filtered by the car's engine.")
-        engines = []                               # nothing to ask: none of them is this engine
+        engines = []
     elif not eng and len(engines) > 1:
         i = human.choose(f"Which engine? ({os.path.basename(path)} has {len(engines)} for this car)",
                          engines + ["not sure (use all of them)"])
@@ -251,8 +251,8 @@ def identify(cfg, human, reader, store, given):
     car["vehicle_ids"] = scope.get(eng) if eng else [i for ids in scope.values() for i in ids]
     feats = kb.engine_features(eng or "")
     for k, v in kb.engine_features(said, decode=True).items():
-        feats.setdefault(k, v)                     # the VIN/ECU decode fills what the kb's name doesn't say
-    if feats.get("disp") and "cyl" not in feats:    # same model, same displacement in other years of this DB
+        feats.setdefault(k, v)
+    if feats.get("disp") and "cyl" not in feats:
         cyls = {kb.engine_features(e).get("cyl") for (e,) in r.db.execute(
             "SELECT DISTINCT engine FROM vehicle WHERE upper(model)=upper(?)", (m,))
             if kb.engine_features(e or "").get("disp") == feats["disp"]} - {None}

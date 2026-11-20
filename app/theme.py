@@ -2,28 +2,27 @@
 Dark only, no light mode and no toggle (10-26). Briefs: handoff/HOME_THEME.md, DIAGENT_GUI.md.
 Tune colours here and nowhere else."""
 
-BG = "#0f1412"          # window background: near-black, slight green
-PANEL = "#163538"       # side panels, cards, input fields (Air Corps, dark)
-PANEL_2 = "#18211c"     # a step lighter than bg: main cards, the user's own lines
-AIR_CORPS = "#1f4a4f"   # Noodler's Air Corps Blue-Black: borders, headers, tab bar, frames
-FOREST = "#3e7a55"      # primary buttons, active tab, "your turn", focus ring
-FOREST_TEXT = "#6fae86"  # forest readable as text on bg
-AQUA = "#27ffc2"        # live values only
-TEAL = "#00897B"        # live panel frames, secondary live elements
-PURPLE = "#8b6fc0"      # sources and citations (frames, chips)
-PURPLE_TEXT = "#a991d8"  # purple readable as text on bg
-OK = "#7fbf8f"          # in spec (calm green)
-AMBER = "#d9a441"       # out of spec / attention
-RED = "#c4544a"         # stop and danger, rarely
-GREY = "#6b7570"        # no spec / disabled
-TEXT = "#e3e8e4"        # body text
-MUTED = "#93a39a"       # secondary text
-PYCHECK = "#6fa8dc"     # the deck's own Python check of an answer (app/answer_check.py), apart from amber
+BG = "#0f1412"
+PANEL = "#163538"
+PANEL_2 = "#18211c"
+AIR_CORPS = "#1f4a4f"
+FOREST = "#3e7a55"
+FOREST_TEXT = "#6fae86"
+AQUA = "#27ffc2"
+TEAL = "#00897B"
+PURPLE = "#8b6fc0"
+PURPLE_TEXT = "#a991d8"
+OK = "#7fbf8f"
+AMBER = "#d9a441"
+RED = "#c4544a"
+GREY = "#6b7570"
+TEXT = "#e3e8e4"
+MUTED = "#93a39a"
+PYCHECK = "#6fa8dc"
 
 SANS = '"Noto Sans", "DejaVu Sans", "Liberation Sans", sans-serif'
 MONO = '"DejaVu Sans Mono", "Noto Sans Mono", "Liberation Mono", monospace'
 
-# status word -> colour; always shown with the word too, never colour alone
 STATUS = {"ok": OK, "in spec": OK, "in_zone": OK, "low": AMBER, "high": AMBER, "out": AMBER, "out of spec": AMBER,
           "danger": RED, "stop": RED, "none": GREY, "no spec": GREY, "no_zone": GREY}
 

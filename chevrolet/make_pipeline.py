@@ -96,12 +96,11 @@ def http_get(url, timeout=120, tries=6, delay=1.0, _last=[0.0]):
     return None, b"", {}
 
 
-# ------------------------------------------------------------------ text tagging (profile-driven)
 class Tagger:
     """Same output shape as scrape_reddit_subaru.tag(): models, years, chassis, engines, dtcs, implied."""
     DTC_RE = re.compile(r"\b([PCBU][0-3][0-9A-F]{3})\b", re.I)
     YEAR4_RE = re.compile(r"\b(19[89]\d|20[0-2]\d)\b")
-    YEAR2_RE = re.compile(r"(?:\b|['’])(\d{2})(?!\d)\s*(?:[a-z]+\s+)?$", re.I)   # "'03 Tahoe", "03 chevy tahoe"
+    YEAR2_RE = re.compile(r"(?:\b|['’])(\d{2})(?!\d)\s*(?:[a-z]+\s+)?$", re.I)
 
     def __init__(self, p):
         self.models = {m: re.compile(rx, re.I) for m, rx in p["models"].items()}
@@ -153,7 +152,6 @@ class Tagger:
         return models, sorted(years), chassis, engines, dtcs, implied
 
 
-# ------------------------------------------------------------------ check
 def step_check(c):
     ok = True
 
@@ -182,7 +180,6 @@ def step_check(c):
     print("check:", "ALL PASS" if ok else "some FAIL (steps that need them will say so)")
 
 
-# ------------------------------------------------------------------ NHTSA (reuses build_subaru_diag_db.py)
 def step_nhtsa(c):
     import build_subaru_diag_db as bd
     make = c.p["nhtsa"]["make"].upper()
@@ -230,7 +227,6 @@ def step_nhtsa(c):
     log(f"nhtsa: {n_tsb} TSB, {n_cmpl} complaint, {len(rows)} recall rows -> {c.diag_db}")
 
 
-# ------------------------------------------------------------------ VIN (NHTSA vPIC API)
 VPIC = "https://vpic.nhtsa.dot.gov/api/vehicles"
 
 
@@ -268,7 +264,7 @@ def step_vin(c):
             makes = [_make_name(m) for m in re.split(r"\s*,\s*", res.get("Make") or res.get("MakeName") or "") if m]
             conn.execute("INSERT OR REPLACE INTO wmi_info VALUES (?,?,?,?,datetime('now'))",
                          (w, ",".join(makes), res.get("ManufacturerName"), res.get("VehicleType")))
-            if len(makes) == 1:   # a WMI shared by two makes is left to the built-in table / manual pick
+            if len(makes) == 1:
                 conn.execute("INSERT OR IGNORE INTO wmi VALUES (?,?)", (w, makes[0]))
                 n_new += 1
             conn.commit()
@@ -290,7 +286,6 @@ def step_vin(c):
     log(f"vin: {n_new} new WMIs, {total} in kb/vin.db")
 
 
-# ------------------------------------------------------------------ CHARM
 def charm_env():
     import charm_ingest as ci
     from pathlib import Path
@@ -317,7 +312,7 @@ def charm_models(c):
                     name = urllib.parse.unquote(seg.decode("utf-8", "replace"))
                     if not only or only in f"{year} {name}".lower():
                         found.append(name)
-                    key = pre + seg + b"0"          # '0' (0x30) sorts right after '/' (0x2F): next model
+                    key = pre + seg + b"0"
                 if found:
                     out.setdefault(make, {})[year] = found
     return out
@@ -347,7 +342,7 @@ def step_kb(c):
     if not os.path.exists(c.diag_db):
         step_nhtsa(c)
     found = charm_models(c) if os.path.exists(os.path.expanduser("~/mnt/charm/data.mdb")) else {}
-    if os.path.exists(c.kb_db):          # fresh build each time (CHARM re-runs don't drop stale vehicle rows)
+    if os.path.exists(c.kb_db):
         bak = c.kb_db.replace(".db", f".pre_{time.strftime('%Y%m%d_%H%M')}.db")
         shutil.move(c.kb_db, bak)
         log(f"kb: previous DB moved to {bak}")
@@ -392,7 +387,6 @@ def dtc_names(c):
         if desc:
             n += conn.execute("UPDATE dtc SET description=?, module=coalesce(module, ?) WHERE code=? AND description IS NULL",
                               (desc[:200], bd.module_for(code), code)).rowcount
-    # Codes the CHARM page doesn't name: PCMHammer's GM code list (GPL-3), only for codes already in this DB.
     n_ph, lst = 0, c.path("raw/pcmhammer/Apps/UI/WindowsForms/PcmLogger/DiagnosticCodes.txt")
     if os.path.exists(lst):
         for ln in open(lst, encoding="utf-8", errors="replace"):
@@ -411,7 +405,6 @@ def step_embed(c):
     run([sys.executable, c.builder, "--db", c.kb_db, "finish"])
 
 
-# ------------------------------------------------------------------ Reddit
 def _subs_in_torrent(c):
     tor = sorted(glob.glob(c.path("raw/reddit/pushshift/*.torrent")))
     if not tor:
@@ -452,7 +445,6 @@ def step_reddit_get(c):
     log(f"reddit-get: {len(pick)} files, {total / 1e9:.1f} GB")
     if not pick:
         return
-    # Same torrent and folder as the Subaru pull; files that aren't selected are left alone.
     sel = sorted({f[0] for f in pick})
     run(["aria2c", "--dir", c.path("raw/reddit/pushshift"), "--select-file=" + ",".join(map(str, sel)),
          "--seed-time=0", "--file-allocation=none", "--check-integrity=false", "--bt-remove-unselected-file=false",
@@ -494,7 +486,7 @@ def step_reddit(c):
         lp.load_sub(conn, name, log)
     if c.a.topup:
         api = s.Api(1.0, log)
-        s.REDDIT_START = 1735689600          # 2025-01-01: the dumps end 2024-12
+        s.REDDIT_START = 1735689600
         for sub in r.get("topup_subs", []):
             cur["sub"] = sub
             s.crawl_posts(conn, api, sub, log)
@@ -503,7 +495,6 @@ def step_reddit(c):
     log(f"reddit: done, {os.path.getsize(db) / 1e6:.1f} MB -> {db}")
 
 
-# ------------------------------------------------------------------ Wayback forums
 FORUM_SCHEMA = """
 PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS capture (thread_id INT, page INT, url TEXT, wayback_ts TEXT, length INT, slug TEXT,
@@ -639,9 +630,8 @@ def forum_index(c, f, conn):
 
 
 def forum_fetch(c, f, conn, tagger):
-    import scrape_reddit_subaru as s          # op_hash(): keyed hash, same salt as the Reddit DBs
+    import scrape_reddit_subaru as s
     engine = f["engine"]
-    # Pre-filter by URL slug (cheap): repair-relevant, and for mixed-make forums a target/related model.
     cand = conn.execute("SELECT thread_id, page, url, wayback_ts, slug FROM capture c WHERE NOT EXISTS "
                         "(SELECT 1 FROM page_fetch p WHERE p.thread_id=c.thread_id AND p.page=c.page) "
                         "ORDER BY thread_id, page, length DESC").fetchall()
@@ -662,8 +652,6 @@ def forum_fetch(c, f, conn, tagger):
         if tid in dropped:
             continue
         url, ts, slug = best[(tid, page)]
-        # archive.org refuses connections for a while when pulled too fast: 3 s apart (as for Ultimate Subaru),
-        # few quick retries, and stop this forum after 5 refusals in a row instead of retrying forever.
         st, body, _ = http_get(f"https://web.archive.org/web/{ts}id_/{url}", timeout=120, tries=3, delay=3.0)
         if st is None:
             fails += 1
@@ -687,14 +675,14 @@ def forum_fetch(c, f, conn, tagger):
                               ",".join(map(str, years)), ",".join(chassis), ",".join(engines), ",".join(dtcs), rel))
                 conn.executemany("INSERT OR IGNORE INTO thread_dtc VALUES (?,?)", [(tid, d) for d in dtcs])
                 if not rel:
-                    dropped.add(tid)              # page 1 says off-topic: don't fetch the rest
+                    dropped.add(tid)
             op = conn.execute("SELECT v FROM state WHERE k=?", (f"op:{tid}",)).fetchone()
             op_author = op[0] if op else None
             for pos, (at, author, text) in enumerate(posts):
                 ah = s.op_hash(author)
                 if page == 1 and pos == 0 and ah:
                     op_author = ah
-                    conn.execute("INSERT OR REPLACE INTO state VALUES (?,?)", (f"op:{tid}", ah))   # keyed hash, never a name
+                    conn.execute("INSERT OR REPLACE INTO state VALUES (?,?)", (f"op:{tid}", ah))
                 conn.execute("INSERT OR REPLACE INTO post(thread_id,page,position,posted_at,body,is_op,wayback_ts) "
                              "VALUES (?,?,?,?,?,?,?)", (tid, page, pos, at, text, int(ah is not None and ah == op_author), ts))
             n_posts = len(posts)
@@ -735,7 +723,6 @@ def step_forums(c):
         log(f"[{f['name']}] DONE: {n_thr} relevant threads, {n_p} posts -> {db}")
 
 
-# ------------------------------------------------------------------ GM Mode 22 PID sheet (.xlsx, stdlib only)
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}
 
@@ -806,7 +793,7 @@ def pcmhammer_pids(path, bad_path, header):
             ent.update(equation=f"(({raw}>>{int(e.get('bitIndex', 0))})&1)", labels=labels, units="")
         else:
             if not re.fullmatch(r"[\sx0-9.+\-*/%()]+", expr):
-                continue                      # only plain arithmetic on x
+                continue
             ent["equation"] = re.sub(r"\bx\b", raw, expr)
         out.append(ent)
     return out
@@ -824,14 +811,13 @@ def step_gm_pids(c):
         origin = e["source"].split(" ")[0]
         others = [x for x in pids.values() if x["pid"] == e["pid"] and x["source"].split(" ")[0] != origin]
         same = [x for x in others if re.sub(r"\s+", "", x["equation"]) == eq]
-        if same:                              # another source agrees on this reading: note it, keep the first
+        if same:
             same[0].setdefault("also_in", []).append(e["source"])
             return
         clash = [x for x in others if "labels" not in x and "labels" not in e]
-        if clash:                             # another source reads this PID differently: keep the first, flag it
+        if clash:
             clash[0].setdefault("conflicts", []).append({x: e[x] for x in ("name", "equation", "source")})
             return
-        # Same source, same PID, different conversion = PCMHammer's alternates (e.g. sensor variants): keep each.
         pids.setdefault(k, e)
 
     ph = c.path(PCMHAMMER_XML)
@@ -875,7 +861,6 @@ def step_gm_pids(c):
         f"{sum('conflicts' in e for e in pids.values())} with conflicts) -> {out}")
 
 
-# ------------------------------------------------------------------ status
 def step_status(c):
     def q(db, sql):
         try:

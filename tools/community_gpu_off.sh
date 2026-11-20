@@ -1,6 +1,4 @@
 #!/bin/bash
-# Cron, RUN_9B_SCHEDULED.md: a free GPU window starts -> stop the 9B community extraction cleanly, stop llama-server,
-# unload Ollama, start charm-pics. Finished threads are already saved; the next community_gpu_on.sh resumes.
 export PATH=/usr/local/bin:/usr/bin:/bin
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus

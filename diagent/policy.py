@@ -13,7 +13,7 @@ class ScriptedModel:
 
     def __init__(self, case, tools, inject=None, use_field=False):
         self.case, self.tools, self.use_field = case, tools, use_field
-        self.inject = list(inject or [])   # [{"after": n calls, "call": {...}} | {"after": n, "text": "..."}]
+        self.inject = list(inject or [])
         self.n = 0
         self.did = set()
 
@@ -44,7 +44,7 @@ class ScriptedModel:
         c, t = self.case, self.tools
         p = c.proc or {}
         if not c.scan_ts and self._once("read_car"):
-            return self._call("read_car")                 # codes come from a scan of this car when one is possible
+            return self._call("read_car")
         if p.get("mode") == "symptom":
             return self._suspects(p)
         if not p.get("code"):
@@ -113,7 +113,7 @@ class ScriptedModel:
             return None
         lab = c.sources[frs[0]]["label"].split(": ", 1)[1]
         comp = re.sub(r"\s*\(\d+ reports?.*$", "", lab.split(" card: ")[-1]).strip()
-        if self._once("field_offer"):          # Python finds the manual inspection, or offers nothing
+        if self._once("field_offer"):
             return self._call("offer_detour", component=comp, field_ids=frs[:1])
         return None
 

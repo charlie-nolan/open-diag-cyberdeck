@@ -38,7 +38,7 @@ import time
 import urllib.parse
 import xml.etree.ElementTree as ET
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KB = os.path.join(ROOT, "kb")
 OUT = os.path.join(KB, "telemetry")
 sys.path.insert(0, os.path.join(ROOT, "app"))
@@ -51,7 +51,6 @@ PCMH_DIR = os.path.join(ROOT, "raw/pcmhammer/Apps/UI/WindowsForms/PcmLogger")
 GM_PID_JSON = os.path.join(KB, "gm_mode22_pids.json")
 CHARM_MOUNT = os.path.expanduser("~/mnt/charm")
 GROUPS = os.path.join(KB, "charm_make_groups.txt")
-# GM brands: their PCMs speak GM mode $22 (whether a given PCM is a PCMHammer one shows in its replies)
 GM_MAKES = {"chevrolet", "gmc", "buick", "cadillac", "pontiac", "oldsmobile", "saturn", "hummer"}
 SSM_MAKES = {"subaru"}
 
@@ -164,7 +163,6 @@ def build_in_progress(make):
     return subprocess.run(["pgrep", "-f", "build_charm_all.sh"], capture_output=True).returncode == 0
 
 
-# ============================================================================ step: params
 def romraider():
     """RomRaider logger v370 (GPL-2): SSM parameters (with ECU capability gating), switches, DTC blocks,
     per-ECU parameters. Gating: ecubyteindex counts the 0xBF reply after SYS ID + ROM ID (8 bytes), so the
@@ -257,9 +255,8 @@ def step_params(make):
         db.execute(f"DELETE FROM {t}")
     title = make.replace("_", " ").title()
     sources = {k: set() for k in T.CANON}
-    rows = []                                              # telem_source_map rows
+    rows = []
 
-    # --- generic OBD-II (every make): SAE J1979 mode 01 scalar formulas + every python-obd command
     for pid, (n, expr, unit) in T.OBD01.items():
         key = T.canon_key("obd01", pid)
         rows.append(("obd01", pid, None, f"01{pid}", n, expr, unit, 1, key, None,
@@ -276,7 +273,6 @@ def step_params(make):
                  "adapter_volts", None, "ELM327/STN command set (adapter measures pin 16 itself)",
                  "not an ECU value: python-obd ELM_VOLTAGE"))
 
-    # --- Subaru SSM2 (KKL; same addresses through the EX where SSM over the EX works)
     rr = None
     if make in SSM_MAKES and os.path.exists(ROMRAIDER_XML):
         rr = romraider()
@@ -306,7 +302,6 @@ def step_params(make):
                          f"ssm.{e['id']}", "per ECU id (telem_capability.ecu_id)",
                          "RomRaider logger_STD_EN_v370 (GPL-2)", "address differs per ECU id"))
 
-    # --- GM mode $22 (EX)
     gm_bad, gm_src = [], None
     if make in GM_MAKES:
         pids, gm_bad, gm_src = gm_pids()
@@ -322,7 +317,6 @@ def step_params(make):
     db.executemany("INSERT INTO telem_source_map(source,raw_id,name,address,nbytes,conversion,raw_unit,canonical,"
                    "param,gate,origin,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rows)
 
-    # --- telem_param: canonical keys, then every protocol-only key with its definition's own name
     for r in rows:
         if r[8] in sources:
             sources[r[8]].add(r[0])
@@ -340,7 +334,6 @@ def step_params(make):
         db.execute("INSERT OR IGNORE INTO telem_param VALUES (?,?,?,?,?,?)",
                    (key, nm, T.canonical(1.0, unit)[1] if unit else None, None, src, kind))
 
-    # --- telem_coverage: the protocol x cable facts (TELEMETRY_DB.md, checked 2026-10-25)
     BRIEF = "TELEMETRY_DB.md cable facts (checked 2026-10-25)"
     cov = [
         ("Subaru SSM2 over K-line", "SSM", "KKL", "maker", "built", BRIEF + "; app/ssm/telemetry_logger.py",
@@ -367,7 +360,6 @@ def step_params(make):
     db.executemany("INSERT INTO telem_coverage(protocol,protocol_match,cable,layer,status,source,notes) "
                    "VALUES (?,?,?,?,?,?,?)", cov)
 
-    # --- telem_capability: defined rows per make
     cap = []
     for mode, pid, name, desc in cmds:
         key = T.canon_key("obd01", pid) if mode == "01" else f"obd{mode}.{pid or mode}"
@@ -405,7 +397,6 @@ def step_params(make):
         f"{len(cap)} capability rows" + (f", GM from {gm_src}" if gm_src else ""))
 
 
-# ============================================================================ step: zones
 REF_TITLE = re.compile(r"engine condition data|specified data|i/o signal|scan tool data|scan data|data list|"
                        r"typical (data|scan|values)|normal scan|reference value|select monitor data|"
                        r"intake manifold vacuum|engine idle speed", re.I)
@@ -435,9 +426,8 @@ def parse_values(text, unit_hint=None):
     'a — b (unit): cond; c — d (unit): cond2', 'mid ± tol', 'less than X'. Discrete lists ('0 or 5') are left out."""
     out = []
     text = re.sub(r"°\s+([CF])\b", r"°\1", text).replace("°C", " °C").replace("°F", " °F")
-    # '(–450 mmHg, –17.72 inHg)' after a kPa value is the same value in other units: one number is enough
     text = re.sub(r"\((?=[^()]*\d)[^()]*\b(?:mmhg|inhg|psi|°\s*f|kgf/cm2|kpa)\b[^()]*\)", " ", text, flags=re.I)
-    text = re.sub(r"\(\s*varies[^)]*\)|\(\s*(typical|approx\w*|nominal)\s*\)", " ", text, flags=re.I)   # notes
+    text = re.sub(r"\(\s*varies[^)]*\)|\(\s*(typical|approx\w*|nominal)\s*\)", " ", text, flags=re.I)
     for part in re.split(r";|\s/\s(?=\d)|(?<=[A-Za-z°%)])\s*/\s*(?=[-–]?\d)", text):
         part = part.strip()
         if not part or re.search(r"\b\d+(?:\.\d+)?\s+or\s+\d", part):
@@ -445,7 +435,7 @@ def parse_values(text, unit_hint=None):
         m = RANGE_RX.search(part)
         if m and not re.match(r"\s*\d", part[m.end():m.end() + 2] or " "):
             lo, hi = _f(m["lo"]), _f(m["hi"])
-            if lo > hi:                               # a typo on the page ('650-75'): no zone, never a guess
+            if lo > hi:
                 continue
             out.append((lo, hi, None, m["u"] or unit_hint, m.group(0), _cond_after(part, m.end()), part[:m.start()].strip(" :")))
             continue
@@ -481,12 +471,10 @@ def _cond_after(part, end):
     return rest[:120]
 
 
-# ---- conditions: only phrases a Python check can follow. Thresholds the manual doesn't give are generic
-# and marked so (warm = coolant at least 80 °C as in app/live_data.py; stated rpm = ±10 %).
 WARM_C = float(L.COOLANT_NORMAL_C[0])
 NOT_CHECKABLE = re.compile(r"(a/c|air condition\w*)\W{0,3}\W*(switch\W*)?(to\W*)?\W*on\b|when loaded|electrical load|"
                            r"head\s?lights? on|blower|steering wheel (fully )?turned", re.I)
-VARIANT_RX = re.compile(r"\b(MT|AT|M/T|A/T)\b(?:\s*(?:model|vehicle)s?)?")      # upper case only ('at idle')
+VARIANT_RX = re.compile(r"\b(MT|AT|M/T|A/T)\b(?:\s*(?:model|vehicle)s?)?")
 COND_RULES = [
     (re.compile(r"cranking", re.I), "cranking", "Cranking", {"engine": "cranking"}),
     (re.compile(r"(ignition (sw(itch)?|key) on|key on|koeo)[^.;]*engine (off|stopped)|engine off", re.I), "koeo",
@@ -524,8 +512,6 @@ def conditions_from(text, page_text=""):
     return []
 
 
-# ---- name -> canonical key: definition names first (the make's own protocol), then wording synonyms.
-# Synonyms only translate wording into the definitions' terms (CLAUDE.md rule 1).
 SYNONYMS = {
     "ect": ["engine coolant temperature", "coolant temperature", "coolant temp", "engine cool temp", "ect"],
     "iat": ["intake air temperature", "intake air temp", "iat"],
@@ -557,7 +543,7 @@ VOLT_SIBLING = {"tps": "tps_v", "maf": "maf_v", "map": "map_v"}
 
 
 def _norm_name(s):
-    s = re.sub(r"(\w)-\s+(\w)", r"\1\2", s or "")       # 'tempera-ture' line breaks in PDF tables
+    s = re.sub(r"(\w)-\s+(\w)", r"\1\2", s or "")
     s = re.sub(r"[^a-z0-9#/% ]+", " ", s.lower())
     return re.sub(r"\s+", " ", s).strip()
 
@@ -571,7 +557,7 @@ class NameMap:
                                                  (src,)):
                 if name:
                     self.exact.setdefault(_norm_name(name), key)
-            if src == "ssm" and os.path.exists(FREESSM_JSON):   # FreeSSM titles = the Select Monitor's names
+            if src == "ssm" and os.path.exists(FREESSM_JSON):
                 by_addr = {}
                 for raw_id, addr, key in tdb.execute("SELECT raw_id, address, param FROM telem_source_map "
                                                      "WHERE source='ssm' AND address IS NOT NULL"):
@@ -597,7 +583,7 @@ class NameMap:
             if n == w or (len(w) > 4 and re.search(rf"\b{re.escape(w)}\b", n)):
                 rest = n.replace(w, " ")
                 if self.QUALIFIER.search(rest):
-                    return None                   # 'oxygen sensor heater', 'sensor power supply': another quantity
+                    return None
                 return k
         return None
 
@@ -644,7 +630,7 @@ def md_rows(body):
         if prev and len(prev) == len(cells) and cells and not cells[0]:
             cells[0] = prev[0]
         elif prev and cells and re.fullmatch(r"[-–]?\d+(\.\d+)?", cells[0]):
-            cells = [prev[0]] + cells             # a second value line of the row above ('7.1 | — 14.2 | ...')
+            cells = [prev[0]] + cells
         rows.append(cells)
         prev = cells
     return rows
@@ -693,7 +679,7 @@ def header_conditions(rows):
     """(column index -> condition text, header width), from a header row naming conditions (ECM I/O tables)."""
     for r in rows[:4]:
         if any(re.search(r"\d", c) for c in r[1:]):
-            break                                 # the data has started: no header after this
+            break
         hits = {i: c for i, c in enumerate(r) if conditions_from(c)}
         if (len(hits) >= 2 or (hits and not r[0])) and not any(re.search(r"\d", c) for c in r):
             return hits, len(r)
@@ -726,22 +712,19 @@ def zone_rows(rows, page_text):
         unit_hint = unit_hint or head_unit
         quote = " | ".join(c for c in r if c)
         if re.search(r"waveform", quote, re.I):
-            continue                                      # pulsed signals: a meter value isn't a zone
+            continue
         cells = [(i, c) for i, c in enumerate(r[1:], 1) if c and i != units_col]
-        # the row's own condition text: cells with no value that aren't connector/terminal numbers or dashes
         own = " ".join(c for i, c in cells if not parse_values(c, unit_hint) and not
                        re.fullmatch(r"[A-Z]{0,2}\d{1,3}|[—–-]+|signal( \([+-]\))?|output|voltage", c.strip(), re.I)
                        and f"{r[0]} {c}" != name)
         vals = [(i, c) for i, c in cells if parse_values(c, unit_hint)]
         if vals:
-            # value cells take the header's condition columns in order, only when the counts agree
-            # (merged cells shift column numbers, so the index alone can't be trusted)
             conds = [hdr_all[k] for k in sorted(hdr_all)]
             if len(conds) == len(vals):
                 out += [(name, c, own, conds[n], unit_hint, quote, None) for n, (i, c) in enumerate(vals)]
             elif not hdr_all:
                 out += [(name, c, own, "", unit_hint, quote, None) for i, c in vals]
-        elif cells and not hdr_all:                       # PDF tables that split one value over several cells
+        elif cells and not hdr_all:
             out.append((name, " ".join(c for _, c in cells), "", "", unit_hint, quote, None))
     return out
 
@@ -817,13 +800,10 @@ def step_zones(make, limit=0):
         if measure and re.search(r"warm[- ]?up the engine|after warm", body, re.I):
             pcond = (pcond + " After warm-up the engine.").strip()
         items = zone_rows(rows, pcond) if rows else []
-        # free-text specs on measurement pages ('Vacuum pressure (at idling, A/C "OFF"): Less than -60.0 kPa')
         topic = re.sub(r"^\d+\.\s*", "", (path.split(" > ")[-2] if " > " in path else title))
         blines = body.splitlines()
         for i, (cl, raw) in enumerate(free):
             j = blines.index(raw) if raw in blines else 0
-            # the spec's label is the nearest line above ending in ':'; a lone '(MT model)' line under the value
-            # says which transmission it is for
             prev = next((_clean(x) for x in reversed(blines[max(0, j - 8):j]) if _clean(x).rstrip("*").endswith(":")), "")
             nxt = next((_clean(x) for x in blines[j + 1:j + 4] if _clean(x)), "")
             vm = VARIANT_RX.fullmatch(nxt.strip("*() ").replace(" model", "").replace(" vehicle", "")) if nxt else None
@@ -834,7 +814,7 @@ def step_zones(make, limit=0):
             st["rows"] += 1
             if re.search(r"\((except|only|for)\b[^)]*\bmodels?\)", name, re.I):
                 tdb.execute("INSERT INTO telem_zone_unmapped VALUES (?,?,?,?)", (sid, name, quote[:300], "model qualifier"))
-                continue                                  # '(Except U5 model)': which cars isn't known here
+                continue
             key = names.key(name) or names.key(topic if not rows else "")
             if not key:
                 st["unmapped"] += 1
@@ -843,7 +823,7 @@ def step_zones(make, limit=0):
             for lo, hi, typ, unit, mtext, after, before in parse_values(cell, uhint):
                 mine = f"{own} {before} {after}".strip()
                 if mine and not checkable(mine):
-                    cl = []                               # the row names a state Python can't check
+                    cl = []
                 else:
                     cl = conditions_from(f"{ctext} {mine}", f"{pcond} {mine}") if (ctext or mine) else \
                         conditions_from(pcond, pcond)
@@ -917,7 +897,6 @@ def generic_zones(tdb, conds):
                     (key, cond, lo, hi, unit, q, LD, key))
 
 
-# ============================================================================ step: paths
 DIR_RULES = [("low", re.compile(r"\b(low input|low voltage|circuit low|too low|less than|lower than|below|"
                                   r"or less|under|low)\b", re.I)),
              ("high", re.compile(r"\b(high input|high voltage|circuit high|too high|more than|higher than|greater "
@@ -938,7 +917,7 @@ def path_terms(tdb, make):
     terms = {}
     for key, name in tdb.execute("SELECT key, name FROM telem_param WHERE kind='value'"):
         ws = {_norm_name(name)} | {_norm_name(w) for w in SYNONYMS.get(key, [])}
-        ws = {w for w in ws if len(w) >= 6 and not re.fullmatch(r"[a-z]?\d+", w)}   # skip 'map', 'rpm', ids
+        ws = {w for w in ws if len(w) >= 6 and not re.fullmatch(r"[a-z]?\d+", w)}
         if ws:
             terms[key] = sorted(ws, key=len, reverse=True)
     return terms
@@ -956,12 +935,12 @@ def step_paths(make):
     mdb = open_master(make)
     tdb.execute("DELETE FROM telem_path")
     if tdb.execute("SELECT 1 FROM sqlite_master WHERE name='telem_path_vec'").fetchone():
-        import sqlite_vec                                 # vectors key on telem_path ids: rebuilt by 'embed'
+        import sqlite_vec
         tdb.enable_load_extension(True)
         sqlite_vec.load(tdb)
         tdb.execute("DROP TABLE telem_path_vec")
     terms = path_terms(tdb, make)
-    owner = {}                                            # manual term -> parameter
+    owner = {}
     for key, ws in terms.items():
         for w in ws:
             owner.setdefault(w, key)
@@ -970,17 +949,15 @@ def step_paths(make):
     after_q = re.compile(r"^\W*(sensor\W+)?(heater|relay|solenoid|power|supply|switch|ground|shield)\b")
 
     def keys_in(norm_text):
-        # 'oxygen sensor heater', 'pressure sensor power supply': a different quantity from the sensor's reading
         return {owner[m.group(1)] for m in big.finditer(norm_text) if not after_q.search(norm_text[m.end():])}
 
     st = dict(dtc_title=0, dtc_step=0, inspection=0)
     rows = []
-    # 1. DTC procedures: the DTC's own name names the parameter (or its sensor), or a step's check reads it
     dtcname = {c: d or "" for c, d in mdb.execute("SELECT code, description FROM dtc")}
     for code, sid, title, body, kind in mdb.execute(
             "SELECT DISTINCT p.code, s.id, s.title, s.body, d.kind FROM dtc_procedure p JOIN section s ON s.id=p.section_id "
             "JOIN doc d ON d.id=s.doc_id"):
-        ev = _clean(f"{code} {dtcname.get(code) or title}")   # the code's own name, or its page title
+        ev = _clean(f"{code} {dtcname.get(code) or title}")
         for key in keys_in(_norm_name(ev)):
             for d in directions(ev):
                 rows.append((key, d, sid, None, "dtc", "dtc_title", ev[:400], 0))
@@ -997,7 +974,6 @@ def step_paths(make):
                         rows.append((key, d, sid, int(cells[0]), "dtc", "dtc_step", f"Step {cells[0]}: {cells[2]}"[:400], 1))
                     st["dtc_step"] += 1
 
-    # 2. component inspections: a section about the parameter's sensor whose title says it inspects/tests it
     for sid, title, path, body in mdb.execute("SELECT id, title, path, body FROM section"):
         if not INSPECT_RX.search(f"{title} {path}"):
             continue
@@ -1029,7 +1005,6 @@ def step_paths(make):
     log(f"paths {make}: {n} scoped rows from {st}")
 
 
-# ============================================================================ step: embed
 def gpu_free():
     r = subprocess.run(["bash", "-c", f"source {ROOT}/tools/gpu_guard.sh && gpu_free"], capture_output=True, text=True)
     return r.returncode == 0, (r.stdout or r.stderr).strip()
@@ -1046,7 +1021,7 @@ def step_embed(make, device="auto"):
         ok, why = gpu_free()
         device = "cuda" if ok else "cpu"
         log(f"embed {make}: {'GPU free' if ok else why + '; using the CPU'}")
-    os.environ.setdefault("HF_HUB_OFFLINE", "1")          # the embedding model is already cached
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
     import numpy as np
     import sqlite_vec
     from sentence_transformers import SentenceTransformer
@@ -1071,7 +1046,6 @@ def step_embed(make, device="auto"):
     log(f"embed {make}: {len(rows)} pathways ({len(uniq)} distinct texts) on {device} in {time.time() - t0:.0f} s")
 
 
-# ============================================================================ step: merge
 def step_merge(make):
     if build_in_progress(make):
         log(f"merge {make}: SKIPPED, the CHARM build hasn't finished kb/{make}.db yet (no .{make}.done)")
@@ -1083,7 +1057,7 @@ def step_merge(make):
     m = sqlite3.connect(dst, timeout=120)
     have = [r[0] for r in m.execute("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'telem_%' "
                                     "AND name NOT LIKE 'telem_path_vec_%'")]
-    if have:                                  # back up the previous copy (the rest of the DB is untouched)
+    if have:
         os.makedirs(os.path.join(OUT, "backup"), exist_ok=True)
         bk = os.path.join(OUT, "backup", f"{make}.telem.{time.strftime('%Y%m%d_%H%M')}.db")
         b = sqlite3.connect(bk)
@@ -1120,7 +1094,6 @@ def step_merge(make):
     log(f"merge {make}: telem_* tables replaced in {dst} {n}")
 
 
-# ============================================================================ step: report
 def step_report(make, sample=20, seed=None):
     tdb = open_tdb(make)
     tdb.row_factory = sqlite3.Row
@@ -1169,7 +1142,7 @@ def step_report(make, sample=20, seed=None):
         page_text = _clean(body["body"]) if body else ""
         qn = {round(_f(x), 4) for x in re.findall(NUM, z["quote"])}
         pn = {round(_f(x), 4) for x in re.findall(NUM, page_text)}
-        typ = z["typical"] is not None                    # 'mid ± tol' rows store mid-tol / mid+tol
+        typ = z["typical"] is not None
         hit = bool(body) and (typ or all(round(x, 4) in qn for x in nums))
         on_page = bool(body) and (z["source_kind"] == "charm" or typ or all(round(x, 4) in pn for x in nums))
         ok += hit and on_page
@@ -1182,7 +1155,7 @@ def step_report(make, sample=20, seed=None):
         body = mdb.execute("SELECT body, path FROM section WHERE id=?", (p["section_id"],)).fetchone()
         ev = p["evidence"]
         if p["method"] == "component_title" and body and ev.startswith(body["path"] + ": "):
-            ev = ev[len(body["path"]) + 2:]               # component links: 'page path: quoted sentence'
+            ev = ev[len(body["path"]) + 2:]
         frag = re.sub(r"^Step \d+: ", "", ev)[:40]
         hit = bool(body) and (_clean(frag) in _clean(body["body"]) or p["method"] == "dtc_title")
         okp += hit
@@ -1203,7 +1176,6 @@ def _numstr(x):
     return f"{x:g}" if x == int(x) or len(f"{x:g}") <= 6 else f"{x}"
 
 
-# ============================================================================ replay
 def step_replay(make, session_db, car_text):
     """Recorded READ CAR / TEST DRIVE samples (the app's session DB, table drive_sample) through normalize + judge
     for one car ('Model,Year[,Engine]'). The reader isn't stored with old samples, so both label sets are tried
@@ -1231,7 +1203,6 @@ def step_replay(make, session_db, car_text):
         log(f"  {k}: " + ", ".join(f"{a} {b}" for a, b in sorted(c.items())))
 
 
-# ============================================================================ main
 def main():
     global LOG
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

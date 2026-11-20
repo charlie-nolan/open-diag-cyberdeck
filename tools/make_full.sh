@@ -17,7 +17,7 @@ ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"
 PROF=$CK/chevrolet/profiles/makes
 . "$CK/tools/gpu_guard.sh"
 export HF_HUB_OFFLINE=1
-STEP_TIMEOUT=${STEP_TIMEOUT:-24h}     # a hung Python step is killed after this and counts as failed
+STEP_TIMEOUT=${STEP_TIMEOUT:-24h}
 
 DRY=0; ARGS=()
 for x in "$@"; do [ "$x" = "--dry-run" ] && DRY=1 || ARGS+=("$x"); done
@@ -35,7 +35,6 @@ one_make() {
     case $SLUG in subaru) say "skip: built separately"; return 0;; esac
     DB="$KB/$SLUG.db"; [ -f "$DB" ] || { [ -f "$ALT/$SLUG.db" ] && DB="$ALT/$SLUG.db"; }
 
-    # a. CHARM text
     if [ -f "$KB/.$SLUG.done" ] || [ "$(count "$DB" 'SELECT count(*) FROM section')" -gt 0 ]; then
         say "a. CHARM DB: done ($(du -h "$DB" | cut -f1))"
     elif running "$CK/.charm_loop.lock"; then
@@ -46,12 +45,9 @@ one_make() {
         run "$P" "$KB/build_subaru_kb.py" --db "$DB" finish || { say "a. FAILED"; return 1; }
     fi
 
-    # b. NHTSA
     if [ -f "$KB/.$SLUG.nhtsa" ]; then say "b. NHTSA: done ($(cat "$KB/.$SLUG.nhtsa"))"
     else run "$P" -I "$KB/add_nhtsa.py" "$DB" || { say "b. FAILED"; return 1; }; fi
 
-    # b2. car names: CHARM cars renamed by the make's NHTSA model list ('K Tahoe 4WD' was stored as 'K').
-    #     CPU, keeps pages and vectors. Needs the CHARM text mount (~/mnt/charm), like step a.
     if [ -n "$(sqlite3 -readonly "$DB" "SELECT 1 FROM meta WHERE k='charm_relink'" 2>/dev/null)" ]; then
         say "b2. car names: done"
     else
@@ -59,7 +55,6 @@ one_make() {
             say "b2. car names FAILED (is the CHARM text mounted at ~/mnt/charm?); carrying on with the old names"
     fi
 
-    # c. Reddit
     RDB=$CK/raw/reddit/reddit_$SLUG.db
     if [ ! -f "$PROF/$SLUG.json" ]; then say "c. Reddit: no profile (no subreddit for this make in the dump)"
     elif [ "$(count "$RDB" 'SELECT count(*) FROM dump_state WHERE done=0')" = 0 ] && [ -f "$RDB" ]; then
@@ -71,15 +66,12 @@ one_make() {
         run "$P" "$CK/chevrolet/make_pipeline.py" "$PROF/$SLUG.json" reddit || { say "c. FAILED"; return 1; }
     fi
 
-    # d. NHTSA defect investigations + Mechanics StackExchange Q&A -> knowledge rows (CPU, seconds per make;
-    #    the first make downloads FLAT_INV.zip and reads Posts.xml once). Needs step b's NHTSA model names.
     for L in "inv|add_investigations.py|investigations" "se|add_stackexchange.py|StackExchange"; do
         IFS='|' read -r MK PY WHAT <<< "$L"
         if [ -f "$KB/.$SLUG.$MK" ]; then say "d. $WHAT: done ($(cat "$KB/.$SLUG.$MK"))"
         else run "$P" -I "$KB/$PY" "$DB" || say "d. $WHAT FAILED; carrying on without it"; fi
     done
 
-    # e. forum fixes: threads -> 'what fixed it' rows (llama-server Qwen3-8B, GPU)
     WORK=$KB/bake_work_$SLUG.db; DIAG=$CK/${SLUG}_diag.db
     if [ -f "$KB/.$SLUG.fixes" ]; then say "e. forum fixes: done ($(count "$DB" "SELECT count(*) FROM knowledge WHERE kind='forum_fix'"))"
     elif [ ! -f "$RDB" ]; then say "e. forum fixes: skipped (no Reddit DB)"
@@ -104,13 +96,10 @@ one_make() {
         [ $DRY = 1 ] || { kill $SRV 2>/dev/null || true; wait $SRV 2>/dev/null || true; trap - EXIT; }
     fi
 
-    # f. vectors for everything new (keyword search works without them)
     if ! gpu_free; then say "f. embed: waiting for the GPU; re-run later"; return 0; fi
     [ $DRY = 1 ] || gpu_lock || return 1
     run "$P" "$KB/build_subaru_kb.py" --db "$DB" embed --missing || { say "f. FAILED"; return 1; }
-    # g. finish
     run "$P" "$KB/build_subaru_kb.py" --db "$DB" finish || { say "g. FAILED"; return 1; }
-    # h. score, appended to history
     (cd "$KB" && run "$P" eval_make.py "$DB" --history --label "make_full") | tail -5 || say "h. score FAILED"
     say "done"
 }

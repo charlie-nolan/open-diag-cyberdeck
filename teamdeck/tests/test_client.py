@@ -9,7 +9,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from teamdeck import client  # noqa: E402
 
-VIN = "1ABCD23EFGH456789"     # made-up, VIN-shaped
+VIN = "1ABCD23EFGH456789"
 
 
 class Scrub(unittest.TestCase):

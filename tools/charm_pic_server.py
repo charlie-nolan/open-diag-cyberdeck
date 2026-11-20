@@ -40,12 +40,11 @@ import lmdb
 
 try:
     from PIL import Image
-except ImportError:            # still serves, just never shrinks
+except ImportError:
     Image = None
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NUM_RE = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?(?![\w.])")
-# ocr_bench.py's chart prompt (best on the user's hard pages), plus a way out for pictures that aren't charts
 PROMPT = ("This is a picture from a vehicle service manual diagnostic procedure. If it is a diagnostic chart or "
           "flowchart, transcribe it exactly. For each numbered step write:\n### Step N\nCheck: <the check, word "
           "for word>\nYES: <what the YES branch says or the step it goes to>\nNO: <same for NO>\nKeep every "
@@ -152,7 +151,7 @@ def read_picture(data, a):
         if im.width < 200 or im.height < 120:
             return "skipped", "too small to be a chart (icon or arrow)", None, False
         im = im.convert("RGB")
-        if im.width < 1000:      # small line art reads better (for both readers) at about 2x
+        if im.width < 1000:
             f = min(2.0, 1000 / im.width)
             im = im.resize((round(im.width * f), round(im.height * f)), Image.LANCZOS)
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as t:
@@ -188,8 +187,6 @@ def worker(env, reads, a, errors):
             time.sleep(5)
             continue
         if gpu_busy(a.busy_cmd) and own_model_only(a):
-            # The busy check also sees our own reader model, which Ollama keeps loaded after each read
-            # (keep_alive): unload it and check again, so the queue isn't stuck waiting on itself.
             unload_model(a)
             time.sleep(3)
         if gpu_busy(a.busy_cmd):
@@ -207,7 +204,7 @@ def worker(env, reads, a, errors):
             else:
                 reads.done(key, *read_picture(data, a), a.model, round(time.time() - t0, 1))
             errors.pop(key, None)
-        except Exception as e:   # Ollama down, model missing...: drop the job, say why; a new request retries
+        except Exception as e:
             errors[key] = f"{type(e).__name__}: {e}"[:300]
             with reads.db() as c:
                 c.execute("DELETE FROM job WHERE img_key=?", (key,))
@@ -248,12 +245,12 @@ class Handler(BaseHTTPRequestHandler):
     args = None
     reads = None
     errors = {}
-    reading = None       # key being read now
-    gpu_wait = False     # the queue is waiting for another GPU job to finish
+    reading = None
+    gpu_wait = False
     served = 0
     lock = threading.Lock()
 
-    def log_message(self, fmt, *a):      # quiet: one line per 200 pictures, and every error
+    def log_message(self, fmt, *a):
         pass
 
     def _send(self, code, body=b"", ctype="text/plain"):
@@ -305,7 +302,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.reading == key:
             return self._json({"state": "reading"})
         if key in self.errors and self.reads.ahead(key) is None:
-            why = self.errors.pop(key)          # reported once; asking again queues it again
+            why = self.errors.pop(key)
             return self._json({"state": "error", "why": why})
         self.reads.add_job(key, 0)
         return self._json({"state": "queued", "ahead": self.reads.ahead(key) or 0, "gpu_busy": self.gpu_wait})

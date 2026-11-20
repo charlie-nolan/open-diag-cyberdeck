@@ -20,7 +20,6 @@ from . import tui
 
 ICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.svg")
 
-# line attributes the screens use (tui.UI passes curses attributes; here they're plain flags)
 BOLD, HEAD, GOOD, WARN, BAD, ACC, DIM, SEL = 1, 2, 4, 8, 16, 32, 64, 128
 COLORS = [(WARN, "#e3b341"), (BAD, "#f85149"), (GOOD, "#3fb950"), (ACC, "#79c0ff"), (DIM, "#8b949e")]
 TEXT = "#e6edf3"
@@ -71,14 +70,14 @@ def _buttons(hint, keys):
             continue
         first, rest = words[0], " ".join(words[1:])
         if first in ("Esc", "Esc/q", "q") and rest.startswith("back"):
-            continue                                  # every screen gets its own Back button
+            continue
         if first == "Enter" and rest:
             out.append((rest[0].upper() + rest[1:], "#pick"))
         elif first == "type" and "reading" in tok:
             out.append(("Enter a reading", "#reading"))
         elif len(first) == 1 and first in keys and rest:
             if first == "b" and rest.startswith("back"):
-                rest = "back a step"                  # undo, not the screen's Back
+                rest = "back a step"
             out.append((f"{rest[0].upper() + rest[1:]}   [{first}]", first))
     return out
 
@@ -86,7 +85,7 @@ def _buttons(hint, keys):
 class GUI(tui.UI):
     """tui.UI's screens, drawn in a window."""
 
-    def __init__(self, desk):                        # no curses here: tui.UI.__init__ is not called
+    def __init__(self, desk):
         self.desk = desk
         self.flash = ""
         self.B = BOLD
@@ -101,7 +100,6 @@ class GUI(tui.UI):
         self._filtering = False
         self._build()
 
-    # ------------------------------------------------------------------ window
     def _build(self):
         w = self.win = _Window(self)
         w.setWindowTitle("Shopdeck")
@@ -256,7 +254,6 @@ class GUI(tui.UI):
             raise Navigate(key)
         return self._res
 
-    # ------------------------------------------------------------------ keys and mouse (from _Window.eventFilter)
     def key(self, obj, ev):
         k, ch = ev.key(), ev.text()
         if obj is self.edit:
@@ -320,7 +317,6 @@ class GUI(tui.UI):
             return True
         return False
 
-    # ------------------------------------------------------------------ the primitives tui.UI's screens call
     def view(self, title, lines, hint="↑↓ PgUp PgDn scroll   q back", keys="", top=0):
         self._mode, self._keys, self._hint = "view", keys, hint
         self.ask_row.hide()
@@ -421,7 +417,6 @@ class GUI(tui.UI):
         self.lbl_flash.setText(text)
         QApplication.processEvents()
 
-    # ------------------------------------------------------------------ running
     def run(self):
         pending = None
         while not self._quitting:
@@ -446,7 +441,7 @@ class GUI(tui.UI):
             except Navigate as n:
                 self.desk.save()
                 pending = n.key
-            except Exception as e:                      # a screen bug shouldn't close the shop's window
+            except Exception as e:
                 traceback.print_exc()
                 self.flash = f"something went wrong there ({type(e).__name__}: {e}); the ticket is saved"
                 try:

@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
 """
 
 DEFAULT_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "kb", "yards.db")
-MAX_AGE_DAYS = 45   # a car only known from an alert or a partial paste stops counting after this (yards crush)
+MAX_AGE_DAYS = 45
 
 
 def connect(path=DEFAULT_DB, write=False):
@@ -117,9 +117,9 @@ class YardResult:
 
 @dataclass
 class YardReport:
-    synced_at: str          # last successful sync (ISO) or None
+    synced_at: str
     yards: list
-    outside_years: int = 0  # matching-model cars outside CHARM's 1990-2012 coverage
+    outside_years: int = 0
 
     def age_hours(self):
         if not self.synced_at:
@@ -178,7 +178,6 @@ def report(yards_db, kb_db, interchange, make="Subaru", today=None):
             "d.series, d.trim, d.model "
             "FROM yard_vehicle v JOIN yard y ON y.id = v.yard_id LEFT JOIN vin_decode d ON d.vin = v.vin "
             f"WHERE lower(v.make) IN ({','.join('?' * len(makes))}) "
-            # Still there: on the yard's latest full list, or added since then and not older than MAX_AGE_DAYS.
             "AND ((y.last_full IS NOT NULL AND v.last_seen >= y.last_full) OR "
             "     (v.first_seen > coalesce(y.last_full, '') AND "
             "      julianday(?) - julianday(substr(coalesce(v.added, v.first_seen), 1, 10)) <= ?))",
@@ -194,7 +193,6 @@ def report(yards_db, kb_db, interchange, make="Subaru", today=None):
         car = YardCar(vin, year, mk, model, row, added, last_seen, url,
                       engine_from_vpic(disp, cyl, valve, turbo), " ".join(x for x in (series, trim) if x))
         nm = norm_model(model)
-        # vPIC's series/trim catches Outbacks a yard lists as Legacy.
         if nm == "legacy" and "outback" in f"{series} {trim} {d_model}".lower():
             nm = "outback"
         level, why = (None, "")

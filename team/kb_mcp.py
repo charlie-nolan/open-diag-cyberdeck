@@ -39,7 +39,7 @@ import vehicle_id  # noqa: E402
 
 PROTOCOL = "2025-06-18"
 UA = "teamdeck/0.1 (diagnostic research; single page fetch)"
-DB_KINDS = "MSCOP"     # manual, spec, card, owner reports, the manual pack: counted against a member's cap
+DB_KINDS = "MSCOP"
 DTC_RE = re.compile(r"\b[PBCU][0-3][0-9A-F]{3}\b", re.I)
 
 
@@ -58,9 +58,9 @@ class Store:
         self.dir = run_dir
         os.makedirs(run_dir, exist_ok=True)
         self.items, self.n, self.lock = {}, {}, threading.Lock()
-        self.used = {}         # member -> DB characters given out this run (the per-member cap)
+        self.used = {}
         p = os.path.join(run_dir, "evidence.jsonl")
-        if os.path.isfile(p):          # a restarted server keeps the ids it already gave out
+        if os.path.isfile(p):
             with open(p) as f:
                 for ln in f:
                     it = json.loads(ln)
@@ -101,7 +101,7 @@ class KB:
         from kb_retriever import Retriever
         emb = None
         if embed:
-            try:   # CPU query embedder (float32): the GPU belongs to Home mode and the build jobs
+            try:
                 import embedder
                 from glob import glob
                 dirs = [os.path.join(ROOT, "models", "qwen3emb")] + sorted(glob(os.path.expanduser(
@@ -180,14 +180,14 @@ def fetch_page(url, max_chars=12000):
     if any(host == d or host.endswith("." + d) for d in blocked_domains()):
         return None, f"{host} is on the no-fetch list (site terms)"
     rp = urllib.robotparser.RobotFileParser()
-    try:   # read with our own user agent (urllib's default one is refused by some sites, which reads as "disallow all")
+    try:
         rq = urllib.request.Request(f"{u.scheme}://{u.netloc}/robots.txt", headers={"User-Agent": UA})
         with urllib.request.urlopen(rq, timeout=10) as resp:
             rp.parse(resp.read(500_000).decode("utf-8", "replace").splitlines())
         if not rp.can_fetch(UA, url):
             return None, f"{host} robots.txt disallows this page"
     except Exception:
-        pass   # no robots.txt (or unreadable): the page itself still has to answer
+        pass
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
@@ -320,7 +320,7 @@ class Server:
         out, blocks = "", []
         try:
             if name == "search_manual":
-                k = a.get("k", 3) if profile == "full" else 1     # team members: one procedure at a time
+                k = a.get("k", 3) if profile == "full" else 1
                 for head, text in self.kb.manual(a["query"], k):
                     blocks.append(("M", head, text))
             elif name == "dtc_procedure":

@@ -40,7 +40,7 @@ def main():
         r = retrievers.setdefault((model, year_max), Retriever(a.kb, model=model, year=year_max, engine=None))
         card, sources = json.loads(card_json), json.loads(sources_json)
         specs, labor = [], []
-        for c in card["causes"][:3]:          # same lookups as bake_cards.py, with the current retriever
+        for c in card["causes"][:3]:
             specs += r.specs(c["cause"], limit=2)
             if with_labor:
                 labor += r.labor(c["cause"], limit=2)

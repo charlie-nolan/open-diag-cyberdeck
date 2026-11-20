@@ -19,7 +19,6 @@ from dataclasses import dataclass, field
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SUBARU_PN_RE = re.compile(r"^\d{5}[A-Z]{2}[0-9A-Z]{3}$")
-# Subaru engine codes -> (cylinders, litres, cam, turbo), for vehicles stored by code instead of CHARM's name.
 ENGINE_CODES = {
     "EJ18": (4, 1.8, "SOHC", False), "EJ22": (4, 2.2, "SOHC", False), "EJ20": (4, 2.0, "DOHC", True),
     "EJ205": (4, 2.0, "DOHC", True), "EJ25D": (4, 2.5, "DOHC", False), "EJ251": (4, 2.5, "SOHC", False),
@@ -77,8 +76,8 @@ def norm_model(model):
 class Engine:
     cyl: int = None
     disp: float = None
-    cam: str = None        # 'SOHC' | 'DOHC' | None
-    turbo: bool = None     # None = not stated
+    cam: str = None
+    turbo: bool = None
 
     @classmethod
     def from_charm(cls, text):
@@ -86,14 +85,13 @@ class Engine:
         if not text:
             return cls()
         code = ENGINE_CODES.get(text.strip().upper()[:5]) or ENGINE_CODES.get(text.strip().upper()[:4])
-        if code:                     # FSM-loaded vehicles carry an engine code ('EJ251') instead
+        if code:
             return cls(*code)
         m = ENGINE_RE.search(text)
         if not m:
             return cls()
         rest = m.group(4).upper()
         cam = "DOHC" if "DOHC" in rest else "SOHC" if "SOHC" in rest else None
-        # CHARM names turbo engines explicitly, so no 'Turbo' on a named engine means naturally aspirated.
         return cls(int(m.group(2)), float(m.group(3)), cam, "TURBO" in rest)
 
     def known(self):
@@ -119,11 +117,11 @@ class Engine:
 
 @dataclass
 class Fit:
-    model: str            # CHARM model ('Forester')
+    model: str
     year: int
-    engine: str           # CHARM engine text or None
-    part_number: str      # the number listed for this vehicle
-    match: str            # 'exact' | 'family' | 'override'
+    engine: str
+    part_number: str
+    match: str
     operation: str = ""
     price: str = None
     note: str = ""
@@ -134,8 +132,8 @@ class Interchange:
     part_number: str
     family: str
     fits: list = field(default_factory=list)
-    numbers: dict = field(default_factory=dict)      # every number seen in the family -> description
-    aliases: list = field(default_factory=list)      # override rules that apply (yard-side model aliases)
+    numbers: dict = field(default_factory=dict)
+    aliases: list = field(default_factory=list)
 
     def years_by_model(self):
         out = {}
@@ -219,7 +217,6 @@ def lookup(kb_db, part_number, overrides=None):
         if key not in best or (match == "exact" and best[key].match != "exact"):
             best[key] = Fit(model, year, engine, num, match, op, price)
     ic.fits = sorted(best.values(), key=lambda f: (f.model, f.year, f.engine or ""))
-    # Hand-checked extra fits keyed by part number or family (e.g. a part also used on another model).
     for x in overrides.get("extra_fits", []):
         if normalize_pn(x.get("part_number")) in (pn,) or (fam and x.get("family") == fam):
             for y in range(x["years"][0], x["years"][1] + 1):
@@ -262,8 +259,6 @@ def parts_for_job(kb_db, term, model=None, year=None, limit=12):
         con.close()
     rows = [(pn if is_part_number(pn) else pn_from_raw(pn), op, price) for pn, op, price in rows]
     rows = [r for r in rows if r[0]]
-    # Every job word must be in the last 3 path parts (the part itself, not 'Engine, Cooling and Exhaust'
-    # above it), so 'exhaust manifold gasket' doesn't also return the intake manifold gasket.
     def tail(op, n):
         return " ".join(op.lower().split(" > ")[-n:])
     rows = ([r for r in rows if all(w in tail(r[1], 2) for w in words)]

@@ -37,12 +37,11 @@ import serial
 
 SESSION_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "session_active.db")
 
-# (column, address, byte length, conversion) from RomRaider logger_STD_EN_v370
 PARAMS = [
     ("ect_c",               0x000008, 1, lambda b: b[0] - 40),
     ("stft_pct",            0x000009, 1, lambda b: round((b[0] - 128) * 100 / 128, 1)),
     ("ltft_pct",            0x00000A, 1, lambda b: round((b[0] - 128) * 100 / 128, 1)),
-    ("map_kpa",             0x00000D, 1, lambda b: float(b[0])),          # x*10 hPa = x kPa
+    ("map_kpa",             0x00000D, 1, lambda b: float(b[0])),
     ("rpm",                 0x00000E, 2, lambda b: ((b[0] << 8) | b[1]) // 4),
     ("speed_kph",           0x000010, 1, lambda b: b[0]),
     ("timing_advance_deg",  0x000011, 1, lambda b: round((b[0] - 128) / 2, 1)),
@@ -63,11 +62,8 @@ def calc_ssm2_checksum(packet: bytes) -> int:
     return sum(packet) & 0xFF
 
 
-# Reads: 0xBF = ECU init / identify, 0xA8 = read single addresses, 0xA0 = read a memory block.
-# send_ssm2_command() refuses everything else. The only writes (0xB8, TEST MODE) go through ssm_tests.py,
-# which checks each one against the tests this ECU advertises.
 ALLOWED_SSM2 = {0xBF, 0xA8, 0xA0}
-ECU_REPLY_WAIT = 1.0   # s to wait for the first reply byte after our request (ECUs can be slow right after key-on)
+ECU_REPLY_WAIT = 1.0
 
 
 class TelemetryPoller:
@@ -87,8 +83,6 @@ class TelemetryPoller:
         self._db_ready = False
 
     def _init_db_wal(self):
-        # Only the logger needs the session DB. A one-off read (READ CAR) must not fail because
-        # the checkout is missing or read-only, so this runs when polling starts, not in __init__.
         if self._db_ready:
             return
         os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
@@ -108,13 +102,13 @@ class TelemetryPoller:
 
     def connect_serial(self) -> bool:
         if self.ser is not None and self.ser.is_open:
-            self.ser.close()  # probing twice must not leak an open port
+            self.ser.close()
         try:
             kw = dict(port=self.port, baudrate=self.baudrate, bytesize=serial.EIGHTBITS,
                       parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=0.25)
-            try:  # exclusive: a second program (or a second deck thread) can't share the K-line
+            try:
                 self.ser = serial.Serial(exclusive=True, **kw)
-            except TypeError:  # pyserial older than 3.3
+            except TypeError:
                 self.ser = serial.Serial(**kw)
             self.ser.reset_input_buffer()
             self.ser.reset_output_buffer()
@@ -123,7 +117,7 @@ class TelemetryPoller:
             return False
 
     def _byte_time(self, n):
-        return n * 10.0 / self.baudrate  # 8N1 = 10 bits per byte on the wire
+        return n * 10.0 / self.baudrate
 
     def _read(self, n, timeout):
         self.ser.timeout = timeout
@@ -149,12 +143,9 @@ class TelemetryPoller:
             self.ser.reset_input_buffer()
             self.ser.write(packet)
 
-            # K-line is half duplex: the cable echoes what we sent. The echo takes as long as the
-            # packet takes on the wire (103 bytes = 215 ms at 4800 baud), so the timeout scales with it.
             if self._read(len(packet), self._byte_time(len(packet)) + 0.15) != packet:
                 return b""
 
-            # Find the reply header, skipping up to 8 stray bytes (K-line glitches at key-on).
             win = b""
             first = True
             while not win.endswith(b"\x80\xF0\x10"):
@@ -175,7 +166,7 @@ class TelemetryPoller:
                 return b""
             return rest[:-1]
         except (serial.SerialException, OSError):
-            return b""  # unplugged mid-read
+            return b""
 
     def probe_ecu(self, tries=3) -> str:
         """Init the ECU. Returns the ROM ID hex string, or '' if no answer. Retries: one garbled
@@ -188,8 +179,7 @@ class TelemetryPoller:
             if resp and len(resp) >= 9 and resp[0] == 0xFF:
                 break
             time.sleep(0.2)
-        self.init_raw = resp  # full init payload, for subaru_ssm/ssm2_capabilities.py
-        # Response: 0xFF, SSM ID (3 bytes), ROM ID (5 bytes), capability bytes
+        self.init_raw = resp
         if resp and len(resp) >= 9 and resp[0] == 0xFF:
             self.ecu_online = True
             self.ssm_id = resp[1:4].hex().upper()

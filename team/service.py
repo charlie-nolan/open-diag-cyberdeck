@@ -52,8 +52,8 @@ MAX_BODY = 2_000_000
 class Jobs:
     def __init__(self):
         self.lock = threading.Lock()
-        self.procs = {}       # id -> Popen
-        self.state = {}       # id -> state
+        self.procs = {}
+        self.state = {}
         self.busy = None
 
     def start(self, body):
@@ -202,7 +202,7 @@ def main():
     try:
         a.host = a.host or tailnet_ip()
         httpd = ThreadingHTTPServer((a.host, a.port), make_handler(jobs))
-    except OSError as e:     # Tailscale down: only this PC can reach it
+    except OSError as e:
         print(f"can't listen on {a.host} ({e}); using 127.0.0.1", flush=True)
         httpd = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(jobs))
     print(f"Team service on {httpd.server_address[0]}:{httpd.server_address[1]}", flush=True)

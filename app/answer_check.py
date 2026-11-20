@@ -12,7 +12,6 @@ Stdlib only.
 """
 import re
 
-# words that describe a fault or a job, not a part: never the word that decides whether the manual names a part
 _GENERIC = {"connector", "connectors", "harness", "wiring", "wire", "circuit", "repair", "kit", "damaged", "disturbed",
             "only", "assembly", "faulty", "failure", "failing", "worn", "loose", "leak", "leaking", "fault", "intermittent",
             "issue", "problem", "replace", "replacement", "check", "inspection", "test", "possible", "suspected", "side",
@@ -46,12 +45,12 @@ def _replaced_in(part, text, window=6):
     pw = set(_words(part)) - {"the", "and", "for", "with", "assembly", "kit"}
     if not pw:
         return ""
-    for sent in re.split(r"[.;,\n]", text or ""):              # one clause at a time
-        toks = re.findall(r"[a-z0-9]{2,}", sent.lower())      # 2+ letters: keeps "no"
+    for sent in re.split(r"[.;,\n]", text or ""):
+        toks = re.findall(r"[a-z0-9]{2,}", sent.lower())
         for i, t in enumerate(toks):
             if not _REPLACED.fullmatch(t):
                 continue
-            if _NEG & set(toks[:i]):                       # "no record of ... ever replaced"
+            if _NEG & set(toks[:i]):
                 continue
             near = set(toks[max(0, i - window):i + window + 1])
             if pw <= near:
@@ -82,8 +81,6 @@ def check(issues, case, r=None):
                        "Fine if the fault is that new part itself (wrong size, faulty, fitted wrong); say so.")
             continue
         if r is not None and hasattr(r, "mentions"):
-            # a part is "never named" only when one of its specific words is on no page of this car's manual:
-            # long descriptive names ("FL ABS sensor connector/harness disturbed") never match as a whole
             missing = []
             for w in dict.fromkeys(x for x in re.findall(r"[a-z]{4,}", part.lower()) if x not in _GENERIC):
                 try:

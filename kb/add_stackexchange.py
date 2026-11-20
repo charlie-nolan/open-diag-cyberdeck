@@ -32,7 +32,7 @@ RAW = os.path.join(CK, "raw", "stackexchange")
 URL = "https://archive.org/download/stackexchange/mechanics.stackexchange.com.7z"
 CACHE = os.path.join(HERE, "stackexchange_qa.db")
 SITE = "https://mechanics.stackexchange.com/q/"
-MIN_SCORE = 3                 # best answer kept without acceptance only at this score
+MIN_SCORE = 3
 Q_CHARS, A_CHARS = 1500, 3000
 YEAR = re.compile(r"(?<![\d.,$])(19[89]\d|20[0-2]\d)(?![\d,]|\s*(?:miles|mi\b|km|rpm|cc))", re.I)
 
@@ -57,7 +57,7 @@ def open_posts(path, z):
     if path:
         return open(path, "rb"), None
     exe = shutil.which("7z") or shutil.which("7za")
-    if exe:      # streamed straight out of the archive, nothing extracted to disk
+    if exe:
         p = subprocess.Popen([exe, "e", "-so", z, "Posts.xml"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         return p.stdout, p
     try:
@@ -139,7 +139,6 @@ def qa_rows(c):
 def match(db, qa):
     name = os.path.splitext(os.path.basename(db))[0]
     mk = [m.lower() for m in make_names(name)]
-    # short names (RAM, VW) count in a title only when not written in lower case ('ram air intake' isn't a Ram)
     mk_re = [(words_re(m), len(m) <= 3) for m in mk]
     mk_norm = {norm(m) for m in mk}
     c = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
@@ -156,7 +155,6 @@ def match(db, qa):
         short_t = any(in_title(r, True, title) for r, short in mk_re if short)
         if not (by_tag or long_t or short_t):
             continue
-        # model: a tag like 'make-model' or 'model', else the title
         rest = {norm(t.split("-", 1)[1]) for t in tl if "-" in t and norm(t.split("-", 1)[0]) in mk_norm} | \
                {norm(t) for t in tl}
         model = None
@@ -164,14 +162,14 @@ def match(db, qa):
             if n in rest:
                 model = m
                 break
-        if model is None:   # the title, only right after the make or a year ("2005 Honda Accord", "Fit" alone isn't)
+        if model is None:
             lead = "(?:" + "|".join(re.escape(k) for k in mk) + r"|(?:19|20)\d\d)(?:[\s-]+[a-z0-9]+)?[\s-]+"
             for m, n, r in mods:
                 if re.search(lead + r.pattern, tlow):
                     model = m
                     break
         if model is None and not (by_tag or long_t):
-            continue        # a short make name alone (Ram, VW) needs one of its models named too
+            continue
         y = YEAR.search(title)
         yr = int(y.group(1)) if y else None
         head = "Accepted answer" if acc else f"Top answer (score {score}, not accepted)"

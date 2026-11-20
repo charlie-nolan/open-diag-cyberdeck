@@ -25,8 +25,8 @@ from PyQt6.QtWidgets import (QApplication, QBoxLayout, QComboBox, QDialog, QFile
 from . import HERE, ROOT, harness
 from .case import Store
 
-import theme as T                      # app/theme.py (diagent/__init__ puts app/ on sys.path)
-from ui_fit import FitRoot, ReflowRow  # app/ui_fit.py
+import theme as T
+from ui_fit import FitRoot, ReflowRow
 
 ICON = os.path.join(HERE, "icon.svg")
 SHOTS = os.path.join(ROOT, "logs", "diagent", "gui_shots")
@@ -34,11 +34,10 @@ ID_RX = re.compile(r"\[([A-Z]{1,2}\d+)\]")
 COMMANDS = ("done", "can't", "skip", "back", "stop")
 
 
-# ---------------------------------------------------------------------------- The user's side, on the worker
 class Bridge(QObject):
     """Lives on the UI thread; the worker's calls arrive here as queued signals."""
-    request = pyqtSignal(dict)    # a question that waits for the user (ask, act, confirm, choose, ask_text)
-    event = pyqtSignal(dict)      # say / strip / figures / log: shown, nothing waits
+    request = pyqtSignal(dict)
+    event = pyqtSignal(dict)
     finished = pyqtSignal(dict)
 
 
@@ -111,12 +110,11 @@ def run_session(a, cfg, human, bridge):
         out.update(status=case.status, result=case.result)
     except SystemExit as e:
         out.update(status="not started", why=str(e.code or e))
-    except Exception as e:     # shown on the finish screen, never a silent dead window
+    except Exception as e:
         out.update(status="error", why=f"{type(e).__name__}: {e}", trace=traceback.format_exc())
     bridge.finished.emit(out)
 
 
-# ---------------------------------------------------------------------------- small widgets
 def label(text="", colour=None, px=None, bold=False, mono=False, wrap=True):
     lb = QLabel(text)
     lb.setWordWrap(wrap)
@@ -146,7 +144,7 @@ def big_button(text, kind="", key=None, slot=None, tip=""):
     b = QPushButton(text)
     if kind:
         b.setObjectName(kind)
-    b.setMinimumHeight(48)                     # big enough for a gloved hand or the trackball
+    b.setMinimumHeight(48)
     if tip or key:
         b.setToolTip((tip + " " if tip else "") + (f"({key})" if key else ""))
     if slot:
@@ -249,7 +247,6 @@ class Zoom(QDialog):
                                                       Qt.TransformationMode.SmoothTransformation))
 
 
-# ---------------------------------------------------------------------------- the window
 class Window(QMainWindow):
     def __init__(self, a, cfg):
         super().__init__()
@@ -302,7 +299,6 @@ class Window(QMainWindow):
         QShortcut(QKeySequence("F3"), self, activated=self.b_panel.click)
         QShortcut(QKeySequence("F4"), self, activated=self.b_speak.click)
 
-        # body: work area + side panel, side by side in landscape, stacked in portrait
         self.body = QBoxLayout(QBoxLayout.Direction.LeftToRight)
         self.stack = QStackedWidget()
         self.body.addWidget(self.stack, 3)
@@ -329,7 +325,6 @@ class Window(QMainWindow):
         self._keys()
         self.show_start()
 
-    # ------------------------------------------------------------------ layout
     def resizeEvent(self, e):
         portrait = e.size().width() < 1000 or e.size().height() > e.size().width()
         self.body.setDirection(QBoxLayout.Direction.TopToBottom if portrait else QBoxLayout.Direction.LeftToRight)
@@ -354,12 +349,11 @@ class Window(QMainWindow):
             if os.path.isfile(p):
                 vcfg = json.load(open(p))
             voice.speak(vcfg, re.sub(r"\[[A-Z]{1,2}\d+\]", "", text))
-        except Exception as e:      # no speech engine: say so once, keep working
+        except Exception as e:
             self.log(f"[voice] {e}")
             self.b_speak.setChecked(False)
             self.toggle_speak()
 
-    # ------------------------------------------------------------------ start
     def _start_page(self):
         page = QWidget()
         lay = QVBoxLayout(page)
@@ -494,7 +488,6 @@ class Window(QMainWindow):
             return
         self.show_start()
 
-    # ------------------------------------------------------------------ work area
     def _work_page(self):
         page = QWidget()
         lay = QVBoxLayout(page)
@@ -508,7 +501,6 @@ class Window(QMainWindow):
         self.reply_lay = QVBoxLayout(self.reply_box)
         self.reply_lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(self.reply_box)
-        # live strip (watch_live and live reads)
         self.live = card(T.TEAL, T.BG, "live")
         lv = QVBoxLayout(self.live)
         lv.addWidget(label("LIVE", T.TEAL, 12, bold=True))
@@ -518,7 +510,6 @@ class Window(QMainWindow):
         lv.addWidget(self.lbl_trigger)
         self.live.hide()
         lay.addWidget(self.live)
-        # figures
         self.fig_box = card(T.AIR_CORPS, T.BG, "figs")
         fl = QVBoxLayout(self.fig_box)
         self.lbl_figsrc = label("", T.PURPLE_TEXT)
@@ -540,7 +531,7 @@ class Window(QMainWindow):
             it = lay.takeAt(0)
             if it.widget():
                 w = it.widget()
-                w.hide()               # gone now, not at the next event loop pass
+                w.hide()
                 w.setParent(None)
                 w.deleteLater()
             elif it.layout():
@@ -645,7 +636,7 @@ class Window(QMainWindow):
             self._entry_row("Type here (Enter sends; empty = I can't tell)", allow_empty=True)
             spoken = r["prompt"]
         self._say_aloud(spoken)
-        if "auto" in r:      # --play: show it, then answer as the scenario does
+        if "auto" in r:
             QTimer.singleShot(1300, lambda r=r: self.req is r and self.reply(r["auto"]))
 
     def _entry_row(self, hint, allow_empty=False, unit=None):
@@ -667,7 +658,7 @@ class Window(QMainWindow):
         if not t and not allow_empty:
             return
         if unit and t and re.fullmatch(r"[+-]?\d+(?:[.,]\d+)?", t):
-            t = f"{t} {unit}"            # the unit chip: units.py still checks it
+            t = f"{t} {unit}"
         self.reply(t)
 
     def _reply_controls(self, r):
@@ -747,7 +738,6 @@ class Window(QMainWindow):
         w = QApplication.focusWidget()
         return isinstance(w, QLineEdit)
 
-    # ------------------------------------------------------------------ events from the worker
     def on_request(self, r):
         self._render(r)
 
@@ -823,7 +813,6 @@ class Window(QMainWindow):
     def log(self, text):
         self.txt_log.appendPlainText(text)
 
-    # ------------------------------------------------------------------ side panel
     def _side_panel(self):
         tabs = QTabWidget()
         tabs.setMinimumWidth(260)
@@ -865,7 +854,7 @@ class Window(QMainWindow):
         c = self.case
         if c is None:
             return
-        try:   # the worker may be changing the case right now; a missed refresh is fine, the next tick catches up
+        try:
             p = dict(c.proc or {})
             path = list(p.get("path", []))
             hyps = [dict(h) for h in c.hypotheses]
@@ -922,7 +911,6 @@ class Window(QMainWindow):
         self.b_panel.setChecked(True)
         self.side_tabs.setCurrentWidget(self.txt_source)
 
-    # ------------------------------------------------------------------ finish
     def _finish_page(self):
         page = QWidget()
         lay = QVBoxLayout(page)
@@ -989,13 +977,12 @@ class Window(QMainWindow):
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def closeEvent(self, e):
-        if self.human is not None:      # anything still waiting gets "stop"; the case is saved after every call
+        if self.human is not None:
             self.human.closing = True
             self.human.replies.put(None)
         super().closeEvent(e)
 
 
-# ---------------------------------------------------------------------------- launcher
 def install_icon():
     """Add diagent to the app list (KDE on the PC, the deck's Ubuntu menu). It never autostarts."""
     apps = os.path.expanduser("~/.local/share/applications")
@@ -1016,7 +1003,7 @@ def main(a, cfg):
         return install_icon()
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("diagent")
-    app.setDesktopFileName("diagent")      # the panel shows the app list icon for this window
+    app.setDesktopFileName("diagent")
     w = Window(a, cfg)
     w.showMaximized() if not os.environ.get("DIAGENT_NO_MAX") else w.show()
     if a.play:

@@ -15,7 +15,7 @@ import re
 import sqlite3
 import threading
 
-try:            # the app's step-table renderer (app/procedures.py); without it dtc() returns the raw text
+try:
     import procedures as _proc
 except ImportError:
     _proc = None
@@ -27,9 +27,6 @@ STOP = set("the a an and or of to in on for with is are was it this that at by f
            "you your but not yes now".split())
 
 
-# Shop words -> the FSM's words. (On the SF/EJ251 the "exhaust manifold" is the front exhaust pipe.)
-# "a|b" = alternatives. Vocabulary only: each entry says the same thing in the manual's words. Never map a symptom to a suspected
-# cause here ("shakes" -> "misfire"), or every search would lean toward that cause.
 SYNONYMS = {
     "exhaust manifold": "front exhaust pipe", "cam belt": "timing belt|camshaft drive belt",
     "timing belt": "camshaft drive belt", "o2 sensor": "oxygen sensor",
@@ -60,13 +57,10 @@ _SYN_RE = [(re.compile(rf"(?<![a-z0-9]){re.escape(k)}(?![a-z0-9])"), v) for k, v
 _REPAIR_RE = re.compile(r"\b(replace|replacement|remove|removal|install|installation|change|swap|how (do|to)|torque|"
                         r"overhaul|disassembl|adjust)", re.I)
 
-# Where/what kind of fastener, not which part: kept out of the strict spec match (they stay when they are
-# part of the manual's own name from SYNONYMS, as in "front exhaust pipe" or "wheel nut").
 SPEC_GENERIC = set("front rear left right upper lower inner outer side new old gasket gaskets seal seals bolt bolts "
                    "nut nuts screw screws replace replacement repair removal remove install installation torque spec "
                    "specs leak leaking faulty worn clogged failure failing failed bad broken damaged defective dirty "
                    "loose cracked stuck weak open short circuit malfunction "
-                   # wiring faults and control units: a torque value for these is never what a card needs
                    "wiring wire wires harness connector connectors ground grounds grounding terminal terminals "
                    "electrical ecu ecm pcm tcm".split())
 
@@ -85,7 +79,7 @@ _VALUE_RE = re.compile(r"\d\s*(n·m|nm|ft-lb|in-lb|kpa|psi|mm|ohm|Ω|°[cf]|v\b|
 def _thin(path, body, min_chars=40):
     """True when a page has almost no text of its own: drop its heading words and figure/step labels and see
     what is left (CHARM pages whose content is all in figures read 'Part 1: Part 2: NOTE: ...')."""
-    if _VALUE_RE.search(body):    # a short spec page ("Tensioner bolts 6.4 Nm") is not thin
+    if _VALUE_RE.search(body):
         return False
     head = set(re.findall(r"[a-z0-9]+", path.lower()))
     rest = re.sub(r"\[fig\]|!\[[^\]]*\]\([^)]*\)|\b(part|step|steps|figure|fig)\s*[\d\s\-–]*:|wiring diagram:|"
@@ -125,7 +119,6 @@ def _fts_query(text, max_terms=16):
     return " OR ".join(f'"{t}"' for t in terms)
 
 
-# The knowledge table keeps NHTSA's model names; these are the same cars as the manuals' model names.
 MODEL_ALIASES = {
     "IMPREZA": ["IMPREZA", "WRX", "WRX STI", "IMPREZA STI", "IMPREZA WRX", "OUTBACK SPORT"],
     "B9": ["B9 TRIBECA", "TRIBECA"], "TRIBECA": ["TRIBECA", "B9 TRIBECA"], "LOYALE": ["LOYALE", "LOYAL"],
@@ -133,12 +126,9 @@ MODEL_ALIASES = {
 }
 
 
-VEC_ALL_CARS_MAX = 200000    # rows searched with no year/model filter; keyword search still runs above this
+VEC_ALL_CARS_MAX = 200000
 
 
-# The baked cards say "confirmed fix", "most common confirmed fix", "#1 cause": the bake's words for owner reports.
-# Models read that as proof and led with it over the manual (sim v3). Same meaning, neutral words: how often owners
-# reported a fix. Wording only, no cause is named or changed.
 _NEUTRAL = [
     (r"\b(?:the\s+)?(?:#\s*1|number one|top)\s+(?:most\s+)?(?:confirmed\s+|common\s+)?(fix|cause)\b", r"the most often reported \1"),
     (r"\b(?:the\s+)?most\s+(?:common(?:ly)?|frequent(?:ly)?)\s+confirmed\s+(fix|cause)", r"the most often reported \1"),
@@ -165,7 +155,7 @@ class Retriever:
         self.db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
         self.embed = None
         self._mats = {}
-        self._mats_lock = threading.Lock()   # the app warms this up on a thread while the screen may ask too
+        self._mats_lock = threading.Lock()
         if embed is not None:
             try:
                 import sqlite_vec
@@ -188,7 +178,6 @@ class Retriever:
                 args.append(engine)
             self.vehicle_ids = [r[0] for r in self.db.execute(sql, args)] or None
 
-    # ---------------------------------------------------------------- helpers
     def _strip_car(self, text):
         """'2011 Legacy C0054' -> 'C0054' when this Retriever is already scoped to the 2011 Legacy: the year and
         model name only match index pages and other-year bulletins, the scope does that job exactly."""
@@ -235,7 +224,6 @@ class Retriever:
         """Sections this one points to with <Ref. to ...>: [(ref_text, section_id or None)]."""
         return self.db.execute("SELECT ref_text, to_id FROM section_ref WHERE from_id=?", (section_id,)).fetchall()
 
-    # ---------------------------------------------------------------- lookups
     def dtc(self, code, chars=1500):
         """Definition + FSM diagnostic procedure for one DTC."""
         code = code.upper()
@@ -249,10 +237,10 @@ class Retriever:
             f"JOIN doc ON doc.id=s.doc_id WHERE d.code=?{vf} GROUP BY s.id ORDER BY doc.kind='charm', s.id",
             [code] + args).fetchall()
         proc = _proc.fetch(self, code) if _proc is not None and chars > 0 else None
-        if proc and proc["steps"]:     # whole numbered steps (app/procedures.py), not the first chars of a table
+        if proc and proc["steps"]:
             out.append(_proc.render(proc, [code], budget=chars))
             return "\n".join(out)
-        if any(kind != "charm" for *_, kind in secs):   # CHARM's copy of the same FSM procedure only eats the budget
+        if any(kind != "charm" for *_, kind in secs):
             secs = [r for r in secs if r[3] != "charm"]
         used = 0
         for path, page, body, kind in secs:
@@ -262,7 +250,7 @@ class Retriever:
             used += len(body)
         return "\n".join(out)
 
-    FSM_BOOST = 5     # an FSM hit ranks as if it were this many places higher than a CHARM hit
+    FSM_BOOST = 5
 
     def card(self, code):
         """Pre-baked diagnostic card for this code and car (causes ranked by confirmed fixes, with sources)."""
@@ -275,16 +263,14 @@ class Retriever:
                 args.append(self.year)
         try:
             row = self.db.execute(sql + " ORDER BY year_max - year_min LIMIT 1", args).fetchone()
-        except sqlite3.OperationalError:      # DB built before the cards step existed
+        except sqlite3.OperationalError:
             return ""
         return f"[CARD] {neutral_card(row[0])}" if row else ""
 
-    # What kind of page a question wants. Problem descriptions want the manual's symptom / trouble tables and
-    # diagnostic procedures; repair jobs want removal / installation pages. This says nothing about causes.
     DIAG_PAGE = re.compile(r"general diagnos|trouble in general|symptom|diagnostic procedure|diagnostics? chart|"
                            r"\bdtc\b|basic diagnostic|check list for interview", re.I)
     REPAIR_PAGE = re.compile(r"removal|installation|replacement|replace|assembly|overhaul", re.I)
-    INTENT_BOOST = 0.25   # fused score x (1 + this) for a page of the kind the question wants
+    INTENT_BOOST = 0.25
 
     def _intent(self, text):
         if _REPAIR_RE.search(text):
@@ -312,9 +298,7 @@ class Retriever:
     def _matrix_locked(self, key, table, ids_sql, args):
         if key not in self._mats:
             import numpy as np
-            ids, vecs = [], bytearray()      # one buffer: a list of blobs plus their join needs twice the memory
-            # only this car's rows: reading every row and filtering in Python took 6.6 s for a 2003 Tahoe on
-            # chevrolet.db (1.2M rows) on the PC, this 0.4 s; the deck is several times slower at both
+            ids, vecs = [], bytearray()
             sql = f"SELECT id, embedding FROM {table}" + (f" WHERE id IN ({ids_sql})" if ids_sql else "")
             for i, blob in self.db.execute(sql, args if ids_sql else []):
                 ids.append(i)
@@ -326,18 +310,16 @@ class Retriever:
     def _vec_search(self, table, ids_sql, args, text, n):
         try:
             import numpy as np
-            # no car picked on a big make: minutes on the main thread, and the answer wouldn't be about this car
             if not ids_sql and self.db.execute(f"SELECT count(*) FROM {table}_rowids").fetchone()[0] > VEC_ALL_CARS_MAX:
                 return []
             ids, m = self._matrix(table, ids_sql, args)
             if m is None:
                 return []
             qv = np.frombuffer(self.embed(text), dtype=np.int8).astype(np.int32)
-        except Exception as e:      # embedder missing or broken on this box: carry on with keywords only
+        except Exception as e:
             print(f"kb_retriever: vector search off ({e})")
             self.embed = None
             return []
-        # a block at a time: the whole matrix as int32 is 4 GB+ on a big make, too much beside the deck's model
         sims = np.concatenate([m[i:i + 50000].astype(np.int32) @ qv for i in range(0, len(m), 50000)])
         top = np.argsort(-sims)[:n]
         return [int(ids[i]) for i in top]
@@ -369,7 +351,7 @@ class Retriever:
             lists.append(self._vector(text, 30))
         weights = [1.0, self.VEC_WEIGHT if len(text.split()) >= 6 else 1.0][:len(lists)]
         score = {}
-        for w, lst in zip(weights, lists):      # weighted reciprocal-rank fusion
+        for w, lst in zip(weights, lists):
             for rank, sid in enumerate(lst):
                 score[sid] = score.get(sid, 0) + w / (60 + rank)
         want = self._intent(text)
@@ -382,14 +364,10 @@ class Retriever:
                     score[sid] *= 1 + self.INTENT_BOOST
                 if _thin(path, body):
                     score[sid] *= self.THIN_PENALTY
-        # CHARM repeats one page per engine/emission variant; keep the best of near-identical pages so the
-        # few slots the models get aren't five copies of the same text.
         if first:
             q_ = ",".join("?" * len(first))
             bodies.update(self.db.execute(f"SELECT id, body FROM section WHERE id IN ({q_})", first).fetchall())
         rest = [i for i in sorted(score, key=score.get, reverse=True) if i not in first]
-        # A trouble-code chart read from the manual's pictures (kb/car_db.py vision) leads only for a case that has
-        # that code (then it is in `first`); otherwise it goes after the other pages.
         pic = self._picture_dtc_sections()
         if pic:
             rest = [i for i in rest if i not in pic] + [i for i in rest if i in pic]
@@ -404,16 +382,16 @@ class Retriever:
                 break
         return out
 
-    THIN_PENALTY = 0.3  # pages whose text is only headings ("Part 1: Part 2:"), the content being in figures
-    DUP_JACCARD = 0.6   # pages sharing more than this share of word triples count as one
-    VEC_WEIGHT = 2.0   # long plain-English questions match keywords badly, so the vector list counts more
+    THIN_PENALTY = 0.3
+    DUP_JACCARD = 0.6
+    VEC_WEIGHT = 2.0
 
     def search_fsm(self, text, k=3, chars=900):
         """Top k procedures; parts of the same split procedure count once."""
         out, seen = [], set()
         for sid in self.search_ids(text, k * 3):
             row = self._row(sid)
-            if row is None:   # vector/FTS index still holds a section that was deleted (e.g. a duplicate doc)
+            if row is None:
                 continue
             path, page, body, kind = row
             base = path.split(" — ")[0]
@@ -430,23 +408,18 @@ class Retriever:
         q = _fts_query(term)
         if not q:
             return []
-        # Strictest first: every part word of the job (or of its manual wording) must appear, so
-        # 'exhaust manifold gasket' can't pull in front ABS sensors just because both say 'front'.
-        # Then it drops one or two words at a time, keeping the last ones (the part noun comes last:
-        # 'fuel injector', 'intake manifold'). It never falls back to any-word matching: no spec beats
-        # a spec for a different part.
         part = lambda t: [w for w in re.findall(r"[a-z0-9]{3,}", t) if w not in STOP and w not in SPEC_GENERIC]  # noqa: E731
         variants = []
-        for alt_term in _slash_variants(term):     # 'front o2/air-fuel sensor' = two names for one part
+        for alt_term in _slash_variants(term):
             low, _ = _expand(alt_term)
-            low = re.sub(r"\b(cylinder|cyl|bank)\s*#?\d\b", " ", low)   # 'cylinder 3' says where, not what
+            low = re.sub(r"\b(cylinder|cyl|bank)\s*#?\d\b", " ", low)
             syn = []
-            for rx, v in _SYN_RE:          # the manual's name first, kept whole ('front exhaust pipe', 'wheel nut')
+            for rx, v in _SYN_RE:
                 if rx.search(low):
                     syn += [[w for w in re.findall(r"[a-z0-9]{3,}", alt) if w not in STOP] + part(rx.sub(" ", low))
                             for alt in v.split("|")]
             own = part(low)
-            if len(own) > 1 or not syn:      # a lone leftover word ('head' of 'head gasket') only if nothing else
+            if len(own) > 1 or not syn:
                 syn.append(own)
             variants += syn
         variants = [list(v) for v in dict.fromkeys(tuple(dict.fromkeys(ws)) for ws in variants if ws)]
@@ -455,9 +428,9 @@ class Retriever:
         for drop in (0, 1, 2):
             for ws in variants:
                 n = len(ws) - drop
-                if n < 1 or (drop and n < 2):       # never down to one word of a longer name ('head' of 'cylinder head')
+                if n < 1 or (drop and n < 2):
                     continue
-                for i in range(len(ws) - n, -1, -1):     # contiguous windows, the one ending at the last word first
+                for i in range(len(ws) - n, -1, -1):
                     tiers.append(" AND ".join(f'"{w}"' for w in ws[i:i + n]))
         vf, args = self._veh_filter()
         rows, seen = [], set()
@@ -472,8 +445,6 @@ class Retriever:
                     rows.append(r[1:])
             if rows:
                 break
-        # Rows from the part's own procedure ('13. Crankshaft Pulley') before rows that only mention it.
-        # 'front'/'rear' are too common to require, but they decide between the part's own procedures.
         pw = set(part(low)) | (set(re.findall(r"[a-z]+", low)) & {"front", "rear", "left", "right", "upper", "lower"})
         rows.sort(key=lambda r: (r[9] == "charm",
                                  -len(pw & set(re.findall(r"[a-z0-9]{3,}", f"{r[7] or ''} {r[6] or ''}".lower())))))
@@ -487,7 +458,7 @@ class Retriever:
             value = f"{vals[0]} ({vals[1]})" if len(vals) == 2 else vals[0] if vals else "?"
             where = f"{topic}, {title}" if topic and topic != title else title
             src = "CHARM" if kind == "charm" else f"FSM p.{page}"
-            if (raw or "").startswith("image "):   # kb/car_db.py vision rows: check the picture if it matters
+            if (raw or "").startswith("image "):
                 src = "manual picture, read by vision model, unverified"
             out.append(f"[{src}, {where}] {comp}: {value}")
         return out
@@ -514,14 +485,14 @@ class Retriever:
             sc = 4 * (phrase in tail) + 2 * (phrase in full)
             sc += sum(2 * (w in tail) + (w in full) for w in words)
             return sc - len(op) / 1000
-        def tail_hits(op):           # words found in the operation itself, not in 'Engine, Cooling and Exhaust' above it
+        def tail_hits(op):
             tail = " ".join(op.lower().split(" > ")[-3:])
             return sum(w in tail for w in words)
         rows = [r for r in rows if (r[1] or r[2] or r[3]) and tail_hits(r[0]) >= need]
         exact = [r for r in rows if phrase in " ".join(r[0].lower().split(" > ")[-3:])]
-        if len(words) > 1 and exact:  # 'exhaust manifold' rows exist: don't pad with 'intake manifold'
+        if len(words) > 1 and exact:
             rows = exact
-        rows.sort(key=lambda r: (score(r[0]), bool(r[1])), reverse=True)   # best path match first; hours win ties
+        rows.sort(key=lambda r: (score(r[0]), bool(r[1])), reverse=True)
         seen, uniq = set(), []
         for r in rows:
             key = (" > ".join(r[0].split(" > ")[-2:]).lower(), r[1], r[2], r[3])
@@ -565,7 +536,7 @@ class Retriever:
         for w, lst in zip([1.0, self.VEC_WEIGHT if len(text.split()) >= 6 else 1.0], lists):
             for rank, i in enumerate(lst):
                 score[i] = score.get(i, 0) + w / (60 + rank)
-        if score:   # the maker's own bulletins and recalls before one owner's complaint about the same thing
+        if score:
             q_ = ",".join("?" * len(score))
             for i, kind in self.db.execute(f"SELECT id, kind FROM knowledge WHERE id IN ({q_})", list(score)):
                 score[i] *= self.KIND_WEIGHT.get(kind, 1.0)
@@ -581,7 +552,7 @@ class Retriever:
             if not row:
                 continue
             kind, model, yr, title, body = row
-            key = (body or "")[:300]        # NHTSA files one complaint once per component it names
+            key = (body or "")[:300]
             if key in seen:
                 continue
             seen.add(key)

@@ -41,7 +41,7 @@ the hands-on work. The factory manual's diagnostic procedure is the plan.
 
 UNIT_RE = (r"(?:mV|V|kΩ|MΩ|Ω|k ?ohms?|M ?ohms?|ohms?|mA|A|kPa|psi|mmHg|inHg|%|rpm|°C|°F|N·m|Nm|ft-lbs?|in-lbs?|"
            r"mm|ms|Hz|g/s|hours?|h)")
-CLAIM_NUM = re.compile(rf"((?<![\d.])[+-]?\d+(?:[.,]\d+)?)\s*{UNIT_RE}(?![A-Za-z])")   # '284-314 kPa' is a range
+CLAIM_NUM = re.compile(rf"((?<![\d.])[+-]?\d+(?:[.,]\d+)?)\s*{UNIT_RE}(?![A-Za-z])")
 PRICE = re.compile(r"\$\s?(\d+(?:\.\d+)?)")
 STEP_REF = re.compile(r"\bsteps? (\d+)", re.I)
 CODE = re.compile(r"\b[PBCU][0-9A-F]{4}\b")
@@ -65,7 +65,7 @@ def check_claims(text, case, tools, store):
         return []
     corpus = "\n".join([store.audit_text(case.id), case.symptoms]
                        + [str(r["raw"]) for r in case.readings]
-                       + [v["text"] for v in case.sources.values()]     # full text of every page/step/spec cited so far
+                       + [v["text"] for v in case.sources.values()]
                        + [" ".join((s["step"], s["check"], s["yes"], s["no"])) for s in tools.steps().values()])
     nums = _floats(corpus) | {round(float(r["value"]), 6) for r in case.readings
                               if isinstance(r["value"], float) and r["value"] != float("inf")}
@@ -77,7 +77,7 @@ def check_claims(text, case, tools, store):
     steps = set(tools.steps())
     for h in (case.proc or {}).get("history", []):
         steps |= {e["step"] for e in h.get("path", [])}
-    quoted = {int(n) for n in STEP_REF.findall(corpus)}    # 'go to step 8' in the manual's own text counts
+    quoted = {int(n) for n in STEP_REF.findall(corpus)}
     for m in STEP_REF.finditer(text):
         if steps and int(m.group(1)) not in steps | quoted:
             probs.append(f"step {m.group(1)} is not a step of the procedure")
@@ -143,7 +143,6 @@ def summary(case, tools):
     return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------- models
 class OllamaChat:
     def __init__(self, url, model, num_ctx=16384, temperature=0.2, think=False, timeout=600):
         self.url, self.model, self.num_ctx, self.temperature, self.think, self.timeout = \
@@ -176,10 +175,9 @@ def ollama_has(url, model, timeout=3):
             names = {m["name"] for m in json.loads(r.read()).get("models", [])}
         return model in names
     except (OSError, ValueError, urllib.error.URLError):
-        return None   # unreachable
+        return None
 
 
-# ---------------------------------------------------------------------------- the loop
 def run(case, tools, model, human, store, cfg, log=print):
     cap, wall = cfg["max_calls_per_turn"], cfg["agent_wall_s"]
     agent_s = 0.0
@@ -216,7 +214,7 @@ def run(case, tools, model, human, store, cfg, log=print):
                     if resp["content"].strip():
                         human.say(resp["content"])
                     msgs.append({"role": "user", "content": "Reply with a tool call."})
-            for call in resp["tool_calls"][:1]:     # one call per step; extras are dropped and said so
+            for call in resp["tool_calls"][:1]:
                 name, args = call["name"], call["arguments"] or {}
                 result, ok = execute(name, args, allowed, case, tools, store)
                 log(f"  [{case.turn}.{calls}] {name}({_short(args)}) -> {'ok' if ok else 'REJECTED'}: {_short(result, 160)}")
@@ -251,7 +249,7 @@ def execute(name, args, allowed, case, tools, store):
     for k in CHECKED_ARGS.get(name, []):
         probs += check_claims(str(args.get(k) or ""), case, tools, store)
     if name == "watch_live" and isinstance(args.get("trigger"), dict) and args["trigger"].get("value") is not None:
-        try:                               # a trigger's value has to be one a tool result of this case gave
+        try:
             v = round(float(args["trigger"]["value"]), 6)
             corpus = store.audit_text(case.id) + " " + " ".join(x["text"] for x in case.sources.values()) + " " + \
                 " ".join(" ".join((s["step"], s["check"])) for s in tools.steps().values())

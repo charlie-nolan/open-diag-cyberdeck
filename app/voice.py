@@ -29,12 +29,11 @@ import time
 import wave
 
 RATE = 16000
-MIC_LOST_S = 5.0   # no audio at all for this long = the mic is gone (earbuds dropped)
-MIC_LOST = 3       # worker exit code for that
+MIC_LOST_S = 5.0
+MIC_LOST = 3
 WAKE = re.compile(r"\b(hey|ok|okay) (deck|cyber ?deck)\b")
 NOTE = re.compile(r"\b(intake note|customer complaint)\b")
 
-# spoken phrase (after the wake phrase) -> command
 COMMANDS = [
     (r"^(read|scan) (the )?car", "read_car"),
     (r"^save (the )?case", "save_case"),
@@ -46,7 +45,6 @@ COMMANDS = [
     (r"^(go to|show|open) (the )?(?P<arg>intake|chat|verdict|repair|procedure|parts)", "goto"),
     (r"^(stop|cancel|quiet)", "stop"),
 ]
-# closed vocabulary for Vosk (plus part words the GUI passes in from the kb)
 BASE_WORDS = ("hey ok okay deck cyber cyberdeck intake note customer complaint read scan the car save case new "
               "build show verdict torque for on of fluid capacity type what's next step after i do doing "
               "removing installing go to open chat repair procedure parts stop cancel quiet bolt bolts nut nuts")
@@ -98,7 +96,6 @@ def parse_command(text):
     return None, ""
 
 
-# =========================================================================== worker process
 def _emit(**kw):
     sys.stdout.write(json.dumps(kw) + "\n")
     sys.stdout.flush()
@@ -115,11 +112,10 @@ def _whisper(cfg, wav):
     wbin, model = _whisper_paths(cfg)
     if not wbin or not model:
         return None, "dictation off: whisper-cli or its model not found (see README)"
-    # the listener sits on the small cores; whisper gets every core so a note doesn't take a minute
     out = subprocess.run([wbin, "-m", model, "-f", wav, "-nt", "-l", "en", "-t", str(cfg.get("whisper_threads", 4))],
                          capture_output=True, text=True, timeout=120, preexec_fn=_all_cores)
     text = " ".join(line.strip() for line in out.stdout.splitlines() if line.strip())
-    return re.sub(r"\[[^\]]*\]|\([^)]*\)", "", text).strip(), None  # drop [BLANK_AUDIO], (engine revving)
+    return re.sub(r"\[[^\]]*\]|\([^)]*\)", "", text).strip(), None
 
 
 def _record_until_quiet(audio_q, max_s=25, quiet_s=1.5, min_level=120, levels=None, finish=None):
@@ -165,7 +161,7 @@ def _resampler(sr, put):
 
     def cb(data, *_):
         x = np.frombuffer(bytes(data), dtype=np.int16).astype(np.float32)
-        if sr % RATE == 0:      # 48000 -> 16000: average each 3 samples (also a crude low-pass)
+        if sr % RATE == 0:
             k = sr // RATE
             y = x[:len(x) // k * k].reshape(-1, k).mean(axis=1)
         else:
@@ -204,7 +200,7 @@ def worker(cfg_path, words_path=None):
     with open(cfg_path) as f:
         cfg = json.load(f)
     try:
-        os.sched_setaffinity(0, {0, 1, 2, 3})  # A55 efficiency cores on the RK3588
+        os.sched_setaffinity(0, {0, 1, 2, 3})
     except (AttributeError, OSError):
         pass
     try:
@@ -212,7 +208,7 @@ def worker(cfg_path, words_path=None):
     except Exception as e:
         _emit(status=f"voice off: {e}")
         return
-    rec = None  # no Vosk = no "hey deck", but the MIC button (whisper.cpp) still works
+    rec = None
     try:
         import vosk
         vosk.SetLogLevel(-1)
@@ -232,7 +228,7 @@ def worker(cfg_path, words_path=None):
         for line in sys.stdin:
             line = line.strip()
             if line == "dictate" and dictating.is_set():
-                finish.set()  # MIC pressed again while dictating = done talking
+                finish.set()
             else:
                 control.put(line)
         control.put("quit")
@@ -249,8 +245,8 @@ def worker(cfg_path, words_path=None):
         finally:
             dictating.clear()
             finish.clear()
-            last_audio[0] = time.time()  # whisper's run isn't a silent mic
-            while not audio_q.empty():  # what the mic heard while whisper ran isn't a wake word
+            last_audio[0] = time.time()
+            while not audio_q.empty():
                 audio_q.get_nowait()
 
     def _dictate():
@@ -309,7 +305,7 @@ def worker(cfg_path, words_path=None):
                         return
                     if c in ("pause", "resume"):
                         paused = c == "pause"
-                        if not paused:  # drop what the mic heard while the deck was talking
+                        if not paused:
                             while not audio_q.empty():
                                 audio_q.get_nowait()
                             if rec is not None:
@@ -321,7 +317,6 @@ def worker(cfg_path, words_path=None):
                     last_audio[0] = time.time()
                 except queue.Empty:
                     if not paused and time.time() - last_audio[0] > MIC_LOST_S:
-                        # earbuds dropped or the device vanished: say so and exit, MIC starts it again
                         _emit(status="mic lost: press MIC to restart")
                         return MIC_LOST
                     continue
@@ -334,7 +329,7 @@ def worker(cfg_path, words_path=None):
                 m = WAKE.search(text)
                 if m:
                     rest = text[m.end():].strip()
-                    if not rest:  # "hey deck" alone: hand straight to whisper, like pressing MIC
+                    if not rest:
                         _emit(cmd="dictating", arg="here", heard=text)
                         dictate()
                         continue
@@ -347,14 +342,13 @@ def worker(cfg_path, words_path=None):
                 cmd, arg = parse_command(rest)
                 if cmd:
                     _emit(cmd=cmd, arg=arg, heard=text)
-                else:  # not a command word: whisper takes it from here (say it again)
+                else:
                     _emit(cmd="dictating", arg="here", heard=f"{text} (not a command: say it again)")
                     dictate()
     except Exception as e:
         _emit(status=f"voice off: microphone error ({e})")
 
 
-# =========================================================================== GUI side
 try:
     from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -390,8 +384,8 @@ try:
                 if "note" in msg:
                     self.note.emit(msg["note"])
             code = self.proc.wait()
-            if code not in (0, None):  # crashed: say so instead of leaving "dictating..." up
-                if code != MIC_LOST:  # mic lost already said so itself
+            if code not in (0, None):
+                if code != MIC_LOST:
                     self.status.emit("voice stopped: press MIC to restart it")
                 self.note.emit("")
 
@@ -410,12 +404,12 @@ try:
                     self.proc.wait(2)
                 except subprocess.TimeoutExpired:
                     self.proc.kill()
-except ImportError:  # the worker process doesn't need Qt
+except ImportError:
     pass
 
 
 _SPEAK_LOCK = threading.Lock()
-_speaking = []  # the running espeak/aplay process, stopped when a newer answer starts
+_speaking = []
 
 
 def _stop_speaking():
@@ -431,10 +425,10 @@ def speak(cfg, text):
     if not text:
         return True
     text = text[:300]
-    _stop_speaking()  # two quick asks: the newer answer replaces the older one instead of talking over it
+    _stop_speaking()
     piper, voice_model = cfg.get("piper_bin") or "", os.path.expanduser(cfg.get("piper_model") or "")
     if piper and shutil.which(piper) and os.path.isfile(voice_model) and shutil.which("aplay"):
-        scale = 175 / max(60, int(cfg.get("tts_rate", 145)))  # piper: >1 is slower
+        scale = 175 / max(60, int(cfg.get("tts_rate", 145)))
         p1 = subprocess.Popen([shutil.which(piper), "--model", voice_model, "--output-raw",
                                "--length_scale", f"{scale:.2f}"],
                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -446,7 +440,7 @@ def speak(cfg, text):
         return True
     if importlib.util.find_spec("pyttsx3") is not None:
         def _say():
-            with _SPEAK_LOCK:  # one pyttsx3 engine at a time; a second ask waits its turn
+            with _SPEAK_LOCK:
                 import pyttsx3
                 engine = pyttsx3.init()
                 engine.setProperty("rate", int(cfg.get("tts_rate", 145)))

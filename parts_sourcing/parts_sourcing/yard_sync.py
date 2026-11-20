@@ -45,7 +45,7 @@ def http(url, data=None, timeout=40, tries=4):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.read().decode("utf-8", "replace")
-        except Exception as e:  # network blips: back off 2, 4, 8 s
+        except Exception as e:
             if i + 1 == tries:
                 raise
             print(f"  retry after {e}", file=sys.stderr)
@@ -91,7 +91,6 @@ def parse_row52(page_html):
               for m in TITLE_RE.finditer(page_html)}
     out = []
     for i, (pos, vin) in enumerate(starts):
-        # A card can open just before its first VIN link (image block), so look back a little too.
         lo = max(0, pos - 400) if i == 0 else max(starts[i - 1][0] + 1, pos - 400)
         hi = starts[i + 1][0] if i + 1 < len(starts) else len(page_html)
         chunk = page_html[pos:hi]
@@ -230,8 +229,6 @@ def main(argv=None):
     a = ap.parse_args(argv)
     cfg = load_settings(a.config)
     if not cfg.get("row52_crawl_allowed"):
-        # Row52's Terms (row52.com/About/Terms) forbid robots/scrapers. Only run this with Row52's written
-        # permission, then set "row52_crawl_allowed": true in sourcing.json.
         print("Row52 crawl is off: Row52's terms forbid automated access. Use the Row52 QR link on the sheet, "
               "or set row52_crawl_allowed in sourcing.json once Row52 has said yes.")
         return 2

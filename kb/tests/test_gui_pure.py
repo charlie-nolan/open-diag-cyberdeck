@@ -9,12 +9,12 @@ import re
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "app"))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 try:
     import cyberdeck_gui as G  # noqa: E402
-except ImportError as e:        # PyQt6 (or another deck dependency) missing
+except ImportError as e:
     G, WHY = None, str(e)
 
 
@@ -92,7 +92,7 @@ class PartsFromJob(unittest.TestCase):
             "Replace timing belt (belt, tensioner, idlers) and water pump": ["timing belt", "water pump"],
             "Replace the #3 fuel injector if needed": ["fuel injector"],
             "Check and replace PCV valve / hose": ["PCV valve", "hose"],
-            "14038AA000": ["14038AA000"],                      # a part number comes back as it is
+            "14038AA000": ["14038AA000"],
             "wheel bearing": ["wheel bearing"],
         }
         for job, want in cases.items():
@@ -108,7 +108,7 @@ class CaseKeys(unittest.TestCase):
     def test_summary_reads_only_case_or_car_keys(self):
         src = inspect.getsource(G.Session.case_summary) + inspect.getsource(G.Session.telemetry_zones)
         read = set(re.findall(r'self\.get\("(\w+)"\)', src)) | set(re.findall(r'\("(\w+)", "[^"]', src))
-        read |= {"drive_log", "drive_log_short"}           # through DRIVE_KEY["key"]()
+        read |= {"drive_log", "drive_log_short"}
         app = G.CyberdeckApp
         self.assertFalse(read - set(app.CASE_KEYS) - set(app.CAR_KEYS),
                          "case_summary reads keys a new case never clears")

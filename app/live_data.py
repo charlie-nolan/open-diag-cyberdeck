@@ -7,22 +7,18 @@ import re
 
 import telemetry_ref as T
 
-# Generic ranges (gasoline engines, common OBD-II practice, not any one car). explain() judges with these, and
-# kb/build_telemetry.py stores the same numbers as the 'generic' telemetry zones: change them here only.
 COOLANT_NORMAL_C = (80, 105)
-TRIM_NORMAL_PCT = 10            # fuel trim within ±10 %
+TRIM_NORMAL_PCT = 10
 WARM_IDLE_RPM = (550, 1000)
-IDLE_MAP_MAX_KPA = 40           # manifold pressure at idle at or below this: strong vacuum
-CHARGING_V = (13.3, 14.9)       # engine running
-BATTERY_CHARGED_V = 12.4        # engine off
+IDLE_MAP_MAX_KPA = 40
+CHARGING_V = (13.3, 14.9)
+BATTERY_CHARGED_V = 12.4
 
 NAMES = {"rpm": "rpm", "idle": "rpm", "ect": "ect", "coolant": "ect", "iat": "iat", "stft1": "stft", "stft": "stft",
          "ltft1": "ltft", "ltft": "ltft", "map": "map", "timing": "timing", "knock corr": "knock",
          "tps": "tps", "o2 front": "o2", "o2 b1s1": "o2", "o2 b1s2": "o2r", "o2 b1s1 lambda": "lam",
          "volts": "volts", "battery": "volts", "load": "load", "maf": "maf", "speed": "speed", "stft2": "stft2",
          "ltft2": "ltft2"}
-# The unit every value is judged in. A reading in another unit of the same quantity is converted (mph, °F,
-# psi, mV); a unit of another quantity drops the reading. No unit after the number means this unit.
 UNITS = {"rpm": "rpm", "ect": "°C", "iat": "°C", "stft": "%", "ltft": "%", "stft2": "%", "ltft2": "%",
          "map": "kPa", "timing": "°", "knock": "°", "tps": "%", "o2": "V", "o2r": "V", "lam": None,
          "volts": "V", "load": "%", "maf": "g/s", "speed": "km/h"}
@@ -35,9 +31,9 @@ def _in_unit(key, value, unit_text):
     tok = re.sub(r"\s+", "", unit_text or "")
     u = T.unit_norm(tok)
     if u not in T._UNIT:
-        u = T.unit_norm(tok.replace("deg", "°"))      # 'degc', '°c'
+        u = T.unit_norm(tok.replace("deg", "°"))
     if not unit_text or want is None or u not in T._UNIT:
-        return value                                  # no unit, unitless value, or a word that isn't a unit
+        return value
     return T.convert(value, u, want)
 
 
@@ -47,7 +43,7 @@ def parse(text):
     vals = {}
     for seg in re.split(r"[|;,]", text or ""):
         seg = seg.strip().lower()
-        for name in sorted(NAMES, key=len, reverse=True):  # 'stft1' before 'stft', 'o2 front' whole
+        for name in sorted(NAMES, key=len, reverse=True):
             if seg.startswith(name):
                 m = NUM.match(seg[len(name):])
                 key = NAMES[name]
@@ -151,8 +147,6 @@ def explain(text):
     return out
 
 
-# ---------------------------------------------------------------------------- test drive
-# The order and labels used in a drive log row (only what was read is shown).
 ROW = [("speed", "Speed"), ("rpm", "RPM"), ("load", "Load"), ("tps", "TPS"), ("map", "MAP"), ("maf", "MAF"),
        ("ect", "ECT"), ("iat", "IAT"), ("stft", "STFT"), ("ltft", "LTFT"), ("timing", "Timing"),
        ("knock", "Knock"), ("o2", "O2"), ("lam", "Lambda"), ("o2r", "O2 rear"), ("volts", "Volts")]
@@ -165,7 +159,7 @@ def condition(v):
     """Which part of the drive a reading is from, from its own numbers (None when they can't tell)."""
     speed, rpm, tps, load = v.get("speed"), v.get("rpm"), v.get("tps"), v.get("load")
     if rpm is not None and rpm < 300:
-        return None  # engine off
+        return None
     if (load is not None and load >= 60) or (tps is not None and tps >= 40):
         return "high load"
     if (speed is not None and speed < 3) or (speed is None and tps is not None and tps < 3
@@ -221,7 +215,6 @@ def drive_summary(samples, max_rows=10, max_chars=1500):
             line += f"; average total trim {avg:+.1f}% (" + ("normal" if abs(avg) <= TRIM_NORMAL_PCT else
                     "adding fuel: ECU sees lean" if avg > 0 else "pulling fuel: ECU sees rich") + ")"
         out.append(line)
-    # codes: when each first showed up and whether it was still there at the end
     first, last_codes = {}, set()
     for i, (t, codes, _, _) in enumerate(tagged):
         now = set(re.findall(r"\b[PBCU]\d{4}\b", (codes or "").upper()))
@@ -237,7 +230,7 @@ def drive_summary(samples, max_rows=10, max_chars=1500):
     else:
         out.append("Codes during the drive: none")
     pick = list(range(len(tagged)))
-    if len(pick) > max_rows:  # evenly spread, always keeping the first and last
+    if len(pick) > max_rows:
         pick = sorted({round(i * (len(tagged) - 1) / (max_rows - 1)) for i in range(max_rows)})
     out.append("Readings (min:sec | condition | values):")
     head = "\n".join(out)
@@ -248,5 +241,5 @@ def drive_summary(samples, max_rows=10, max_chars=1500):
         vals = " ".join(f"{label} {_fmt(key, v[key])}" for key, label in ROW if key in v)
         lines.append(f"{int(dt // 60):02d}:{int(dt % 60):02d} | {k or 'unclear'} | {vals}")
     while len(lines) > 2 and len(head) + sum(len(x) + 1 for x in lines) > max_chars:
-        lines.pop(len(lines) // 2)  # thin the middle first: the start and end matter most
+        lines.pop(len(lines) // 2)
     return head + "\n" + "\n".join(lines)

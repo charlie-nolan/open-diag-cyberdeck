@@ -5,7 +5,6 @@
 # before the first run (Qwen 3.6-35B-A3B suggested; Qwen3-30B-A3B or Gemma 4 26B MoE also work).
 MODEL="${MODEL:-unsloth/Qwen3.6-35B-A3B-GGUF:Q4_K_M}"
 CPU_MOE="${CPU_MOE:-99}"     # expert layers kept in RAM. 99 = all (always fits). Lower it step by step
-                             # while nvidia-smi shows spare VRAM: every layer moved to the GPU is faster.
 CTX="${CTX:-16384}"          # one card prompt is ~5k tokens
 
 if [[ "$MODEL" == *.gguf ]]; then SRC=(-m "$MODEL"); else SRC=(-hf "$MODEL"); fi

@@ -38,7 +38,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DB = os.path.join(HERE, "subaru.db")
 EMBED_MODEL = "Qwen/Qwen3-Embedding-0.6B"
 EMBED_DIM = 1024
-MAX_SECTION = 6000      # chars; bigger procedures are split at their numbered sub-items
+MAX_SECTION = 6000
 TARGET_PART = 3500
 
 SCHEMA = """
@@ -162,31 +162,30 @@ CREATE TABLE IF NOT EXISTS labor (         -- CHARM labor-time / parts tables, o
 CREATE INDEX IF NOT EXISTS labor_section ON labor(section_id);
 """
 
-# ------------------------------------------------------------------ text cleanup
 CODE_RE = re.compile(r"\s*\b(S[A-Z]?\d{5,}[A-Z0-9]*)\s*$")
 PAGE_RE = re.compile(r'<span id="page-(\d+)-\d+"></span>')
 IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 IMG_PAGE_RE = re.compile(r"\]\(_page_(\d+)_")
 PROC_RE = re.compile(r"^([A-Z]{1,2}):\s+\S")
-TOPIC_RE = re.compile(r"^(\d{1,2})\.(?:\s+|(?=[A-Z][a-z]))(.+)$")   # "24. Wheel Bearing" and marker's "24.Wheel Bearing"
+TOPIC_RE = re.compile(r"^(\d{1,2})\.(?:\s+|(?=[A-Z][a-z]))(.+)$")
 SUBITEM_RE = re.compile(r"^(\d{1,2})[.)]\s+[A-Z0-9(]")
 DTC_TITLE_RE = re.compile(r"\bDTC\s+([PBCU][0-9A-F]{4})\b")
 REF_RE = re.compile(r"<Ref\. to ([^>]{3,200}?)\.?\s*>")
-TORQUE_RE = re.compile(          # 44 N·m (4.5 kgf-m, 33 ft-lb) / 30±5 N·m (3.1±0.5 kg·m, 22.4±3.6 ft·lb) / 118 N m (...)
+TORQUE_RE = re.compile(
     r"(?:T\d*\s*:\s*)?(\d+(?:\.\d+)?)\s*(?:±\s*(\d+(?:\.\d+)?))?\s*N\s?[·.]?\s?m\s*\(\s*[\d.]+\s*(?:±\s*[\d.]+)?\s*kgf?\s?[-·.]?\s?m,\s*"
     r"(\d+(?:\.\d+)?)\s*(?:±\s*(\d+(?:\.\d+)?))?\s*ft\s?[-·.]?\s?lb\)")
 
 
 def clean_inline(s):
     s = PAGE_RE.sub("", s)
-    s = re.sub(r"\[([^\]]*)\]\(#page-[^)]*\)", r"\1", s)          # [47,](#page-229-0) -> 47,
+    s = re.sub(r"\[([^\]]*)\]\(#page-[^)]*\)", r"\1", s)
     s = re.sub(r"</?math[^>]*>", "", s)
-    s = re.sub(r"\$\s*([^$]{1,40}?)\s*\$", r"\1", s)                # $32 \pm 10$ -> 32 \pm 10
+    s = re.sub(r"\$\s*([^$]{1,40}?)\s*\$", r"\1", s)
     s = s.replace("\\pm", "±").replace("\\times", "×").replace("\\circ", "°")
     s = re.sub(r"<br\s*/?>", "; ", s)
     s = re.sub(r"</?(b|i|u|sup|sub|strong|em)>", "", s)
     s = s.replace("**", "")
-    s = re.sub(r"-{4,}", "---", s)                                   # marker table rules can be 200k dashes
+    s = re.sub(r"-{4,}", "---", s)
     s = re.sub(r"(\d)\s*±\s*(\d)", r"\1±\2", s)
     return html.unescape(s)
 
@@ -237,18 +236,15 @@ def clean_body(lines):
     return text, images
 
 
-# ------------------------------------------------------------------ FSM parsing
 def parse_fsm(md_text):
     """Yield dicts: chapter, topic, title, code, page, lines, subitem_starts (line idx)."""
     raw = md_text.split("\n")
-    heads = []                      # (line_no, kind, text, code)
+    heads = []
     for i, ln in enumerate(raw):
         if ln.startswith("#"):
             h, code = clean_heading(ln)
             heads.append((i, classify(h), h, code))
 
-    # A CAPS heading (no section code) is a chapter only when the next structural heading
-    # is topic "1." -- topic numbering restarts in every chapter.
     chapter_lines = set()
     for j, (i, kind, h, code) in enumerate(heads):
         if kind != "caps" or code:
@@ -259,8 +255,6 @@ def parse_fsm(md_text):
                     chapter_lines.add(i)
                 break
 
-    # Topic numbering restarts at "1." in every chapter. When it restarts and no chapter heading was
-    # found above, the nearest CAPS heading since the previous topic names the new chapter.
     last_caps, prev_num = None, 0
     for i, kind, h, code in heads:
         if kind == "caps" and not code:
@@ -286,7 +280,7 @@ def parse_fsm(md_text):
     for i, ln in enumerate(raw):
         for m in PAGE_RE.finditer(ln):
             page = int(m.group(1)) + 1
-        for m in IMG_PAGE_RE.finditer(ln):     # marker image names carry the absolute page index
+        for m in IMG_PAGE_RE.finditer(ln):
             page = max(page, int(m.group(1)) + 1)
         if i in chapter_lines:
             close()
@@ -321,7 +315,6 @@ def split_long(sec):
         return [(1, None, lines)]
     cuts = [0] + [s for s in sec["subitems"] if s > 0] + [len(lines)]
     blocks = [lines[a:b] for a, b in zip(cuts, cuts[1:]) if b > a]
-    # paragraph fallback for blocks that are still huge
     fine = []
     for b in blocks:
         if len("\n".join(b)) <= MAX_SECTION:
@@ -382,7 +375,7 @@ def step_fsm(conn, a):
     years = [int(y) for y in a.years.split(",")]
     engines = a.engines.split(",")
     vids = []
-    for model in a.model.split(","):            # Legacy/Outback manuals cover both: --model Legacy,Outback
+    for model in a.model.split(","):
         for y in years:
             for e in engines:
                 conn.execute("INSERT OR IGNORE INTO vehicle(model,chassis,year,engine) VALUES (?,?,?,?)",
@@ -393,7 +386,6 @@ def step_fsm(conn, a):
                  (a.title, os.path.basename(a.markdown), "Subaru FSM, personal use"))
     doc_id = conn.execute("SELECT id FROM doc WHERE title=?", (a.title,)).fetchone()[0]
 
-    # Re-running replaces this document's rows.
     old = [r[0] for r in conn.execute("SELECT id FROM section WHERE doc_id=?", (doc_id,))]
     if old:
         q = ",".join("?" * len(old))
@@ -410,7 +402,7 @@ def step_fsm(conn, a):
         pieces = []
         for part, sub, lines in split_long(sec):
             body, images = clean_body(lines)
-            chunks = charm_parts(body)               # hard cap: tables can defeat the sub-item split
+            chunks = charm_parts(body)
             for k, chunk in enumerate(chunks):
                 pieces.append((len(pieces) + 1, sub if k == 0 else (sub or "") + f" (cont. {k + 1})",
                                chunk if k == 0 else f"(continued)\n{chunk}", images if k == 0 else []))
@@ -500,14 +492,12 @@ def resolve_refs(conn, doc_id):
         conn.execute("UPDATE section_ref SET to_id=? WHERE from_id=? AND ref_text=?", (pick, from_id, ref))
 
 
-# ------------------------------------------------------------------ subaru_diag.db
 def step_diag(conn, a):
     conn.execute("ATTACH DATABASE ? AS d",
                  (f"file:{urllib.parse.quote(os.path.abspath(a.diag_db))}?mode=ro",))
     have = {r[0] for r in conn.execute("SELECT name FROM d.sqlite_master WHERE type='table'")}
     n = {}
     if "dtc_subaru" in have:
-        # FSM wording wins over RomRaider's; first row per code is kept.
         conn.execute("DELETE FROM dtc WHERE code NOT IN (SELECT code FROM dtc_procedure)")
         conn.execute("UPDATE dtc SET module=NULL, description=NULL")
         conn.execute("""INSERT INTO dtc(code, module, description)
@@ -550,9 +540,7 @@ def step_diag(conn, a):
     print("diag:", ", ".join(f"{k} {v}" for k, v in n.items()))
 
 
-# ------------------------------------------------------------------ Operation CHARM
 CHARM_MAKES = ("Subaru", "Subaru Truck")
-# Engine part of a CHARM model name: Subaru "F4-2.5L SOHC", "H6-3.0L"; GM/others "V8-5.3L", "L4-2.2L VIN F".
 CHARM_ENGINE_RE = re.compile(r"\b([A-Z]{1,3}\d{1,2}-\d{1,2}\.\dL.*)$")
 CHARM_NM_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:N\s*[·.*]?\s*m|Nm)\b", re.I)
 CHARM_FT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:ft[\s.\-]*lbs?\.?|lb[\s.\-]*ft)", re.I)
@@ -584,7 +572,6 @@ def known_models(conn, nhtsa_db=None, makes=()):
                 pass
         n.close()
     out = {tuple(_toks(x)) for x in names if x}
-    # a bare number or one letter can't name a model on its own ('1500', 'C')
     out = [t for t in out if t and not (len(t) == 1 and (t[0].isdigit() or len(t[0]) < 2))]
     return sorted(out, key=lambda t: (-len(t), t))
 
@@ -600,7 +587,6 @@ def charm_vehicle(model_full, known=None):
     if words[:2] == ["Legacy", "Outback"]:
         return "Outback", engine
     if known:
-        # CHARM spelling, split the same way as _toks so positions line up
         orig = re.sub(r"[-/]", " ", name).split()
         up = [w.upper() for w in orig]
         best = None
@@ -654,7 +640,7 @@ def step_charm(conn, a):
     sys.path.insert(0, os.path.expanduser(a.charm_script))
     try:
         from bs4 import BeautifulSoup
-        import charm_ingest as ci        # open_charm / enc_prefix / walk_vehicle / is_index_node / section_of
+        import charm_ingest as ci
     except ImportError as e:
         sys.exit(f"charm needs lmdb, bs4 and charm_ingest.py (--charm-script): {e}")
     y0, y1 = (int(x) for x in a.years.split("-"))
@@ -663,7 +649,6 @@ def step_charm(conn, a):
     conn.execute("INSERT OR IGNORE INTO doc(kind,title,file_name,license) VALUES ('charm',?,?,?)",
                  (CHARM_TITLE, "lmdb-pages.sqsh", "Operation CHARM, personal use"))
     doc_id = conn.execute("SELECT id FROM doc WHERE title=?", (CHARM_TITLE,)).fetchone()[0]
-    # Re-running replaces all CHARM rows.
     old = "SELECT id FROM section WHERE doc_id=?"
     for t, col in (("section_ref", "from_id"), ("dtc_procedure", "section_id"), ("section_vehicle", "section_id"),
                    ("spec", "section_id"), ("labor", "section_id"), ("charm_source", "section_id")):
@@ -673,7 +658,7 @@ def step_charm(conn, a):
 
     known = known_models(conn, os.path.join(os.path.dirname(os.path.abspath(a.db)), "nhtsa_all.db"),
                          [m.strip() for m in a.makes.split(",") if m.strip()])
-    by_hash = {}                          # body_hash -> section id (dedupe across vehicles)
+    by_hash = {}
     st = dict(vehicles=0, nodes=0, index=0, listing=0, image_only=0, empty=0, pages=0, new=0, specs=0, labor=0, dtc=0)
     for make in [m.strip() for m in a.makes.split(",") if m.strip()]:
         for year in range(y0, y1 + 1):
@@ -689,7 +674,6 @@ def step_charm(conn, a):
                         continue
                     if model_full not in vid_by_model:
                         model, engine = charm_vehicle(model_full, known)
-                        # chassis is NULL for CHARM rows, so UNIQUE can't dedupe them; look up first.
                         row = conn.execute("SELECT id FROM vehicle WHERE model=? AND chassis IS NULL AND year=? "
                                            "AND engine IS ? AND market='USDM'", (model, year, engine)).fetchone()
                         vid_by_model[model_full] = row[0] if row else conn.execute(
@@ -717,10 +701,6 @@ def step_charm(conn, a):
                     section = ci.section_of(key_text)
                     title = crumbs[-1] if crumbs else model_full
                     path = " > ".join(crumbs)
-                    # Lead each page with its component and section ("Timing Belt > Labor Times"). Short labor/parts
-                    # pages are often identical text for different parts, so the component must be in the hashed
-                    # text, but not the category above it: Engine > Timing Belt and Maintenance > Timing Belt are
-                    # the same page and should stay one row.
                     head = " > ".join(crumbs[-2:])
                     parts = charm_parts(body)
                     for n, part in enumerate(parts, 1):
@@ -796,14 +776,12 @@ def labor_from_sections(conn):
         crumbs = [c for c in path.split(" > ") if c.lower() not in LABOR_SKIP]
         labor_page = "labor times" in path.lower()
         group = None
-        for line in body.split("\n")[1:]:          # line 0 is the page heading added by step_charm
+        for line in body.split("\n")[1:]:
             cells = [c.strip() for c in line.split(" | ") if c.strip()]
             if not cells:
                 continue
             hours = part = price = None
             for c in cells[1:]:
-                # letters or a dash, or 6+ digits: GM's numbers are all digits (19115080) and were dropped before.
-                # Same rule as parts_sourcing/interchange.is_part_number.
                 if CHARM_PARTNO_RE.match(c.replace(" ", "")) and re.search(r"\d", c) and (
                         re.search(r"[A-Z\-]", c) or len(c.replace(" ", "")) >= 6):
                     part = c.replace(" ", "")[:40]
@@ -811,13 +789,12 @@ def labor_from_sections(conn):
                 if "$" in c:
                     price = c[:40]
                 elif (part or not labor_page) and CHARM_PRICE_RE.match(c):
-                    # On parts pages (or any row with a part number) a bare decimal is a list price, not hours.
                     price = price or c.strip()
                 elif labor_page and not part and CHARM_HOURS_RE.match(c) and hours is None:
                     hours = float(c)
             if len(cells) == 1 or (not hours and not part and not price):
                 if len(cells[0]) < 80:
-                    group = cells[0]          # table sub-heading for the rows below it
+                    group = cells[0]
                 continue
             segs = []
             for x in crumbs + ([group] if group else []) + [cells[0]]:
@@ -835,8 +812,6 @@ def step_labor(conn, a):
     print(f"labor: {labor_from_sections(conn)} rows rebuilt from stored CHARM pages")
 
 
-
-# ------------------------------------------------------------------ pre-baked DTC cards
 CARD_COLS = ("code, model, year_min, year_max, engine, title, text, card_json, sources_json, "
              "forum_counts_json, dropped_json, llm_model, built_at")
 
@@ -852,9 +827,6 @@ def step_cards(conn, a):
     print(f"cards: {n} cards for {codes} codes")
 
 
-# ------------------------------------------------------------------ embeddings (desktop)
-# What each source is called in the text in front of its rows. A new source (e.g. community posts) adds a label here
-# and a row query in embed_sources(); everything else (header, batching, int8 format) is shared.
 SOURCE_LABEL = {"fsm": "factory service manual", "charm": "service manual (Operation CHARM)",
                 "tsb": "technical service bulletin", "recall": "safety recall",
                 "nhtsa_complaint": "owner complaint (NHTSA)", "forum": "forum repair report",
@@ -931,7 +903,7 @@ def embed_sources(conn, make, body_chars, text):
         cl = "" if text == "source" else f"{model} {_years(range(y0, y1 + 1))}" + (f" ({engine})" if engine else "")
         return embed_header(make, "card", cl, title) + "\n" + body[:body_chars]
 
-    big = body_chars + 400      # read a little more than is kept: _drop_repeat may remove the first line
+    big = body_chars + 400
     return (
         ("section_vec", "section", "id",
          f"SELECT s.id, s.path, substr(s.body, 1, {big}), d.kind, (SELECT group_concat(v.model || char(31) || "
@@ -967,7 +939,6 @@ def step_embed(conn, a):
         t0 = time.time()
         have = conn.execute("SELECT 1 FROM sqlite_master WHERE name=?", (table,)).fetchone()
         if a.missing and have:
-            # Keep existing vectors: drop ones whose row is gone (a reloaded manual), embed only new rows.
             live = {r[0] for r in conn.execute(f"SELECT {key} FROM {src}")}
             done = {r[0] for r in conn.execute(f"SELECT id FROM {table}")}
             conn.executemany(f"DELETE FROM {table} WHERE id=?", [(i,) for i in done - live])
@@ -979,7 +950,6 @@ def step_embed(conn, a):
             rows = [(r[0], to_text(r)) for r in conn.execute(sql)]
         conn.commit()
         n = 0
-        # One transaction per chunk (~16k rows): a crash or Ctrl-C loses at most one chunk, and --missing resumes.
         for ids, vecs in enc.encode_rows(rows):
             conn.executemany(f"INSERT INTO {table}(id, embedding) VALUES (?, vec_int8(?))",
                              [(i, v.tobytes()) for i, v in zip(ids, vecs)])
@@ -1026,11 +996,10 @@ def step_relink(conn, a):
     title_of = dict(conn.execute("SELECT id, title FROM section WHERE doc_id=?", (doc[0],)))
     y0, y1 = (int(x) for x in a.years.split("-"))
     env = ci.open_charm(root)
-    cars = {}                              # (model, year, engine) -> set of section ids
-    names = {}                             # (model, year, engine) -> CHARM names merged into it
+    cars = {}
+    names = {}
     st = dict(keys=0, by_ptr=0, by_hash=0, unmatched=0, parsed=0)
-    miss = {}                              # (page bytes hash, heading) -> section ids found by text hash ([] = no stored page);
-                                           # keyed by content, so the same page under many years is parsed once
+    miss = {}
     for make in makes:
         for year in range(y0, y1 + 1):
             with env.begin() as txn:
@@ -1170,7 +1139,7 @@ def main():
     sub.add_parser("finish")
     a = ap.parse_args()
 
-    conn = sqlite3.connect(a.db, uri=True)  # uri=True so step_diag can ATTACH file:...?mode=ro
+    conn = sqlite3.connect(a.db, uri=True)
     conn.executescript(SCHEMA)
     conn.execute("INSERT OR REPLACE INTO meta VALUES ('schema_version', '1')")
     {"fsm": step_fsm, "diag": step_diag, "charm": step_charm, "labor": step_labor, "cards": step_cards, "embed": step_embed, "relink": step_relink, "finish": step_finish}[a.step](conn, a)
