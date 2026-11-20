@@ -13,7 +13,7 @@ import tempfile
 import types
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "app"))
 sys.path.insert(0, os.path.join(ROOT, "kb"))
 import build_community as B  # noqa: E402
@@ -44,9 +44,9 @@ def model_reply(segs):
         "symptoms": [{"symptom": "stalls when warm", "condition": "warm, idle", "seg": 0,
                       "quote": "stalls when warm at idle"}],
         "tests": [{"test": "voltage check", "tool": "multimeter", "component": PART, "result": "1.2 volts key on",
-                   "status": "ran", "seg": 1, "quote": f"Measured the {PART} at 1.2 volts key on"},   # wrong seg
+                   "status": "ran", "seg": 1, "quote": f"Measured the {PART} at 1.2 volts key on"},
                   {"test": "voltage check", "tool": "multimeter", "component": PART, "result": "9.9 volts",
-                   "status": "ran", "seg": 2, "quote": f"Measured the {PART} at 1.2 volts key on"}],  # bad number
+                   "status": "ran", "seg": 2, "quote": f"Measured the {PART} at 1.2 volts key on"}],
         "ruled_out": [],
         "suggestions": [{"component": PART, "reason": "first thing to check", "seg": 1,
                          "quote": f"Check the {PART} first"}],
@@ -62,11 +62,11 @@ class TestCommunity(unittest.TestCase):
     def test_validate(self):
         segs = thread()
         rec, ck = B.validate(model_reply(segs), segs, p90=10)
-        self.assertEqual([c["code"] for c in rec["codes"]], [CODE])          # invented quote dropped
+        self.assertEqual([c["code"] for c in rec["codes"]], [CODE])
         self.assertEqual(rec["codes"][0]["op_had"], 1)
-        self.assertEqual(rec["tests"][0]["seg"], 2)                          # Python moved it to the right segment
+        self.assertEqual(rec["tests"][0]["seg"], 2)
         self.assertEqual(rec["tests"][0]["who"], "op")
-        self.assertEqual(rec["tests"][1]["result"], "")                      # 9.9 isn't in the quote
+        self.assertEqual(rec["tests"][1]["result"], "")
         self.assertEqual(rec["suggestions"][0]["who"], "reply")
         self.assertEqual(rec["suggestions"][0]["high_score"], 1)
         self.assertEqual(rec["outcome"]["op_confirmed"], 1)

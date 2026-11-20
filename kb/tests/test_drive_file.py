@@ -21,7 +21,7 @@ class DriveFile(unittest.TestCase):
             drive_file.add(p, 2.0, "", "RPM 900 rpm")
             drive_file.add(p, 1.0, "P0300", "RPM 700 rpm")
             with open(p, "a") as f:
-                f.write('{"t": 3.0, "co')     # power lost mid-write
+                f.write('{"t": 3.0, "co')
             head, rows = drive_file.read(p)
             self.assertEqual(head["car"], "2003 Chevrolet Tahoe")
             self.assertEqual(rows, [(1.0, "P0300", "RPM 700 rpm"), (2.0, "", "RPM 900 rpm")])

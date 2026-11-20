@@ -11,7 +11,7 @@ import time
 
 import telemetry_ref as T
 
-CONTEXT = ("rpm", "ect", "speed")      # what telemetry_ref.conditions() needs to know the operating condition
+CONTEXT = ("rpm", "ect", "speed")
 
 
 UNTIL = __import__("re").compile(
@@ -102,7 +102,7 @@ def run(car, reader, keys, seconds, trigger=None, human=None, period=0.5, db=Non
         t = reader.clock()
         groups = reader.sample(want)
         if groups is None:
-            break                                    # the recording / the car stopped answering
+            break
         norm = _normalize(groups, t, db)
         judged = T.judge(norm, tcar(car), None, db)
         values = {j["key"]: j["value"] for j in judged}

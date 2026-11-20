@@ -45,7 +45,7 @@ import time
 import urllib.error
 import urllib.request
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KB = os.path.join(ROOT, "kb")
 OUT = os.path.join(KB, "community")
 WORK = os.path.join(OUT, "work")
@@ -56,15 +56,14 @@ sys.path.insert(0, os.path.join(ROOT, "card_baking"))
 sys.path.insert(0, KB)
 from extract_fixes import prefilter_score  # noqa: E402  (the card filter, for the side-by-side count)
 
-# Forum dumps -> the make DB their threads go to (the record's own vehicle field says the exact model)
 FORUM_MAKE = {"ultimatesubaru": "subaru", "gmtnation": "chevrolet"}
 EXTRA_REDDIT = {"chevrolet": ["reddit_chevrolet_tahoe.db"]}
-DEFAULT_MODEL = "qwen3-next:80b-a3b-instruct-q4_K_M"     # Home "deep" (app/cyberdeck_gui.py)
+DEFAULT_MODEL = "qwen3-next:80b-a3b-instruct-q4_K_M"
 OLLAMA = "http://127.0.0.1:11434"
 SEG_CHARS, MAX_CHARS, MAX_REPLIES = 1500, 9000, 14
 
 LOG = None
-HALT = threading.Event()     # set by SIGTERM/SIGINT: finish the requests in flight, save them, start no new ones
+HALT = threading.Event()
 
 
 def _stop(signum, frame):
@@ -124,7 +123,6 @@ def sources(make):
     return out
 
 
-# ============================================================================ work DB
 WORK_SCHEMA = """
 CREATE TABLE IF NOT EXISTS thread (
   src TEXT NOT NULL, tid TEXT NOT NULL, sub TEXT, url TEXT, title TEXT, created INTEGER, score INTEGER,
@@ -149,7 +147,6 @@ def work_db(make):
     return w
 
 
-# ============================================================================ thread assembly
 def _clean(body):
     if not body or body.strip() in ("[deleted]", "[removed]"):
         return ""
@@ -228,9 +225,6 @@ def thread_text(segs):
     return "\n\n".join(out)
 
 
-# ============================================================================ pass 0: prefilter
-# Vocabulary that says a thread is about diagnosing/repairing a vehicle. Detection only: none of these words
-# is tied to a cause (CLAUDE.md rule 1).
 DTC_RE = re.compile(r"\b[PCBU][0-3][0-9A-F]{3}\b", re.I)
 SYMPTOM_RE = re.compile(
     r"\b(misfir\w*|check engine|cel|mil|warning light|light (is )?on|rough|idl\w+|stall\w*|hesitat\w*|overheat\w*|"
@@ -254,7 +248,6 @@ OUTCOME_RE = re.compile(
     r"\b(fixed|solved|resolved|turned out|was the (culprit|problem|issue|cause)|that did it|problem gone|"
     r"update:|edit:|replaced (the|it|my)|swapped (the|out)|after replacing|haven'?t had|culprit|works now|"
     r"runs (great|fine|good) now|no more)\b", re.I)
-# Obvious non-diagnostic threads (dropped only when they also show no trouble code and no test)
 NONDIAG = {
     "sale": re.compile(r"\b(for sale|wts|wtb|fs:|selling (my|a)|price check|what'?s it worth|trade[- ]in|"
                        r"should i buy|buying (a|my)|just bought|new to me|delivery day|finally got|picked up my)\b", re.I),
@@ -301,7 +294,7 @@ def step_prefilter(make):
             text = thread_text(segs)
             op_cs = [(s["t"],) for s in segs if s["k"] == "op_reply"]
             card = prefilter_score(title, text, op_cs) + 3 * bool(DTC_RE.search(str(tags.get("dtcs") or "")))
-            card_keep = int(card >= 5)                       # extract_fixes.py's default --min-score
+            card_keep = int(card >= 5)
             st = stat.setdefault(sub or "", {})
             st["total"] = st.get("total", 0) + 1
             for k, v in f.items():
@@ -356,7 +349,6 @@ def prefilter_table(make):
               f"{tot['both_keep']} of {tot['card_keep']}")
 
 
-# ============================================================================ pilot pick
 def step_pilot(makes, n, seed):
     """Random threads spread over sources/subs: each (make, sub) gets a share proportional to sqrt(its kept
     count), so big subs dominate less and small forums still appear. No thread is chosen by hand."""
@@ -385,7 +377,6 @@ def step_pilot(makes, n, seed):
     log(f"pilot: {picked} threads marked over {len(groups)} subs/forums in {', '.join(makes)} (seed {seed})")
 
 
-# ============================================================================ pass 1: extraction
 def _q(desc):
     return {"type": "string", "description": desc}
 
@@ -490,7 +481,6 @@ def priority(segs, rules):
     return int(op_out and bool(rules.get("code") or rules.get("test")))
 
 
-# ---------------------------------------------------------------- quote checks (all Python)
 STOP = set("the a an and or of to in on for with is are was were it this that at by from be as my car i me "
            "you your but not so if its it's has have had do did does just like also then than there their they "
            "we he she his her them what when which who will would could should can may might very really bad "
@@ -549,7 +539,7 @@ def supported(value, quote):
 
 
 def _no_thousands(s):
-    return re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", s or "")     # '120,000' -> '120000' (norm() would split it)
+    return re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", s or "")
 
 
 def numbers_in(value, quote):
@@ -606,7 +596,6 @@ def validate(raw, segs, p90):
             for k in ("model", "engine", "transmission"):
                 if (v.get(k) or "").strip():
                     ck["items"] += 1
-                    # in the vehicle quote, or written exactly like that somewhere in the thread
                     if (supported(v[k], q) and content_tokens(v[k])) or \
                             re.search(rf"(?<![a-z0-9]){re.escape(norm(v[k]))}(?![a-z0-9])", " ".join(nsegs)):
                         veh[k] = v[k].strip()
@@ -726,7 +715,7 @@ def stats_line(w, where, args, t_start, n_session, parallel=1):
     todo = w.execute(f"SELECT count(*) FROM thread t WHERE {where} AND NOT EXISTS "
                      f"(SELECT 1 FROM extract e WHERE e.src=t.src AND e.tid=t.tid AND e.status='ok')", args).fetchone()[0]
     per_h = 3600 * done / (ms / 1000) if ms else 0
-    if parallel > 1 and t_start and n_session:      # requests overlap: only the wall clock tells the rate
+    if parallel > 1 and t_start and n_session:
         per_h = 3600 * n_session / max(time.time() - t_start, 1)
     return (f"{done} done ({ok} ok, json fail {100 * jf / max(done, 1):.1f}%, errors {er}); "
             f"quote fail {100 * qf / max(items, 1):.1f}% of {items} items, unsupported {100 * uns / max(items, 1):.1f}%; "
@@ -755,7 +744,6 @@ def step_extract(make, a):
         if not ok:
             log(f"extract {make}: {why}; not started (re-run later, or --force)")
             return
-    # llama backend: our own llama-server already holds the GPU (gpu_guard counts it as busy), so only take the lock
     lock = take_gpu(a.model if a.backend == "ollama" else "")  # noqa: F841  (held until exit)
     w = work_db(make)
     where, args = thread_filter(a)
@@ -792,12 +780,12 @@ def step_extract(make, a):
         res = extract_one(llm, system, schema, json.loads(segs_json), p90.get((src, sub)))
         return src, tid, res, int((time.time() - t1) * 1000)
 
-    with cf.ThreadPoolExecutor(max_workers=max(1, a.parallel)) as ex:   # only this thread writes to SQLite
+    with cf.ThreadPoolExecutor(max_workers=max(1, a.parallel)) as ex:
         it = iter(todo)
         running = {ex.submit(work, r) for r in itertools.islice(it, a.parallel * 2)}
         while running:
             done, running = cf.wait(running, return_when=cf.FIRST_COMPLETED)
-            if HALT.is_set():          # drop queued requests; only those already on a llama-server slot finish
+            if HALT.is_set():
                 running = {f for f in running if not f.cancel()}
             for f in done:
                 save(*f.result())
@@ -823,11 +811,10 @@ def step_progress(make, a):
     left = w.execute(f"SELECT count(*) FROM thread t LEFT JOIN extract e ON e.src=t.src AND e.tid=t.tid WHERE {where} "
                      f"AND (e.status IS NULL OR (e.status!='ok' AND e.tries<3))", args).fetchone()[0]
     log(f"progress {make}: {ok or 0} of {tot} done ({jf or 0} json fail), {left} left")
-    print(f"LEFT {make} {left}", flush=True)       # for tools/community_gpu_on.sh
+    print(f"LEFT {make} {left}", flush=True)
     return left
 
 
-# ============================================================================ pass 2: tables
 COMM_SCHEMA = """
 CREATE TABLE IF NOT EXISTS comm_meta (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS comm_thread (
@@ -1075,7 +1062,6 @@ def links(c, make, a):
     log(f"tables {make}: {len(items)} items linked ({len(cache)} distinct searches) in {time.time() - t0:.0f} s")
 
 
-# ============================================================================ embed / merge
 def step_embed(make, device="auto"):
     c = sqlite3.connect(cdb_path(make))
     rows = c.execute("SELECT id, text FROM comm_doc").fetchall()
@@ -1165,11 +1151,6 @@ def step_merge(make):
     log(f"merge {make}: comm_* tables replaced in {dst} ({n} threads)")
 
 
-# ============================================================================ raw threads: every kept thread, searchable
-# Step 2 of the community data (10-31): the LLM extraction reads only some threads, so every thread
-# pass 0 kept also goes into kb/<make>.threads.db as plain text with FTS and vectors. No model reads them at build
-# time and nothing is summarised: the app finds the threads and shows/quotes them with their link. A separate file
-# so the make DB stays as it is and the deck can skip it.
 RAW_SCHEMA = """
 CREATE TABLE IF NOT EXISTS raw_meta (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS raw_thread (
@@ -1179,7 +1160,7 @@ CREATE TABLE IF NOT EXISTS raw_thread (
 CREATE VIRTUAL TABLE IF NOT EXISTS raw_thread_fts USING fts5(title, text, content='raw_thread', content_rowid='id',
   tokenize="porter unicode61 remove_diacritics 2");
 """
-RAW_EMBED_TOKENS = 512      # title + OP + first replies; the full text stays in FTS and is what the app shows
+RAW_EMBED_TOKENS = 512
 
 
 def raw_path(make):
@@ -1252,7 +1233,7 @@ def step_rawembed(make, device="auto"):
     from embedder import DocEncoder
     enc = DocEncoder(device=device, max_tokens=RAW_EMBED_TOKENS, log=lambda m, **k: log(m))
     t0, n = time.time(), 0
-    for ids, vecs in enc.encode_rows(rows):     # one commit per chunk: Ctrl-C and rerun resumes
+    for ids, vecs in enc.encode_rows(rows):
         r.executemany("INSERT INTO raw_thread_vec(id, embedding) VALUES (?, vec_int8(?))",
                       [(i, v.tobytes()) for i, v in zip(ids, vecs)])
         r.commit()
@@ -1266,7 +1247,6 @@ def step_rawembed(make, device="auto"):
         lock.close()
 
 
-# ============================================================================ report / sample
 def step_report(make, a):
     w = work_db(make)
     where, args = ("t.pilot=1", []) if a.pilot else ("1", [])
@@ -1299,7 +1279,6 @@ def step_sample(make, a):
     print(f"sample: {len(pick)} files in {a.out}")
 
 
-# ============================================================================ A/B tests
 FIELDS = ("vehicle", "codes", "symptoms", "tests", "ruled_out", "suggestions", "outcome", "chains", "refs")
 
 
@@ -1332,7 +1311,7 @@ def _rate(d, makes, rows):
         p = os.path.join(d, f"{m}.work.db")
         if os.path.isfile(p):
             c = ro(p)
-            if c.execute("SELECT 1 FROM sqlite_master WHERE name='run'").fetchone():   # older work folders have none
+            if c.execute("SELECT 1 FROM sqlite_master WHERE name='run'").fetchone():
                 runs += c.execute("SELECT n, seconds, parallel FROM run WHERE make=?", (m,)).fetchall()
     if runs and max(r[2] for r in runs) > 1:
         return 3600 * sum(r[0] for r in runs) / max(sum(r[1] for r in runs), 1), "wall"

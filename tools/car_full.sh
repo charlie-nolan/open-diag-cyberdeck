@@ -22,7 +22,7 @@ DF=(); [ $DRY = 1 ] && DF=(--dry-run)
 
 exec > >(tee -a "$CK/logs/car_full_$SLUG.log") 2>&1
 say() { echo "$(date '+%F %T') [$SLUG $CAR $YEAR] $*"; }
-wait_gpu() {   # $1 = step name
+wait_gpu() {
     [ $DRY = 1 ] && return 0
     local first=1
     until why=$(gpu_free); do
@@ -31,14 +31,11 @@ wait_gpu() {   # $1 = step name
 }
 
 say "start"
-# 1. the make's DB layers (CHARM, NHTSA, Reddit, forum fixes, embed, finish, score)
 wait_gpu "1. make_full"
 bash "$CK/tools/make_full.sh" "$SLUG" "${DF[@]}"
 DB=$KB/$SLUG.db
 [ -f "$DB" ] || { say "1. no $DB after make_full; stopping"; exit 1; }
 
-# which CHARM model names cover this car in that year (e.g. 'C/K Tahoe' and 'Tahoe' can both exist)
-# (only names that have manual DTC procedures, so cards and charts have something to work from)
 mapfile -t MODELS < <(sqlite3 -readonly "$DB" "SELECT DISTINCT v.model FROM vehicle v
     WHERE upper(v.model) LIKE '%'||upper('$CAR')||'%' AND v.year=$YEAR
     AND EXISTS (SELECT 1 FROM dtc_procedure d WHERE d.vehicle_id=v.id) ORDER BY v.model")
@@ -47,7 +44,6 @@ mapfile -t MODELS < <(sqlite3 -readonly "$DB" "SELECT DISTINCT v.model FROM vehi
     sqlite3 -readonly "$DB" "SELECT DISTINCT model FROM vehicle WHERE year=$YEAR ORDER BY 1" | column; exit 1; }
 say "CHARM models for this car: ${MODELS[*]}"
 
-# 2. community threads (CPU, minutes)
 if [ ! -f "$KB/community/work/$SLUG.work.db" ]; then
     say "2. community pass 0 (prefilter)"
     [ $DRY = 1 ] || "$P" "$KB/build_community.py" prefilter --make "$SLUG" || { say "2. prefilter FAILED"; exit 1; }
@@ -55,19 +51,16 @@ fi
 say "2. community raw threads"
 [ $DRY = 1 ] || "$P" "$KB/build_community.py" raw --make "$SLUG" || { say "2. raw FAILED"; exit 1; }
 
-# 3. thread vectors on the GPU (resumable; skips threads already done)
 wait_gpu "3. thread vectors"
 say "3. thread vectors"
 [ $DRY = 1 ] || "$P" "$KB/build_community.py" rawembed --make "$SLUG" --device cuda || { say "3. rawembed FAILED"; exit 1; }
 
-# 4. baked DTC cards, one bake per CHARM model name (cards already built are skipped)
 for M in "${MODELS[@]}"; do
     wait_gpu "4. cards for $M"
     say "4. cards for $M"
     bash "$CK/tools/bake_cards.sh" "$SLUG" "$M" "${DF[@]}" || { say "4. cards for $M FAILED (see logs/bake_cards_$SLUG.log)"; exit 1; }
 done
 
-# 5. chart pictures for this year go on the picture server's background queue (read when the GPU is free)
 for M in "${MODELS[@]}"; do
     say "5. chart pictures for $M $YEAR"
     "$P" "$CK/tools/charm_pic_server.py" queue --db "$DB" --car "$M" --year "$YEAR" "${DF[@]}"

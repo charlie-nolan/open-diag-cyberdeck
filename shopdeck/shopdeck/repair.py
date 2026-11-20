@@ -14,7 +14,6 @@ NEW_RE = re.compile(r"\b(new (?:one|ones|part|parts|\w+(?: \w+)?)|with new|do no
 FASTENERS = r"gasket|seal|o-ring|o ring|packing|bolt|nut|washer|clip|clamp|pin|circlip|snap ring|spring|lock|cotter|plug"
 
 
-# ---------------------------------------------------------------------------------------------- manual text
 def refs_in(text):
     return [r.strip().rstrip(".").strip() for r in REF_RE.findall(text)]
 
@@ -42,12 +41,12 @@ def procedure_candidates(kb, veh, name, limit=10):
     """Manual topics (removal / installation / inspection / replacement) that match a part or job name.
     The mechanic picks; the deck doesn't guess which one is meant."""
     hits = kb.search(veh, name, kind="fsm", limit=60)
-    if len(hits) < 5:   # the manual may call it something else ("front exhaust pipe" for a manifold): any word
+    if len(hits) < 5:
         hits += kb.search(veh, name, kind="fsm", limit=60, any_word=True)
     seen, out = set(), []
     for s in hits:
         if "DIAGNOSTIC" in s.path.split(">")[0].upper():
-            continue         # charts and tables, not repair procedures
+            continue
         key = " > ".join(x.strip() for x in s.path.split(">")[:2])
         if key in seen:
             continue
@@ -70,7 +69,7 @@ def torque_lines(section):
         if not t or t == "[fig]":
             continue
         if re.match(r"^\d+\)|^[A-Z0-9 .&/()-]{6,}$", t) and not TORQUE_RE.search(t):
-            last = t[:140]            # the numbered step (or sub-heading) a torque value belongs to
+            last = t[:140]
         for m in TORQUE_RE.finditer(t):
             what = re.sub(r"^Tightening torque\s*", "", t[:m.start()], flags=re.I).strip(" :()")
             out.append((what or last, f"{m.group(1)} N·m ({m.group(2)})"))
@@ -89,7 +88,6 @@ def must_be_new(section):
     return out
 
 
-# ---------------------------------------------------------------------------------------------- CHARM labor
 def words(text):
     return [w for w in re.findall(r"[a-z0-9]{3,}", text.lower()) if w not in STOP and w not in
             {"the", "faulty", "parts", "part", "following", "items", "harness", "connector"}]
@@ -129,12 +127,11 @@ def price_of(text):
         return None
 
 
-# ---------------------------------------------------------------------------------------------- jobs and quotes
 @dataclass
 class LaborLine:
     what: str
     hours: float
-    source: str          # "CHARM book time: <operation>" or "mechanic"
+    source: str
 
 
 @dataclass
@@ -143,16 +140,16 @@ class PartLine:
     part_number: str = ""
     qty: float = 1
     unit_price: float = None
-    source: str = ""     # "CHARM list price (old)" / "mechanic" / "manual: must be new"
+    source: str = ""
 
 
 @dataclass
 class Job:
     title: str
-    reason: str                              # "FSM P0304 chart, step 23" / "mechanic's call: ..."
-    procedures: list = field(default_factory=list)   # section ids (manual topics)
-    labor: list = field(default_factory=list)        # LaborLine
-    parts: list = field(default_factory=list)        # PartLine
+    reason: str
+    procedures: list = field(default_factory=list)
+    labor: list = field(default_factory=list)
+    parts: list = field(default_factory=list)
 
     def to_dict(self):
         return asdict(self)
@@ -167,13 +164,13 @@ class Job:
 
 @dataclass
 class Quote:
-    lines: list          # (kind, text, amount)
+    lines: list
     labor: float
     parts: float
     tax: float
     supplies: float
     total: float
-    missing: list        # parts with no price: the quote is incomplete until they're filled in
+    missing: list
 
 
 def quote(jobs, rate, tax_rate=0.0, supplies_rate=0.0):

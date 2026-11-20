@@ -15,13 +15,12 @@ STATUS_TEXT = {1: "open loop (cold)", 2: "closed loop", 4: "open loop (load or d
                8: "open loop (system fault)", 16: "closed loop (feedback fault)"}
 AIR_TEXT = {1: "upstream", 2: "downstream of cat", 4: "outside air or off", 8: "pump on for diagnostics"}
 BITMAPS = range(0x00, 0xE1, 0x20)
-SEARCH_TIMEOUT_S = 8    # waits only while the adapter is silent; a normal reply returns at once
-PROTOCOL_FILE = os.path.expanduser("~/.cache/cyberdeck_ex_protocol")   # protocol id that last worked
-DIRECT_ORDER = ("6", "8", "2", "1", "7", "9", "5", "3", "4")   # quick failures first; K-line bus inits take seconds
-# Known but not a reading (their meaning is shown another way, or they only describe other PIDs)
+SEARCH_TIMEOUT_S = 8
+PROTOCOL_FILE = os.path.expanduser("~/.cache/cyberdeck_ex_protocol")
+DIRECT_ORDER = ("6", "8", "2", "1", "7", "9", "5", "3", "4")
 NOT_VALUES = {0x01, 0x02, 0x13, 0x1C, 0x1D, 0x41, 0x4F, 0x50, 0x51}
-O2_2BANK = ("B1S1", "B1S2", "B1S3", "B1S4", "B2S1", "B2S2", "B2S3", "B2S4")   # PID 13 says which are fitted
-O2_4BANK = ("B1S1", "B1S2", "B2S1", "B2S2", "B3S1", "B3S2", "B4S1", "B4S2")   # PID 1D: same PIDs, other places
+O2_2BANK = ("B1S1", "B1S2", "B1S3", "B1S4", "B2S1", "B2S2", "B2S3", "B2S4")
+O2_4BANK = ("B1S1", "B1S2", "B2S1", "B2S2", "B3S1", "B3S2", "B4S1", "B4S2")
 
 
 def may_speak_ssm(make, protocol):
@@ -69,7 +68,7 @@ def _save_protocol(p):
         with open(PROTOCOL_FILE, "w") as f:
             f.write(p)
     except OSError:
-        pass      # only a speed-up: the next read searches again
+        pass
 
 
 def _keep(messages):
@@ -103,7 +102,7 @@ def supported(conn):
             if d[:2] == bytes((0x41, base)) and len(d) >= 6:
                 bits |= int.from_bytes(d[2:6], "big")
         sup |= {base + 32 - i for i in range(32) if bits >> i & 1}
-        if not bits & 1:          # the last bit says whether the next bitmap exists
+        if not bits & 1:
             break
     return sup - set(BITMAPS), asked
 
@@ -113,10 +112,10 @@ def _o2(pid, d, places, scale_set):
     place = "O2 " + places[(pid & 0x0F) - 4]
     if pid < 0x20:
         out = [(place, round(d[0] / 200, 3), "V")]
-        if d[1] != 0xFF:      # FF: this sensor isn't used for trim
+        if d[1] != 0xFF:
             out.append((place + " trim", round((d[1] - 128) * 100 / 128, 1), "%"))
         return out
-    if scale_set:             # PID 4F changed the full scale of these: the fixed formula would be wrong
+    if scale_set:
         return [("PID %02X" % pid, d[:4].hex().upper(), "")]
     out = [(place + " lambda", round((d[0] * 256 + d[1]) * 2 / 65536, 3), "")]
     x = d[2] * 256 + d[3]
@@ -206,7 +205,7 @@ def read_all(conn):
     got, silent = {}, []
     for pid in sorted(sup - NOT_VALUES, key=_rank):
         d = None
-        for _ in range(2):       # K-line and busy CAN buses miss the odd request; a bitmap PID should answer
+        for _ in range(2):
             d = _reply(ask(conn, f"01{pid:02X}"), pid)
             if d is not None:
                 break
@@ -249,7 +248,7 @@ def mode06(conn):
                 if not t.passed:
                     failed.append(s)
         return lines, failed, "decoded"
-    send = getattr(conn.interface, "_ELM327__send", None)   # python-obd drops multi-frame service 06 replies
+    send = getattr(conn.interface, "_ELM327__send", None)
     if send is None:
         return [], [], "raw"
     lines = [str(x) for x in send(b"0600") if str(x).replace(" ", "")[:2] not in ("NO", "UN", "?")]

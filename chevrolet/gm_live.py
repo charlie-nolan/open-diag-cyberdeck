@@ -26,18 +26,16 @@ import re
 import sys
 import time
 
-ALLOWED_SERVICES = {0x01, 0x02, 0x03, 0x07, 0x09, 0x22}      # read-only services
+ALLOWED_SERVICES = {0x01, 0x02, 0x03, 0x07, 0x09, 0x22}
 ALLOWED_AT = re.compile(r"^(ATZ|ATI|ATE[01]|ATH[01]|ATS[01]|ATL[01]|ATSP[0-9A-C]|ATDPN?|ATRV|ATAT[0-2]|ATST[0-9A-F]{2}|"
                         r"ATSH(?:[0-9A-F]{6}|[0-9A-F]{3})|ATCAF[01]|STI|STDI|STSN|STMFR)$")
 HOST_BAUDS = [115200, 38400, 9600, 230400, 500000, 2000000]
 ERRORS = ("NO DATA", "?", "BUS ERROR", "DATA ERROR", "BUFFER FULL", "STOPPED", "BUS INIT", "BUS BUSY",
           "FB ERROR", "CAN ERROR", "UNABLE TO CONNECT", "ERROR")
-# Default (functional) request headers, so a Mode 22 header can be switched back without a reset.
 DEFAULT_HEADER = {"1": "616AF1", "2": "686AF1", "3": "686AF1", "4": "C133F1", "5": "C133F1", "6": "7DF", "8": "7DF"}
 PROTOCOLS = {"1": "J1850 PWM", "2": "J1850 VPW", "3": "ISO 9141-2", "4": "ISO 14230 5-baud", "5": "ISO 14230 fast",
              "6": "CAN 11/500", "7": "CAN 29/500", "8": "CAN 11/250", "9": "CAN 29/250"}
 
-# SAE J1979 Mode 01 PIDs that pre-CAN GM PCMs commonly support. (name, units, equation over A,B)
 MODE01 = {
     "04": ("Calculated load", "%", "A*100/255"),
     "05": ("Coolant temp", "C", "A-40"),
@@ -71,7 +69,6 @@ OBD_STANDARD = {1: "OBD-II (CARB)", 2: "OBD (EPA)", 3: "OBD and OBD-II", 4: "OBD
                 7: "EOBD and OBD-II", 9: "EOBD, OBD and OBD-II", 13: "JOBD, EOBD and OBD-II"}
 
 
-# ------------------------------------------------------------------ Torque-style equations, evaluated safely
 _OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv,
         ast.FloorDiv: operator.floordiv, ast.Mod: operator.mod, ast.BitAnd: operator.and_, ast.BitOr: operator.or_,
         ast.RShift: operator.rshift, ast.LShift: operator.lshift, ast.USub: operator.neg, ast.UAdd: operator.pos}
@@ -103,7 +100,7 @@ def compile_equation(eq):
 
     letters = sorted({x for x in re.findall(r"\b([A-H])\b", src)})
     need = (ord(letters[-1]) - 64) if letters else 0
-    ev(tree, {k: 1 for k in "ABCDEFGH"})          # reject bad equations at load time, not mid-drive
+    ev(tree, {k: 1 for k in "ABCDEFGH"})
 
     def f(data):
         if len(data) < need:
@@ -117,7 +114,6 @@ def decode_dtc(b1, b2):
     return "PCBU"[b1 >> 6] + str((b1 >> 4) & 3) + f"{b1 & 0xF:X}{b2:02X}"
 
 
-# ------------------------------------------------------------------ adapter
 class ReadOnlyError(Exception):
     pass
 
@@ -125,7 +121,7 @@ class ReadOnlyError(Exception):
 class EX:
     def __init__(self, ser, log):
         self.ser, self.log = ser, log
-        self.proto = None             # STN protocol number as text, e.g. '2'
+        self.proto = None
         self.header = None
 
     @classmethod
@@ -185,7 +181,7 @@ class EX:
             elif prev not in (None, "AUTO"):
                 if self.proto in DEFAULT_HEADER:
                     self.at("ATSH" + DEFAULT_HEADER[self.proto])
-                else:                        # 29-bit CAN etc.: reset to the adapter's defaults
+                else:
                     self.at("ATZ", 3.0)
                     self.setup(self.proto or "0")
         return self.parse(self._send(h, timeout), svc + 0x40)
@@ -194,7 +190,7 @@ class EX:
         self.header = "AUTO"
         for c in ("ATE0", "ATL0", "ATS1", "ATH1", f"ATSP{proto}", "ATAT1"):
             self.at(c)
-        first = self.request("0100", 12.0)              # auto search can take several seconds
+        first = self.request("0100", 12.0)
         dpn = "".join(self.at("ATDPN")).lstrip("A")
         self.proto = dpn[:1] if dpn[:1] in PROTOCOLS else None
         self.header = "AUTO"
@@ -210,7 +206,7 @@ class EX:
             tok = ln.split()
             if not tok or not all(re.fullmatch(r"[0-9A-F]{2,3}", t) for t in tok):
                 continue
-            if len(tok[0]) == 3:                         # CAN 11-bit
+            if len(tok[0]) == 3:
                 ident, b = tok[0], [int(t, 16) for t in tok[1:]]
                 if not b:
                     continue
@@ -234,7 +230,6 @@ class EX:
         self.ser.close()
 
 
-# ------------------------------------------------------------------ reads
 class GMLive:
     def __init__(self, ex, pid_file=None, log=print):
         self.ex, self.log = ex, log
@@ -248,7 +243,7 @@ class GMLive:
                     self.log(f"pid {e.get('pid')}: equation skipped ({err})")
                     continue
                 self.mode22[(e.get("key") or e["pid"]).upper()] = e
-                self.mode22.setdefault(e["pid"].upper(), e)      # bare PID -> its first entry
+                self.mode22.setdefault(e["pid"].upper(), e)
 
     def supported01(self):
         sup = set()
@@ -265,7 +260,7 @@ class GMLive:
         codes = set()
         for _, d in self.ex.request(mode):
             body = d[1:]
-            if len(body) % 2 == 1:               # CAN: count byte first
+            if len(body) % 2 == 1:
                 body = body[1:]
             for i in range(0, len(body) - 1, 2):
                 if body[i] or body[i + 1]:
@@ -277,9 +272,9 @@ class GMLive:
         if not frames:
             return None
         data = []
-        if len(frames) == 1:                     # CAN: one joined ISO-TP message, '49 02 01' + 17 chars
+        if len(frames) == 1:
             data = frames[0][1][3:]
-        else:                                    # J1850/ISO: '49 02 NN' + 4 bytes per frame
+        else:
             for _, d in sorted(frames, key=lambda f: f[1][2] if len(f[1]) > 2 else 0):
                 data += d[3:7]
         txt = bytes(b for b in data if 32 < b < 127).decode("ascii", "replace")
@@ -325,7 +320,6 @@ class GMLive:
         return r
 
 
-# ------------------------------------------------------------------ CLI
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cmd", choices=["scan", "live"])

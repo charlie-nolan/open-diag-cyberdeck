@@ -66,7 +66,6 @@ CARD_JSON_SCHEMA = {
             "required": ["cause", "why", "how_to_check", "live_data", "sources"]}},
         "fsm_steps": {"type": "array", "maxItems": 10, "items": {
             "type": "object",
-            # 'check' with a minimum length: a field called 'step' got filled with the manual's step codes ("10AA1")
             "properties": {"check": {"type": "string", "minLength": 20},
                            "sources": {"type": "array", "items": {"type": "string"}}},
             "required": ["check", "sources"]}},
@@ -109,7 +108,6 @@ A forum thread where an owner confirmed this fix counts as support. Don't judge 
 reason: one short sentence."""
 
 
-# ------------------------------------------------------------------ helpers
 def ro(path):
     return sqlite3.connect(f"file:{os.path.abspath(os.path.expanduser(path))}?mode=ro", uri=True)
 
@@ -179,7 +177,6 @@ def forum_counts(work, code, model, y0, y1, slack, min_car=3):
         FROM extract_code c JOIN extract e USING(src, tid) JOIN thread t USING(src, tid)
         WHERE c.code=? AND e.relevant AND e.evidence_ok AND e.confirmed IN ('op_confirmed','other_confirmed')
           AND e.category NOT IN ('other', 'unknown')""", (model, y0 - slack, y1 + slack, code)).fetchall()
-    # a thread can list several codes; a fix that names other codes but not this one belongs to those
     rows = [r for r in rows if code in (r[4] or "") or not set(CODE_RE.findall(r[4] or "")) - {code}]
     car, allc, parts = {}, {}, {}
     for r in rows:
@@ -194,7 +191,7 @@ def forum_counts(work, code, model, y0, y1, slack, min_car=3):
         return (0, -n, b) if n >= min_car else (1, -allc[b], b)
     ranked = sorted(allc, key=rank_key)
     picked = []
-    for b in ranked[:6]:  # up to 2 examples for each top bucket, this car first, at most 10
+    for b in ranked[:6]:
         ex = sorted((r for r in rows if r[6] == b), key=lambda r: (-r[8], -r[9], -(r[10] or 0)))[:2]
         picked += [r[:7] + (r[8],) for r in ex]
     counts = {"this_car": [{"cause": b, "confirmed_fixes": n, "parts": sorted(parts.get(b, []))[:5]}
@@ -255,7 +252,7 @@ def prompt_for(code, desc, a, y0, y1, counts, sources):
     return "\n".join(lines)
 
 
-def verify_card(llm, card, by_id, counts=None, max_tokens=600):   # 200 could cut the reply off mid-JSON
+def verify_card(llm, card, by_id, counts=None, max_tokens=600):
     """Second pass: keep a cause/step only if its cited sources support it."""
     dropped = []
 
@@ -264,7 +261,7 @@ def verify_card(llm, card, by_id, counts=None, max_tokens=600):   # 200 could cu
         if not cited:
             return "no", "cites no real source"
         text = "\n\n".join(f"[{s['id']}] {s['text'][:1500]}" for s in cited)
-        if counts:   # 'N confirmed fixes' statements come from this table, not from the one thread cited
+        if counts:
             text += "\n\n[FORUM COUNTS] confirmed fixes per cause: " + json.dumps(
                 {"this_car": {x["cause"]: x["confirmed_fixes"] for x in counts.get("this_car", [])},
                  "all_subaru": {x["cause"]: x["confirmed_fixes"] for x in counts.get("all_subaru", [])}})
@@ -274,7 +271,7 @@ def verify_card(llm, card, by_id, counts=None, max_tokens=600):   # 200 could cu
     keep = []
     for c in card["causes"]:
         c["sources"] = [i for i in c["sources"] if i in by_id]
-        verdict, why = supported(c["cause"], c["sources"])   # the cause itself, not the model's wording around it
+        verdict, why = supported(c["cause"], c["sources"])
         if verdict == "no":
             dropped.append({"cause": c["cause"], "reason": why})
         else:
@@ -284,7 +281,7 @@ def verify_card(llm, card, by_id, counts=None, max_tokens=600):   # 200 could cu
     steps = []
     for s in card["fsm_steps"]:
         s["sources"] = [i for i in s["sources"] if i in by_id]
-        if len(re.findall(r"[A-Za-z]{2,}", s.get("step") or "")) < 3:   # bare step numbers/codes ("3", "10AH2/10AG2")
+        if len(re.findall(r"[A-Za-z]{2,}", s.get("step") or "")) < 3:
             dropped.append({"step": s.get("step"), "reason": "empty step"})
         elif s["sources"]:
             steps.append(s)
@@ -294,25 +291,23 @@ def verify_card(llm, card, by_id, counts=None, max_tokens=600):   # 200 could cu
     return card, dropped
 
 
-# A number with a spec unit in model-written text: torque, size, pressure, volume, electrical, temperature.
 SPEC_RE = re.compile(
     r"\b\d+(?:[.,]\d+)?(?:\s*(?:-|–|to|±|\+/-)\s*\d+(?:[.,]\d+)?)?\s*"
     r"(?:N\s*[·.*]?\s*m|Nm|ft[\s.\-]*lbs?|lb[\s.\-]*ft|in[\s.\-]*lbs?|kgf?[\s.\-]*m|kgf|mm|cm|inch(?:es)?|in\.|"
     r"psi|kPa|MPa|bar|qts?|quarts?|liters?|litres?|ml|cc|ohms?|Ω|kΩ|volts?|mV|amps?|°\s*[CF]|"
     r"gal(?:lons?)?|oz|foot[\s\-]*pounds?|degrees?|deg|rpm|%)(?![A-Za-z])", re.I)
-# OEM part-number shapes, every make the cards are baked for (formats only, no part is named):
 PART_NO_RE = re.compile("|".join([
-    r"\b\d{5}-?[A-Z]{2}[0-9A-Z]{3}\b",                          # Subaru 22401AA720
-    r"\b\d{5}-[0-9A-Z]{5}(?:-[0-9A-Z]{2})?\b",                  # Toyota/Lexus, Nissan, Hyundai/Kia 5-5
-    r"\b\d{5}-[A-Z0-9]{3}-[A-Z0-9]{3,4}\b",                     # Honda/Acura 5-3-3
-    r"\b(?=[0-9]{0,3}[A-Z])[A-Z0-9]{4}-[A-Z0-9]{4,6}-[A-Z]{1,3}\b",   # Ford/Lincoln/Mercury prefix-base-suffix
-    r"\b(?=[0-9]{0,3}[A-Z])[A-Z0-9]{4}-\d{2}-[A-Z0-9]{3,4}\b",      # Mazda
-    r"\b\d{7,8}[A-Z]{2}\b",                                     # Mopar (Chrysler/Dodge/Jeep/Ram)
-    r"\b\d{8}\b|\b\d{11}\b",                                   # GM 8 digits, BMW 11 digits
-    r"\b\d{2} \d{2} \d \d{3} \d{3}\b",                          # BMW spaced
-    r"\b(?=\d{0,2}[A-Z])[0-9][0-9A-Z]{2} ?\d{3} ?\d{3} ?[A-Z]{0,2}\b",   # VW/Audi 06A 905 115 D
-    r"\bA ?\d{3} ?\d{3} ?\d{2} ?\d{2}\b",                         # Mercedes A 000 140 32 87
-    r"\bMD\d{6}\b|\b\d{4}A\d{3}\b",                             # Mitsubishi
+    r"\b\d{5}-?[A-Z]{2}[0-9A-Z]{3}\b",
+    r"\b\d{5}-[0-9A-Z]{5}(?:-[0-9A-Z]{2})?\b",
+    r"\b\d{5}-[A-Z0-9]{3}-[A-Z0-9]{3,4}\b",
+    r"\b(?=[0-9]{0,3}[A-Z])[A-Z0-9]{4}-[A-Z0-9]{4,6}-[A-Z]{1,3}\b",
+    r"\b(?=[0-9]{0,3}[A-Z])[A-Z0-9]{4}-\d{2}-[A-Z0-9]{3,4}\b",
+    r"\b\d{7,8}[A-Z]{2}\b",
+    r"\b\d{8}\b|\b\d{11}\b",
+    r"\b\d{2} \d{2} \d \d{3} \d{3}\b",
+    r"\b(?=\d{0,2}[A-Z])[0-9][0-9A-Z]{2} ?\d{3} ?\d{3} ?[A-Z]{0,2}\b",
+    r"\bA ?\d{3} ?\d{3} ?\d{2} ?\d{2}\b",
+    r"\bMD\d{6}\b|\b\d{4}A\d{3}\b",
 ]))
 
 
@@ -343,7 +338,7 @@ def scrub_specs(card):
 
 def render(code, desc, card, sources, specs, labor):
     by_id = {s["id"]: s for s in sources}
-    for item in card["causes"] + card["fsm_steps"]:   # only real source ids are ever printed
+    for item in card["causes"] + card["fsm_steps"]:
         item["sources"] = [i for i in item["sources"] if i in by_id]
     out = [f"{code}: {desc}", card["summary"], ""]
     if card["causes"]:
@@ -376,14 +371,14 @@ def codes_for(kb, work, a, y0, y1, vids):
     if a.codes:
         return [c.strip().upper() for c in a.codes.split(",") if c.strip()]
     codes = []
-    if work:  # codes owners of this car post about most come first (so --limit tries the useful ones)
+    if work:
         codes += [r[0] for r in work.execute(
             """SELECT c.code FROM extract_code c JOIN extract e USING(src, tid)
                WHERE upper(e.model)=upper(?) AND e.year BETWEEN ? AND ?
                  AND e.confirmed IN ('op_confirmed','other_confirmed') AND e.evidence_ok
                GROUP BY c.code HAVING count(*) >= ? ORDER BY count(*) DESC""",
             (a.model, y0 - a.forum_year_slack, y1 + a.forum_year_slack, a.min_forum))]
-    if vids:  # then every code the manual has a procedure for
+    if vids:
         q = ",".join("?" * len(vids))
         codes += [r[0] for r in kb.execute(f"SELECT DISTINCT code FROM dtc_procedure WHERE vehicle_id IN ({q}) "
                                            "ORDER BY code", vids)]
@@ -391,7 +386,6 @@ def codes_for(kb, work, a, y0, y1, vids):
     return [c for c in dict.fromkeys(codes) if c in known]
 
 
-# ------------------------------------------------------------------ main steps
 def step_bake(a):
     y0, y1 = (int(x) for x in a.years.split("-")) if "-" in a.years else (int(a.years),) * 2
     kb = ro(a.kb)
@@ -419,7 +413,7 @@ def step_bake(a):
     failed = []
     for n, code in enumerate(codes, 1):
         t0 = time.time()
-        try:   # one bad reply, server hiccup or odd DB row skips this card (retried next run), never the bake
+        try:
             desc, counts, sources = build_sources(r, kb, work, code, a, y0, y1, vids)
             if not sources:
                 print(f"  {code}: no sources, skipped")
@@ -431,14 +425,13 @@ def step_bake(a):
             dropped = []
             if not a.no_verify:
                 card, dropped = verify_card(llm, card, by_id, counts)
-            for item in card["causes"] + card["fsm_steps"]:   # invented ids like "S9" never reach the card
+            for item in card["causes"] + card["fsm_steps"]:
                 item["sources"] = [i for i in item["sources"] if i in by_id]
         except Exception as e:
             failed.append(code)
             print(f"  {n}/{len(codes)} {code}: FAILED, not saved ({e})", flush=True)
             continue
         dropped += scrub_specs(card)
-        # verbatim facts from the DB, for the top causes (never model-written)
         specs, labor = [], []
         for c in card["causes"][:3]:
             specs += r.specs(c["cause"], limit=2)
@@ -494,7 +487,7 @@ def main():
     ap.add_argument("--force", action="store_true", help="rebuild cards that already exist")
     ap.add_argument("--no-verify", action="store_true", help="skip the source check (faster, less safe)")
     a = ap.parse_args()
-    if a.make.lower() != "subaru":   # the prompt names the make; Subaru keeps the original wording
+    if a.make.lower() != "subaru":
         global SYSTEM
         SYSTEM = SYSTEM.replace("Subaru", a.make)
     step_bake(a)

@@ -61,7 +61,7 @@ class LLM:
 
     def ping(self):
         base = self.url.rsplit("/v1/", 1)[0]
-        for path in ("/health", "/v1/models"):     # llama-server, then any OpenAI-compatible server (Ollama)
+        for path in ("/health", "/v1/models"):
             try:
                 with urllib.request.urlopen(base + path, timeout=5) as r:
                     if r.status == 200:
@@ -80,7 +80,7 @@ class LLM:
             "chat_template_kwargs": {"enable_thinking": False},
         }
         url = self.url
-        if self.model:   # Ollama: its /v1 keeps a 4k default context and thinks first; the native API sets both
+        if self.model:
             url = self.url.rsplit("/v1/", 1)[0] + "/api/chat"
             body = {"model": self.model, "messages": body["messages"], "stream": False, "think": False,
                     "format": schema, "options": {"temperature": self.temperature, "num_ctx": self.num_ctx,

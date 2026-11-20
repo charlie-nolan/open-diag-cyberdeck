@@ -16,7 +16,7 @@ from .interchange import parts_for_job, normalize_pn  # noqa: F401
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-ROOT = os.path.dirname(os.path.dirname(HERE))      # the checkout
+ROOT = os.path.dirname(os.path.dirname(HERE))
 
 
 def settings(path=None):
@@ -50,7 +50,7 @@ def sourcing(part_number, name=None, price=None, cfg=None):
                  "parts_sourcing.yard_paste, or use the Row52 link and look for the cars on the fit list above."))
     jq = None
     if os.path.exists(yards_db):
-        from . import junk_quote          # late import: junk_quote imports settings() from here
+        from . import junk_quote
         jq = junk_quote.quote(pn, cfg)
         if jq["price"] or jq["labor"]:
             lines.append(jq["text"])

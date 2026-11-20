@@ -9,7 +9,6 @@ from .repair import Job
 
 HOME = os.path.expanduser(os.environ.get("SHOPDECK_HOME", "~/.shopdeck"))
 
-# What the factory "Check List for Interview" asks the owner (engine section), as plain fields.
 INTERVIEW = [
     ("complaint", "What's wrong, in the owner's words"),
     ("when", "When does it happen (cold start, warm, idle, accelerating, cruising, braking)"),
@@ -27,7 +26,7 @@ INTERVIEW = [
 class Note:
     """A fact the mechanic knows that the manual can't (reused gasket, aftermarket part, a hunch)."""
     text: str
-    kind: str = "note"            # history | reused | hypothesis | note
+    kind: str = "note"
     t: float = field(default_factory=time.time)
 
 
@@ -41,13 +40,13 @@ class Case:
     vin: str = ""
     mileage: str = ""
     interview: dict = field(default_factory=dict)
-    codes: list = field(default_factory=list)        # stored trouble codes
-    pending: list = field(default_factory=list)      # pending codes (mode 07), not yet confirmed
-    code_source: str = ""                            # "typed" / "OBD-II read 10-19 14:02" ...
-    live: dict = field(default_factory=dict)         # name -> (value, unit), last read
-    notes: list = field(default_factory=list)        # Note
-    walks: dict = field(default_factory=dict)        # chart code -> [answers as dicts] + result text
-    jobs: list = field(default_factory=list)         # Job
+    codes: list = field(default_factory=list)
+    pending: list = field(default_factory=list)
+    code_source: str = ""
+    live: dict = field(default_factory=dict)
+    notes: list = field(default_factory=list)
+    walks: dict = field(default_factory=dict)
+    jobs: list = field(default_factory=list)
     labor_rate: float = 0.0
     tax_rate: float = 0.0
     supplies_rate: float = 0.0
@@ -74,7 +73,7 @@ class Case:
         tmp = self.path + ".tmp"
         with open(tmp, "w") as f:
             json.dump(d, f, indent=1)
-        os.replace(tmp, self.path)        # never a half-written ticket
+        os.replace(tmp, self.path)
 
     @classmethod
     def load(cls, path):

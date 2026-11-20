@@ -12,8 +12,6 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssm"))
 
-# Live values worth showing in the case. Roughness counters are left out until the
-# saved init reply confirms this 2002 ECU really supports them (see ssm/README.md).
 LIVE = [("RPM", "rpm", ""), ("Speed", "speed_kph", " km/h"), ("ECT", "ect_c", " C"), ("STFT1", "stft_pct", " %"), ("LTFT1", "ltft_pct", " %"),
         ("MAP", "map_kpa", " kPa"), ("Timing", "timing_advance_deg", " deg"), ("Knock corr", "knock_corr_deg", " deg"),
         ("IAT", "iat_c", " C"), ("TPS", "tps_pct", " %"), ("O2 front", "front_o2_v", " V"), ("Volts", "battery_v", " V")]
@@ -56,7 +54,7 @@ def read_ssm(port, session_db, cache_dir):
     from cables import candidates
     ports = candidates("kkl", port)
     err = ""
-    for attempt in range(2):  # the first try after plugging in often gets no answer
+    for attempt in range(2):
         for p in ports:
             poller = None
             try:
@@ -90,11 +88,11 @@ def read_ssm_ex(port, session_db, cache_dir, variant_name=""):
     try:
         if not ex.open():
             return "", "", "OBDLink EX didn't answer on the serial port.", ""
-        variants = sorted(ex_mod.VARIANTS, key=lambda v: v["name"] != variant_name)  # last good one first
+        variants = sorted(ex_mod.VARIANTS, key=lambda v: v["name"] != variant_name)
         for v in variants:
             ex.setup(v)
             if ex.probe_ecu():
-                poller = TelemetryPoller(port=port, db_path=session_db)  # used only for its live-value table
+                poller = TelemetryPoller(port=port, db_path=session_db)
                 poller.send_ssm2_command = ex.send_ssm2_command
                 codes, live, note = _read_ecu(ex, poller, cache_dir, "ecu_init_reply_ex.hex")
                 return codes, live, note, v["name"]

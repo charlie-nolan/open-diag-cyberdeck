@@ -1,6 +1,4 @@
 #!/bin/bash
-# Cron, RUN_9B_SCHEDULED.md: a free GPU window just ended -> run the 9B community extraction (Subaru, then Chevy).
-# Stops charm-pics, unloads Ollama, starts llama-server (9B, 4 slots) and the extraction loop. Safe to run twice.
 export PATH=/usr/local/bin:/usr/bin:/bin
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export DBUS_SESSION_BUS_ADDRESS=unix:path=$XDG_RUNTIME_DIR/bus
@@ -25,10 +23,9 @@ fi
 systemctl --user stop charm-pics
 for m in $(ollama ps 2>/dev/null | awk 'NR>1{print $1}'); do ollama stop "$m"; say "unloaded Ollama $m"; done
 for _ in $(seq 30); do ps -eo args | grep -q '^/usr/lib/ollama/llama-server' || break; sleep 1; done   # VRAM really freed
-# a stale server of ours without its extraction loop: stop it so it doesn't count as another GPU job
 if alive "$SRVPID"; then kill "$(cat "$SRVPID")"; sleep 5; rm -f "$SRVPID"; fi
 source "$CK/tools/gpu_guard.sh"
-busy=$(gpu_jobs | while read -r pid rest; do      # nvidia-smi may show other users' processes as "[No data]"
+busy=$(gpu_jobs | while read -r pid rest; do
     ps -o args= -p "$pid" | grep -q '^/usr/lib/ollama/' || echo "$pid $(ps -o args= -p "$pid" | cut -c1-60) $rest"; done)
 other_llama=$(ps -eo args | awk '$1 ~ /llama-server$/ && $1 !~ /ollama/' | head -1)   # Ollama's own runner doesn't count
 if [ -n "$busy" ] || [ -n "$other_llama" ] || pgrep -f "build_charm_all.sh|build_subaru_kb.py.* embed" >/dev/null \
@@ -49,7 +46,6 @@ if ! curl -s 127.0.0.1:8080/health | grep -q '"ok"'; then
     exit 1
 fi
 
-# the extraction takes .gpu.lock itself (held until it exits); finished threads are skipped on resume
 setsid nohup "$CK/venv/bin/python" kb/build_community.py "${ARGS[@]}" --backend llama --model Qwen3.5-9B-Q4_K_M \
     --parallel 4 --order priority --stats-every 500 extract >> "$LOG" 2>&1 < /dev/null &
 echo $! > "$RUNPID"

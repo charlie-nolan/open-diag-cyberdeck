@@ -23,11 +23,10 @@ RAW = os.path.join(CK, "raw")
 CACHE = os.path.join(HERE, "nhtsa_all.db")
 Y0, Y1 = 1982, 2013
 
-# kb file name -> NHTSA MAKETXT values (Ram trucks live in dodge.db, as CHARM's "Dodge or Ram Truck" does)
 MAKES = {"dodge": ["DODGE", "RAM"], "mercedes_benz": ["MERCEDES-BENZ", "MERCEDES BENZ"],
          "nissan": ["NISSAN", "DATSUN"], "land_rover": ["LAND ROVER"], "mitsubishi_fuso": ["MITSUBISHI FUSO"],
          "mini": ["MINI"], "ud": ["UD", "UD TRUCKS"], "srt": ["SRT"]}
-SKIP = {"subaru"}           # built separately; not touched here
+SKIP = {"subaru"}
 
 
 def build_cache():
@@ -46,7 +45,7 @@ def build_cache():
                              consequence TEXT, remedy TEXT);""")
     keep = lambda yr: yr is not None and Y0 <= yr <= Y1   # noqa: E731
     n = {"tsb": 0, "complaint": 0, "recall": 0}
-    for r in iter_flat_rows(os.path.join(RAW, "nhtsa", "tsbs")):      # field order: build_subaru_diag_db.step_nhtsa
+    for r in iter_flat_rows(os.path.join(RAW, "nhtsa", "tsbs")):
         if len(r) >= 14 and keep(_int(r[9])):
             c.execute("INSERT INTO tsb VALUES (?,?,?,?,?,?,?,?)", (r[7].strip().upper(), _int(r[0]), r[3].strip(),
                       _date(r[4]), r[8].strip().upper(), _int(r[9]), r[10].strip(), r[13].strip()))
@@ -104,7 +103,6 @@ def add(db):
     c.execute("ATTACH DATABASE ? AS n", (f"file:{CACHE}?mode=ro",))
     for kind in ("tsb", "nhtsa_complaint", "recall"):
         c.execute("DELETE FROM knowledge WHERE kind=?", (kind,))
-    # same columns and wording as build_subaru_kb.step_diag
     c.execute("INSERT OR REPLACE INTO knowledge(kind,ref,model,year_min,year_max,title,body,url,confirmed) "
               "SELECT 'tsb', nhtsa_id, model, model_year, model_year, 'TSB ' || coalesce(bulletin_no,'') || ' (' || "
               f"coalesce(comm_date,'') || '): ' || coalesce(components,''), summary, NULL, NULL FROM n.tsb WHERE make IN ({marks})",

@@ -58,9 +58,9 @@ class TeamKB(unittest.TestCase):
                 self.srv.call("owner_reports", {"code": self.code}, "cloud", "gemini")
             self.assertLessEqual(self.srv.store.used.get("gemini", 0), self.srv.cloud_cap)
             self.assertGreater(self.srv.store.used.get("gemini", 0), 0)
-            text, _ = self.srv.call("dtc_procedure", {"code": self.code}, "cloud", "gptoss")   # its own allowance
+            text, _ = self.srv.call("dtc_procedure", {"code": self.code}, "cloud", "gptoss")
             self.assertNotIn("used up", text)
-            self.srv.call("dtc_procedure", {"code": self.code}, "full", "claude")              # the lead isn't capped
+            self.srv.call("dtc_procedure", {"code": self.code}, "full", "claude")
             self.assertNotIn("claude", self.srv.store.used)
         finally:
             self.srv.cloud_manual = False

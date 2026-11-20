@@ -13,7 +13,7 @@ import time
 
 try:
     import serial
-except ImportError:            # the app still runs; READ CAR says what's missing
+except ImportError:
     serial = None
 
 CODE_RE = re.compile(r"\b[PBCU][0-9A-F]\d{3}\b")
@@ -35,10 +35,8 @@ class LinkError(Exception):
     pass
 
 
-# ---------------------------------------------------------------------------------------------- OBD-II
 DTC_FIRST = "PCBU"
 
-# mode 01 PIDs read for the live view: name, pid, bytes, formula, unit
 PIDS = [
     ("Engine speed", 0x0C, 2, lambda a, b: (256 * a + b) / 4, "rpm"),
     ("Coolant temp", 0x05, 1, lambda a, b: a - 40, "°C"),
@@ -108,7 +106,7 @@ class Elm:
             elif b and b[0] == want:
                 data += b[1:]
         if self.can and data and data[0] == want:
-            data = data[2:]          # 43, count
+            data = data[2:]
         found = []
         for i in range(0, len(data) - 1, 2):
             c = decode_dtc(data[i], data[i + 1])
@@ -141,7 +139,6 @@ class Elm:
             pass
 
 
-# ---------------------------------------------------------------------------------------------- Subaru SSM2
 SSM_LIVE = [("P8", "rpm"), ("P2", "C"), ("P11", "C"), ("P3", "%"), ("P4", "%"), ("P1", "%"), ("P7", "kPa"),
             ("P12", "g/s"), ("P13", "%"), ("P10", "degrees"), ("P9", "km/h"), ("P17", "V")]
 SAFE_EXPR = re.compile(r"^[x0-9+\-*/(). ]+$")
@@ -173,7 +170,7 @@ class Ssm:
         buf, end = b"", time.time() + self.timeout
         while time.time() < end:
             buf += self.s.read(64)
-            i = buf.find(b"\x80\xf0\x10")          # skip the K-line echo of our own request
+            i = buf.find(b"\x80\xf0\x10")
             if i >= 0 and len(buf) >= i + 4:
                 n = buf[i + 3]
                 if len(buf) >= i + 5 + n:
@@ -235,7 +232,6 @@ class Ssm:
             pass
 
 
-# ---------------------------------------------------------------------------------------------- one call
 def read_car(kb, want_live=True):
     """Try every adapter: OBD-II on ELM-type ports, SSM on the others (then each on the rest).
     Returns dict(codes, pending, vin, live, log, via)."""
@@ -291,7 +287,6 @@ def read_car(kb, want_live=True):
     return res
 
 
-# ---------------------------------------------------------------------------------------------- live data in words
 def explain(live):
     """Plain-language notes on live readings. These are general OBD-II rules of thumb, not the manual's
     numbers, and the screen says so."""

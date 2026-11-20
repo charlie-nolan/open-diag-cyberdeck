@@ -50,7 +50,6 @@ class Desk:
         self._charts = {}
         self.new_case()
 
-    # ------------------------------------------------------------------ tickets
     def new_case(self):
         self.case = Case(labor_rate=self.cfg["labor_rate"], tax_rate=self.cfg["tax_rate"],
                          supplies_rate=self.cfg["supplies_rate"])
@@ -71,14 +70,12 @@ class Desk:
         if not self.case.empty or os.path.exists(self.case.path):
             self.case.save()
 
-    # ------------------------------------------------------------------ car
     def set_car(self, veh: Vehicle):
         self.veh = veh
         self.case.model, self.case.year, self.case.engine = veh.model, veh.year, veh.engine
         self._charts = {}
         self.save()
 
-    # ------------------------------------------------------------------ codes
     def set_codes(self, codes, source="typed"):
         clean = []
         for c in codes:
@@ -97,7 +94,7 @@ class Desk:
         for code in self.case.codes:
             if code not in self._charts:
                 ch = C.load(self.kb, self.veh, code)
-                for other in self._charts.values():   # P0301..P0304 all use one chart
+                for other in self._charts.values():
                     if ch and other and other.title == ch.title and other.source == ch.source:
                         ch = other
                         break
@@ -114,12 +111,11 @@ class Desk:
                     break
             else:
                 out.append((ch, [code]))
-        for ch, codes in list(out):          # the manual's other procedures for the same code
+        for ch, codes in list(out):
             for alt in (ch.alternates if ch else []):
                 out.append((alt, codes))
         return out
 
-    # ------------------------------------------------------------------ walking
     def key(self, ch):
         if not ch:
             return ""
@@ -133,7 +129,7 @@ class Desk:
             if w.current is None:
                 break
             if a["how"] == "scan":
-                continue                  # the scan answers itself again from today's codes
+                continue
             if a["answer"] == "jump":
                 n = int(re.search(r"\d+", a["detail"]).group(0))
                 w.jump(n)
@@ -150,7 +146,6 @@ class Desk:
             "result_kind": w.result.kind if w.result else "", "at": time.time()}
         self.save()
 
-    # ------------------------------------------------------------------ jobs
     def job_from_text(self, title, reason, from_sections=(), text_for_refs=""):
         """A job with the manual procedures the text points to (its <Ref.> links), else none yet."""
         j = R.Job(title=title, reason=reason)
@@ -200,7 +195,6 @@ class Desk:
     def quote(self):
         return R.quote(self.case.jobs, self.case.labor_rate, self.case.tax_rate, self.case.supplies_rate)
 
-    # ------------------------------------------------------------------ the mechanic's knowledge
     def add_note(self, text, kind):
         self.case.notes.append(Note(text, kind))
         self.save()
@@ -219,7 +213,6 @@ class Desk:
                 out.append((cand, lines))
         return out
 
-    # ------------------------------------------------------------------ output
     def work_order(self):
         charts = {}
         for ch, codes in self.chart_groups():

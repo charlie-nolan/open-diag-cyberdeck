@@ -19,7 +19,6 @@ import re
 
 MAX_CANDIDATES = 6
 
-# ------------------------------------------------------------------------------------------- hard stop
 _STOP_KINDS = ("code", "live")
 _CHECK_FOR = {
     "code": "Re-read the codes with the scan tool set to this car (right make/model/year, engine module), and "
@@ -50,7 +49,6 @@ def hard_stop(flags):
     return "\n".join(lines)
 
 
-# ------------------------------------------------------------------------------------------- 1. candidates
 def candidates_prompt(top, case, ctx, most=MAX_CANDIDATES):
     return (f"{top}CASE:\n{case}\n\nFSM DATA:\n{ctx or '(none)'}\n\n"
             f"List up to {most} causes worth checking for this car, from the manual's diagnostic steps for its codes "
@@ -82,7 +80,6 @@ def opinion_candidates(opinions_text):
     return out
 
 
-# ------------------------------------------------------------------------------------------- 2. checks
 def check_prompt(top, case, ctx, cand):
     guess = (" This cause is someone's guess (an opinion field), not a finding: judge it on the evidence only."
              if cand.get("guess") else "")
@@ -170,20 +167,19 @@ def case_against(cands, case, window=6):
     return cands
 
 
-# ------------------------------------------------------------------------------------------- 3. rank
 _FIT = {"yes": 3, "partly": 1, "no": 0, None: 0}
 _COST = {"quick": 0, "moderate": 1, "major": 2, None: 1}
 
 
 def score(c):
     if c.get("explains") or c.get("misses"):
-        fit = min(c["explains"], 4) - c.get("misses", 0)          # facts it explains, minus facts it can't
+        fit = min(c["explains"], 4) - c.get("misses", 0)
     else:
         fit = _FIT[c.get("fits")]
     s = fit + (2 if c.get("manual") == "yes" else 0) - (6 if c.get("against") == "yes" else 0)
     if c.get("case_against") and c.get("against") != "yes":
-        s -= 6 if c["case_against"][0] == "verified good" else 3   # a new part can be the fault, a tested one rarely
-    if c.get("guess"):             # the guess itself is not evidence: it needs the manual or more facts to lead
+        s -= 6 if c["case_against"][0] == "verified good" else 3
+    if c.get("guess"):
         s -= 1 if c.get("manual") == "yes" else 2
     return s
 
@@ -207,7 +203,6 @@ def ranking_text(ranked):
     return "\n".join(lines)
 
 
-# ------------------------------------------------------------------------------------------- 4. write
 def write_prompt(top, case, ctx, ranked, fmt, most, opinions=""):
     keep = [c for c in ranked if score(c) > 0][:most] or ranked[:1]
     return (f"{top}CASE:\n{case}\n\nFSM DATA:\n{ctx or '(none)'}\n\n"

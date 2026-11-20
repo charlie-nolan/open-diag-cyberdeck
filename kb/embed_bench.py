@@ -36,7 +36,6 @@ def make_of(db):
     return os.path.splitext(os.path.basename(db))[0].split("__")[0]
 
 
-# ------------------------------------------------------------------ speed
 def speed(a):
     import numpy as np
     import torch
@@ -87,10 +86,9 @@ def speed(a):
               + (f"  [GPU SHARED with pid {','.join(sorted(seen))}: not a clean number]" if seen else ""), flush=True)
         return v
 
-    # before: the old step_embed's call, as it was (default dtype, batch 16, chunks of 4096)
     old = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B", device="cuda")
     print(f"  old model dtype {old[0].auto_model.dtype}", flush=True)
-    old.encode(texts[:64], batch_size=16)       # warm-up (CUDA context, kernels) outside the timing
+    old.encode(texts[:64], batch_size=16)
 
     def old_encode(bs=16):
         out = [old.encode(texts[i:i + 4096], batch_size=bs, convert_to_numpy=True) for i in range(0, len(texts), 4096)]  # noqa: F821 (old is deleted only after run() returns)
@@ -126,7 +124,6 @@ def speed(a):
     json.dump(res, open(os.path.join(OUT, f"speed_{make_of(a.db)}.json"), "w"), indent=1)
 
 
-# ------------------------------------------------------------------ cases
 DTC_NAME = r"\b{code}\b\s*(?:[:\-–]|\(.*?\)\s*[:\-–]?)\s*([A-Za-z][^\n|]{{8,140}})"
 
 
@@ -191,7 +188,6 @@ def cases(a):
     print(f"{len(cs)} cases -> {path}: " + ", ".join(f"{t} {sum(c['type'] == t for c in cs)}" for t in N))
 
 
-# ------------------------------------------------------------------ score
 def score_db(db, embed):
     import eval_make
     from kb_retriever import Retriever

@@ -29,9 +29,9 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LMDB_DIR = os.path.join(os.environ.get("CYBERDECK_ARCHIVE", os.path.expanduser("~/cyberdeck_archive")), "charm", "operation-charm", "lmdb-images")
-VISION_SEC = 50          # qwen3.6:35b per page, measured 2026-10-21 (logs/ocr_bench)
+VISION_SEC = 50
 
-RULES = [  # first match wins; checked against the page path (CHARM's headings, " > " separated)
+RULES = [
     ("spec_table", re.compile(r"specification", re.I)),
     ("chart", re.compile(r"code charts?|diagnostic chart|trouble code tests|symptom related diagnostic|"
                          r"diagnostic procedure|diagnostic trouble code", re.I)),
@@ -46,7 +46,6 @@ def kind_of(path, width, height):
     for k, rx in RULES:
         if rx.search(path or ""):
             return k
-    # no telling heading: under a testing/diagnosis heading, a tall narrow picture is usually a flowchart
     if width and height and height > 1.6 * width and width > 400 and re.search(r"testing and inspection|diagnos",
                                                                                path or "", re.I):
         return "chart"
@@ -110,7 +109,7 @@ def link(name):
                     map_size=os.path.getsize(os.path.join(LMDB_DIR, "data.mdb")) + (1 << 20))
     c = sqlite3.connect(db)
     c.executescript(SCHEMA)
-    have = {r[0] for r in c.execute("SELECT img_key FROM charm_image")}      # resumable
+    have = {r[0] for r in c.execute("SELECT img_key FROM charm_image")}
     seen, rows, n, missing, t0 = set(have), [], 0, 0, time.time()
     q = ("SELECT s.id, s.path, s.title, s.images FROM section s JOIN doc d ON d.id=s.doc_id "
          "WHERE d.kind='charm' AND s.images IS NOT NULL AND s.images<>'[]' ORDER BY s.id")

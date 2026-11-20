@@ -8,7 +8,7 @@ import sqlite3
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, "app"))
 sys.path.insert(0, os.path.join(ROOT, "kb"))
 import build_telemetry as B  # noqa: E402
@@ -64,7 +64,6 @@ class ParseValues(unittest.TestCase):
         self.assertEqual(bounds("600-700"), [(600, 700, None, None)])
 
     def test_other_unit_echo_dropped(self):
-        # '(–450 mmHg, –17.72 inHg)' repeats the kPa value: it must not become a second zone
         self.assertEqual(len(B.parse_values("Less than –60.0 kPa (–450 mmHg, –17.72 inHg)")), 1)
 
 
@@ -138,7 +137,7 @@ class Units(unittest.TestCase):
 
     def test_unit_fits_quantity(self):
         self.assertEqual(B.unit_ok("ect", "°C", self.db), ("ect", "°C"))
-        self.assertEqual(B.unit_ok("ect", "°F", self.db), ("ect", "°F"))     # converted later, not guessed
+        self.assertEqual(B.unit_ok("ect", "°F", self.db), ("ect", "°F"))
         self.assertEqual(B.unit_ok("map", "psi", self.db), ("map", "psi"))
 
     def test_unit_does_not_fit(self):

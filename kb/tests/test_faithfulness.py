@@ -25,9 +25,9 @@ class T(unittest.TestCase):
         self.assertEqual(len(F.check(a, SRC)[1]), 8)
 
     def test_unit_conversion_and_scale(self):
-        self.assertEqual(self.probs("That is 2.5 kgf-m or so."), "")          # 25 N·m converted, rounded
-        self.assertEqual(self.probs("Pressure about 41-46 psi."), "")          # 284-314 kPa in psi
-        self.assertIn("not in any page", self.probs("It should read 0.8 kΩ."))  # 800 ohms is not 0.8 ohms
+        self.assertEqual(self.probs("That is 2.5 kgf-m or so."), "")
+        self.assertEqual(self.probs("Pressure about 41-46 psi."), "")
+        self.assertIn("not in any page", self.probs("It should read 0.8 kΩ."))
 
     def test_invented_items_flagged(self):
         p = self.probs("Gap 1.1 mm. Bolts 30 ft-lb. Order 19115080 for $12. Labor 4.0 h.")

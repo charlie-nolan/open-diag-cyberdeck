@@ -66,9 +66,6 @@ OUT_DB = FORGE / "build_out" / "charm_content.db"
 
 SPECIAL = b"SPECIAL_"
 
-# Leaf-section vocabulary, taken verbatim from isProperty() in CHARM's
-# server.js. These are the only section names CHARM uses, so they are what
-# we route on -- no guessing at folder names.
 SECTIONS = {
     "service precautions", "application and id", "description and operation",
     "adjustments", "testing and inspection", "diagrams", "locations",
@@ -91,9 +88,6 @@ HOURS_RE = re.compile(r"^\s*(\d{1,2}\.\d{1,2})\s*$")
 PARTNO_RE = re.compile(r"^[A-Z0-9][A-Z0-9\-]{4,19}$")
 
 
-# --------------------------------------------------------------------------
-# schema
-# --------------------------------------------------------------------------
 def init_out(conn: sqlite3.Connection) -> None:
     conn.executescript("""
         PRAGMA journal_mode = WAL;
@@ -161,12 +155,7 @@ def init_out(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-# --------------------------------------------------------------------------
-# CHARM access
-# --------------------------------------------------------------------------
 def open_charm(path: Path):
-    # subdir=True: data.mdb sits directly inside the mount, which is what
-    # python-lmdb's default expects. No map_size needed for readonly.
     return lmdb.open(str(path), readonly=True, lock=False,
                      readahead=False, subdir=True, create=False)
 
@@ -217,9 +206,6 @@ def section_of(key_text: str) -> str:
     return ""
 
 
-# --------------------------------------------------------------------------
-# extraction
-# --------------------------------------------------------------------------
 def table_rows(soup):
     for tr in soup.find_all("tr"):
         cells = [td.get_text(" ", strip=True)
@@ -304,9 +290,6 @@ def extract(conn, veh, key: bytes, ptr: bytes, html: bytes) -> bool:
     return True
 
 
-# --------------------------------------------------------------------------
-# catalog
-# --------------------------------------------------------------------------
 def catalog(sql: str, args=()):
     if not CATALOG_DB.exists():
         sys.exit(f"vehicle_catalog not found at {CATALOG_DB}")
@@ -316,9 +299,6 @@ def catalog(sql: str, args=()):
     return rows
 
 
-# --------------------------------------------------------------------------
-# modes
-# --------------------------------------------------------------------------
 def probe(env, vehicle: str, limit: int) -> None:
     prefix = enc_prefix(vehicle)
     print(f"prefix  : {prefix!r}\n")

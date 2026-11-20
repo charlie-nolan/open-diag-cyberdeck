@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import QApplication
 
 from . import HERE, client
 
-import cyberdeck_gui as G      # app/ (teamdeck/__init__ puts it on sys.path)
+import cyberdeck_gui as G
 import faithfulness as _faith
 
 ICON = os.path.join(HERE, "icon.svg")
@@ -36,8 +36,8 @@ class Progress(QObject):
     line = pyqtSignal(str)
 
 
-PROGRESS = None          # made on the UI thread in main(); TeamModel emits into it from GenWorker threads
-EVIDENCE = {"text": ""}  # what the team looked up for the last answer, for the source check
+PROGRESS = None
+EVIDENCE = {"text": ""}
 
 
 def _case_for_team():
@@ -141,7 +141,6 @@ def _with_team_pages(prompt):
     return prompt + ("\n\n" + EVIDENCE["text"] if EVIDENCE["text"] else "")
 
 
-# the app's source check, also counting the pages the team looked up for the answer (team ids like [M3])
 faith = types.SimpleNamespace(**{k: getattr(_faith, k) for k in dir(_faith) if not k.startswith("__")})
 faith.check = lambda answer, prompt: _faith.check(answer, _with_team_pages(prompt))
 faith.report = lambda answer, prompt: _faith.report(answer, _with_team_pages(prompt))
@@ -172,10 +171,10 @@ def main(argv):
     crash_log.write(f"\n=== teamdeck started {datetime.datetime.now():%Y-%m-%d %H:%M:%S}\n")
     crash_log.flush()
     faulthandler.enable(file=crash_log, all_threads=True)
-    if not os.environ.get("TEAMDECK_URL"):   # the team service runs on the PC that Home mode uses
+    if not os.environ.get("TEAMDECK_URL"):
         import urllib.parse
         client.SERVICE = f"http://{urllib.parse.urlparse(G.CFG.get('home_url', '')).hostname or '127.0.0.1'}:8767"
-    G.ModelManager = TeamManager       # the app builds its manager from this name
+    G.ModelManager = TeamManager
     G.faithfulness = faith
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("teamdeck")

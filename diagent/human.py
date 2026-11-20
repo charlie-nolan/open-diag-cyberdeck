@@ -138,11 +138,11 @@ class ScriptedHuman:
 
     def choose(self, question, options):
         rx = self.s.get("variant")
-        for k, v in self.s.get("choose", {}).items():     # intake picks: {"Which engine": "regex"}
+        for k, v in self.s.get("choose", {}).items():
             if question.startswith(k):
                 rx = v
         i = next((i for i, o in enumerate(options) if rx and re.search(rx, o, re.I)), None)
-        if i is None:     # the scenario's pick isn't offered: take "none of these" so the test shows it
+        if i is None:
             i = len(options) - 1
         self.transcript.append({"choose": question, "options": options, "picked": i})
         return i

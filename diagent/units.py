@@ -8,7 +8,6 @@ applied to a reading. None when the check isn't a single plain comparison: then 
 import math
 import re
 
-# unit -> (dimension, factor to the base unit)
 UNITS = {
     "v": ("V", 1), "volt": ("V", 1), "volts": ("V", 1), "mv": ("V", 1e-3),
     "ω": ("Ω", 1), "ohm": ("Ω", 1), "ohms": ("Ω", 1), "kω": ("Ω", 1e3), "kohm": ("Ω", 1e3), "kohms": ("Ω", 1e3),
@@ -62,7 +61,7 @@ def parse_reply(text, expect=None, unit=None):
     if low in COMMANDS:
         return {"kind": "command", "command": COMMANDS[low], "raw": t}
     for k, v in COMMANDS.items():
-        if v in ("cant", "back", "stop") and low.startswith(k + " "):   # "can't reach the connector"
+        if v in ("cant", "back", "stop") and low.startswith(k + " "):
             return {"kind": "command", "command": v, "raw": t, "note": t[len(k):].strip()}
     if expect == "yesno":
         if YES.match(low):
@@ -99,14 +98,12 @@ def parse_reply(text, expect=None, unit=None):
     return {"kind": "text", "text": t, "raw": t}
 
 
-# ---------------------------------------------------------------------------- the manual's checks
 _Q = rf"({NUM})\s*({UNIT_ALT})"
 _RANGE = re.compile(rf"(?:between\s+)?({NUM})\s*({UNIT_ALT})?\s*(?:and|—|–|-|to)\s*({NUM})\s*({UNIT_ALT})", re.I)
 _CMP = [(re.compile(rf"(?:more|greater|higher) than\s+{_Q}", re.I), ">"),
         (re.compile(rf"(?:less|lower|smaller) than\s+{_Q}", re.I), "<"),
         (re.compile(rf"{_Q}\s+or (?:more|higher|greater|above)", re.I), ">="),
         (re.compile(rf"{_Q}\s+or (?:less|lower|below)", re.I), "<=")]
-# checks that need more than one reading or a change over time: the user answers those
 _NOT_SIMPLE = re.compile(r"\bchange|\bshak|\bwhile\b|\bfluctuat|\bwaveform|\bboth\b|\bor more than|\band less than", re.I)
 
 
@@ -118,7 +115,7 @@ def _unit(u):
 def comparison(check):
     """(op, lo, hi, dim, text) for a plain one-value check, else None. Parenthesised conversions are ignored."""
     c = re.sub(r"\([^)]*\)", " ", check or "")
-    c = re.sub(r"(\d)\s+([kM])\s*Ω", r"\1 \2Ω", c)     # '1 M Ω' -> '1 MΩ'
+    c = re.sub(r"(\d)\s+([kM])\s*Ω", r"\1 \2Ω", c)
     if _NOT_SIMPLE.search(c):
         return None
     m = _RANGE.search(c)

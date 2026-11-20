@@ -8,7 +8,6 @@ class FakeCar:
         self.spec = spec or {}
         self.cable = self.spec.get("cable", "")
 
-    # simulated time for watch_live: "watch": {key: {"unit": u, "values": [...]}} plays one value per sample
     def clock(self):
         return getattr(self, "_t", 0.0)
 
@@ -48,7 +47,7 @@ class FakeCar:
 
 
 class NoCar:
-    can_scan = False      # no cable: steps about stored codes are asked of the user
+    can_scan = False
 
     def identify(self):
         return {"notes": ["No cable read: identification from what was typed."]}

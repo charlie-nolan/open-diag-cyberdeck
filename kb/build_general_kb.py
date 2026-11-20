@@ -24,9 +24,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from build_subaru_kb import SCHEMA  # noqa: E402
 
-TARGET = 3000      # chars per stored passage
+TARGET = 3000
 MAX = 5000
-MIN_PAGE_TEXT = 80  # pages with less text are counted as scans (need OCR later)
+MIN_PAGE_TEXT = 80
 
 EXTRA = """
 CREATE TABLE IF NOT EXISTS source (
@@ -70,7 +70,7 @@ def chunk(text, target=TARGET, maxlen=MAX):
 
 def clean(t):
     t = t.replace("­", "").replace("\r", "")
-    t = re.sub(r"(\w)-\n(\w)", r"\1\2", t)           # hyphenated line breaks
+    t = re.sub(r"(\w)-\n(\w)", r"\1\2", t)
     t = re.sub(r"[ \t]+", " ", t)
     t = re.sub(r"\n{3,}", "\n\n", t)
     return t.strip()
@@ -96,12 +96,10 @@ def add_section(conn, doc_id, chapter, topic, title, page, body, stats):
                          [(sid, tag) for tag, rx in TAG_RE.items() if rx.search(piece)])
 
 
-# ------------------------------------------------------------------ PDF
 def load_pdf(conn, doc_id, path, stats):
     import pymupdf
     d = pymupdf.open(path)
     toc = [(lvl, title.strip(), pg) for lvl, title, pg in d.get_toc() if pg > 0]
-    # page -> (chapter, topic) from the PDF's own bookmarks, if it has any
     heads = {}
     chap = topic = None
     marks = sorted(toc, key=lambda x: x[2])
@@ -132,7 +130,7 @@ def load_pdf(conn, doc_id, path, stats):
         stats["pages"] += 1
         p = i + 1
         c, tp = heads.get(p, (None, None))
-        if not toc:                                  # no bookmarks: use printed CHAPTER lines
+        if not toc:
             m = chap_re.search(txt[:400])
             if m:
                 text_chap = re.sub(r"\s+", " ", m.group(1)).strip()[:120]
@@ -145,7 +143,6 @@ def load_pdf(conn, doc_id, path, stats):
     flush()
 
 
-# ------------------------------------------------------------------ HTML
 class _Text(HTMLParser):
     SKIP = {"script", "style", "nav", "footer", "header", "noscript", "svg", "form", "aside"}
 
@@ -195,7 +192,6 @@ def load_html(conn, doc_id, path, page_title, stats):
             add_section(conn, doc_id, page_title, h, h, None, body, stats)
 
 
-# ------------------------------------------------------------------ Wikipedia
 SKIP_WIKI = {"See also", "References", "External links", "Further reading", "Notes", "Bibliography",
              "Sources", "Citations", "Footnotes", "In popular culture", "Gallery"}
 

@@ -35,7 +35,7 @@ import time
 
 import serial
 
-ALLOWED_SSM2 = {0xBF, 0xA8}          # read-only: init and address reads
+ALLOWED_SSM2 = {0xBF, 0xA8}
 HOST_BAUDS = [115200, 38400, 9600, 230400, 500000, 2000000]
 HEX_LINE = re.compile(r"^[0-9A-F]+$")
 STN_ERRORS = ("NO DATA", "?", "BUS ERROR", "DATA ERROR", "BUFFER FULL", "STOPPED",
@@ -66,9 +66,8 @@ class STNSSM2:
         self.ssm_id = ""
         self.ecu_online = False
         self.last_error = ""
-        self.raw = False           # True: STN adds nothing, we build the whole SSM2 frame
+        self.raw = False
 
-    # ------------------------------------------------------------- STN plumbing
     def cmd(self, text, timeout=2.0):
         """Send one STN/AT command, return the lines before the '>' prompt."""
         self.ser.reset_input_buffer()
@@ -82,7 +81,7 @@ class STNSSM2:
                 if buf.endswith(b">"):
                     break
         lines = [l.strip() for l in buf.decode(errors="replace").replace(">", "").split("\r")]
-        lines = [l for l in lines if l and l != text]          # drop echo if ATE1
+        lines = [l for l in lines if l and l != text]
         self.log(f">> {text}   << {' | '.join(lines) if lines else '(nothing)'}")
         return lines
 
@@ -90,7 +89,7 @@ class STNSSM2:
         bauds = [self.host_baud] if self.host_baud else HOST_BAUDS
         for b in bauds:
             try:
-                try:  # app copy: exclusive, so nothing else shares the port (pyserial >= 3.3)
+                try:
                     self.ser = serial.Serial(self.port, b, timeout=0.05, exclusive=True)
                 except TypeError:
                     self.ser = serial.Serial(self.port, b, timeout=0.05)
@@ -118,7 +117,7 @@ class STNSSM2:
         """variant: dict of knobs the ladder in main() tries in turn."""
         self.cmd("ATZ", 3.0)
         time.sleep(0.5)
-        for c in ("ATE0", "ATL0", "ATS0", "ATH1", "ATAL", "ATSW 00", "ATAT0", "STFAC"):  # ATAT0: fixed STPTO wait, slow 4800-baud replies
+        for c in ("ATE0", "ATL0", "ATS0", "ATH1", "ATAL", "ATSW 00", "ATAT0", "STFAC"):
             self.cmd(c)
         self.cmd(f"STP {variant['proto']}")
         r = self.cmd("STPBR 4800")
@@ -127,7 +126,7 @@ class STNSSM2:
         self.cmd("STPBRR")
         self.raw = bool(variant.get("raw"))
         if self.raw:
-            self.cmd("STPCB 0")          # no STN checksum: our frame already carries one
+            self.cmd("STPCB 0")
         else:
             self.cmd("STPCB 1")
             self.cmd("ATSH 80 10 F0")
@@ -140,7 +139,6 @@ class STNSSM2:
         self.cmd(f"STPTRQ {variant.get('p3', 20)}")
         self.cmd("STPO", 3.0)
 
-    # ------------------------------------------------------------- SSM2 frames
     def _parse(self, lines, sent_payload):
         """Turn STN output lines into the SSM2 reply payload (after the length byte)."""
         hexes = [l.replace(" ", "") for l in lines if HEX_LINE.match(l.replace(" ", ""))]
@@ -149,7 +147,6 @@ class STNSSM2:
             self.last_error = errs[0] if errs else "no hex reply"
             return b""
         raw = bytes.fromhex("".join(hexes))
-        # Find the ECU's frame. Header shown because ATH1: 80 F0 10 LL ...
         i = raw.find(b"\x80\xF0\x10")
         if i < 0:
             self.last_error = f"no 80 F0 10 header in {raw.hex(' ')}"
@@ -160,7 +157,6 @@ class STNSSM2:
         if len(payload) < n:
             self.last_error = f"short reply: length byte {n}, got {len(payload)} ({frame.hex(' ')})"
             return b""
-        # STN may or may not print the checksum byte; check it if it is there
         if len(frame) > 4 + n and frame[4 + n] != sum(frame[:4 + n]) & 0xFF:
             self.last_error = "checksum mismatch"
             return b""
@@ -191,14 +187,12 @@ class STNSSM2:
 
     def close(self):
         if self.ser and self.ser.is_open:
-            self.cmd("ATPC")          # close protocol
+            self.cmd("ATPC")
             self.ser.close()
 
 
 VARIANTS = [
     {"name": "ISO14230 no-init, defaults", "proto": 23},
-    # Raw: ISO 9141 preset with no header and no checksum, so the STN sends our
-    # complete SSM2 frame byte for byte (sidesteps the ELM length-byte problem).
     {"name": "raw frame, ISO9141 no-header, checksum off", "proto": 21, "raw": True},
     {"name": "ISO14230 + tester addr F0", "proto": 23, "ta": True},
     {"name": "ISO14230 + pass filter 80F010", "proto": 23, "ta": True, "filter": True},
@@ -224,14 +218,11 @@ def main():
         sys.exit(1)
     log(f"adapter: {ex.identify()}")
 
-    # Generic OBD-II identity first (read-only Mode 01/09 requests): which protocol
-    # answers, which OBD standard the ECU claims, and whatever Mode 09 it supports
-    # (VIN 02, calibration ID 04, CVN 06, ECU name 0A). Mode 09 is optional before MY2005.
     log("=== generic OBD-II identity ===")
     ex.cmd("ATZ", 3.0)
     for c in ("ATE0", "ATH1", "ATSP0"):
         ex.cmd(c)
-    ex.cmd("0100", 12.0)                 # auto-detect protocol (5-baud init can take ~5 s)
+    ex.cmd("0100", 12.0)
     for c in ("ATDP", "ATDPN", "011C", "0900", "0902", "0904", "0906", "090A"):
         ex.cmd(c, 5.0)
 
@@ -252,7 +243,6 @@ def main():
     with open("ecu_init_reply_ex.hex", "w") as f:
         f.write(ex.init_raw.hex(" ").upper() + "\n")
 
-    # DTCs and switches through FreeSSM's tables, 0xA8 only
     sys.path.insert(0, args.ssm_dir)
     try:
         import ssm2_capabilities as caps_mod
@@ -268,7 +258,6 @@ def main():
     except ImportError:
         log(f"ssm2_capabilities.py not found in {args.ssm_dir}; skipped DTC decode")
 
-    # Live data rate: RPM, ECT, IAT, TPS, battery, misfire counters (13 bytes)
     addrs = [0x08, 0x0E, 0x0F, 0x12, 0x15, 0x1C, 0x09, 0x0A, 0x11, 0xCE, 0xCF, 0xD8, 0xD9]
     payload = bytes([0xA8, 0x00]) + b"".join(a.to_bytes(3, "big") for a in addrs)
     ok, t0 = 0, time.monotonic()

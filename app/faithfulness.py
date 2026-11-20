@@ -14,8 +14,6 @@ Wording and unit rules only: no parts, causes, cars or codes are listed here.
 import os
 import re
 
-# unit -> (group, factor to the group's base unit). Groups keep "25 N·m" from matching "25 mm" on the same page.
-# (?i:...) where the manuals vary the case ('29 ft. lbs.', '22 Ft. LBS.'); single letters (V, A, L, h) stay exact.
 _UNITS = [
     (r"(?i:N·m|N\.m|Nm|N-m)", "torque", 1.0), (r"(?i:kgf-?m|kg-?m)", "torque", 9.80665),
     (r"(?i:ft\.?[- ]?lbs?\.?|ft\.?[- ]?lbf|lbs?\.?[- ]?ft\.?|foot[- ]pounds?)", "torque", 1.35582),
@@ -37,13 +35,9 @@ _UNITS = [
 UNIT_RE = "|".join(f"(?:{u})" for u, _, _ in sorted(_UNITS, key=lambda x: -len(x[0])))
 _UNIT_ONE = [(re.compile(rf"^(?:{u})$"), g, f) for u, g, f in _UNITS]
 NUM = r"[+-]?\d+(?:[.,]\d+)?"
-# a range (284-314, 0.8 — 1.2) or a nominal with tolerance (10±2: the nominal is what an answer quotes)
 RANGE = rf"{NUM}(?:\s*(?:-|–|—|~)\s*{NUM}|\s*±\s*{NUM})?"
-# a value with its unit: 25 N·m, 284-314 kPa, 0.8 - 1.2 kΩ, 14.2V, 1.3 h
 VALUE_RE = re.compile(rf"(?<![\w.$]){RANGE}\s*(?:{UNIT_RE})(?![A-Za-z0-9])")
 PRICE_RE = re.compile(r"\$\s?\d[\d,]*(?:\.\d{1,2})?")
-# Part numbers in any maker's style: 6+ characters of letters/digits/dashes with 3+ digits ('13028AA21C',
-# 'F7AZ-9H307-AB', '90919-01253', '19115080'). Codes and years are not part numbers.
 PN_RE = re.compile(r"(?<![\w-])(?=[A-Z0-9-]*\d[A-Z0-9-]*\d[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{4,}[A-Z0-9](?![\w-])")
 DTC_RE = re.compile(r"^[PBCU][0-3][0-9A-F]{3}$")
 TAG_RE = re.compile(r"(?m)^\s*\[(?!\d)([^\]\n]{2,200})\]?.*$")
@@ -119,7 +113,7 @@ class _Page:
         self.label, self.text = label, text
         self.vals = values(text)
         self.bare = _bare_numbers(text)
-        self.cell_units = {}        # a table that prints its unit once, in a header cell: 'Ohms', 'Torque (N·m)'
+        self.cell_units = {}
         for cell in re.findall(r"\|\s*([^|\n]{1,40}?)\s*(?=\|)", text):
             um = re.search(rf"(?:^|[\s(])((?:{UNIT_RE}))\)?$", cell, re.I)
             if um and not re.search(r"\d", cell):
@@ -155,7 +149,7 @@ def _not_pn(s):
         shape = lambda x: re.sub(r"\d", "9", re.sub(r"[A-Z]", "A", x))  # noqa: E731
         if shape(a) == shape(b) and os.path.commonprefix([a, b]) and len(os.path.commonprefix([a, b])) >= len(a) // 2:
             return True
-        if a.isdigit() and b.isdigit() and len(a) == len(b) and int(a) < int(b):    # a number range
+        if a.isdigit() and b.isdigit() and len(a) == len(b) and int(a) < int(b):
             return True
         if re.fullmatch(r"[A-Z]{1,2}\d{1,3}", a) and re.fullmatch(r"\d{1,3}", b):
             return True
@@ -220,7 +214,7 @@ def check(answer, prompt):
         s = m.group(0)
         if DTC_RE.match(s) or re.fullmatch(r"(19|20)\d\d", s) or (s.isdigit() and len(s) < 6) or _not_pn(s):
             continue
-        if re.match(rf"\s*(?:{UNIT_RE}|miles|mi|km)(?![A-Za-z])", answer[m.end():m.end() + 7]):   # 123456 miles
+        if re.match(rf"\s*(?:{UNIT_RE}|miles|mi|km)(?![A-Za-z])", answer[m.end():m.end() + 7]):
             continue
         key = re.sub(r"[\s\-]", "", s)
         place("part number", s, m.start(), lambda p, key=key: key in p.flat)

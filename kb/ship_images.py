@@ -20,7 +20,7 @@ import sqlite3
 import sys
 from concurrent.futures import ProcessPoolExecutor
 
-CK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+CK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def shrink(job):
@@ -30,7 +30,7 @@ def shrink(job):
     from PIL import Image
     try:
         with Image.open(src) as im:
-            im = im.convert("L")                      # manual figures are line art; colour only adds bytes
+            im = im.convert("L")
             im.thumbnail((max_px, max_px))
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             im.save(dst + ".tmp", "WEBP", quality=quality, method=6)

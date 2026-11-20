@@ -79,7 +79,6 @@ class UI:
         except curses.error:
             pass
 
-    # ------------------------------------------------------------------ mouse
     WHEEL_UP = getattr(curses, "BUTTON4_PRESSED", 0)
     WHEEL_DOWN = getattr(curses, "BUTTON5_PRESSED", 0x200000)
     CLICK = curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED | curses.BUTTON1_RELEASED
@@ -120,7 +119,6 @@ class UI:
                     return None
         return None
 
-    # ------------------------------------------------------------------ drawing basics
     def size(self):
         h, w = self.scr.getmaxyx()
         return max(h, 8), max(w, 30)
@@ -161,7 +159,6 @@ class UI:
                 out.append((" " * ind + part, attr))
         return out
 
-    # ------------------------------------------------------------------ widgets
     def view(self, title, lines, hint="↑↓ PgUp PgDn scroll   q back", keys="", top=0):
         """Scrollable text. Returns a key from `keys` when pressed (with the scroll position), else None."""
         while True:
@@ -189,7 +186,7 @@ class UI:
                     continue
                 if ev != "key":
                     continue
-            if 0 < k < 256 and chr(k) in keys:      # screen keys win over the j/k/space scroll keys
+            if 0 < k < 256 and chr(k) in keys:
                 self.last_top = top
                 return chr(k)
             if k in (curses.KEY_DOWN, ord("j")):
@@ -334,7 +331,6 @@ class UI:
             except ValueError:
                 self.flash = "that's not a number"
 
-    # ------------------------------------------------------------------ the menu
     MENU = [("1", "Ticket & car"), ("2", "Customer interview"), ("3", "Codes & live data"), ("4", "Diagnose"),
             ("5", "Your notes & theories"), ("6", "Jobs, parts & quote"), ("7", "Search the manual"),
             ("8", "Work order (print)")]
@@ -393,7 +389,6 @@ class UI:
             return f"   [{len(c.jobs)} job(s), ${q.total:,.2f}" + (", prices missing]" if q.missing else "]")
         return ""
 
-    # ------------------------------------------------------------------ 1. ticket and car
     def screen_car(self):
         d, c = self.desk, self.desk.case
         while True:
@@ -511,7 +506,6 @@ class UI:
                 self.flash = "saved as defaults"
             d.save()
 
-    # ------------------------------------------------------------------ 2. interview
     def screen_interview(self):
         c = self.desk.case
         sel = 0
@@ -547,7 +541,6 @@ class UI:
                     self.desk.add_note(v, "history")
                     self.open_note(c.notes[-1])
 
-    # ------------------------------------------------------------------ 3. codes and live data
     def screen_codes(self):
         d, c = self.desk, self.desk.case
         while True:
@@ -597,7 +590,6 @@ class UI:
             d.save()
         self.view("read car", [(x, 0) for x in res["log"]])
 
-    # ------------------------------------------------------------------ 4. diagnose
     def screen_diagnose(self):
         d, c = self.desk, self.desk.case
         if not d.veh:
@@ -654,7 +646,7 @@ class UI:
                 return
             if k in "yn" and st:
                 w.answer("Yes" if k == "y" else "No")
-            elif (k == "#" or k in "0123456789.-") and st:   # "#": the window's Enter-a-reading button
+            elif (k == "#" or k in "0123456789.-") and st:
                 if not st.limit:
                     self.flash = "this check has no limit to compare a reading with: answer y or n"
                     continue
@@ -769,7 +761,6 @@ class UI:
             lines += [(s.path.split(">")[-1].strip(), self.B), (s.source, self.c["dim"])] + render(s.body) + [""]
         self.view(f"service bulletins: {code}", lines)
 
-    # ------------------------------------------------------------------ 5. notes and theories
     def screen_notes(self):
         d, c = self.desk, self.desk.case
         while True:
@@ -832,7 +823,6 @@ class UI:
             self.attach_procedure(job)
             self.edit_job(job)
 
-    # ------------------------------------------------------------------ 6. jobs and quote
     def screen_jobs(self):
         d, c = self.desk, self.desk.case
         while True:
@@ -1037,7 +1027,6 @@ class UI:
         if k == "r":
             self.screen_settings()
 
-    # ------------------------------------------------------------------ 7. manual search
     def screen_search(self):
         d = self.desk
         if not d.veh:
@@ -1064,7 +1053,6 @@ class UI:
                 lines += [""] + render(s.body)
                 self.view("manual", lines)
 
-    # ------------------------------------------------------------------ 8. print
     def screen_print(self):
         try:
             path = self.desk.work_order()

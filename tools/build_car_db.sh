@@ -95,7 +95,7 @@ SLUG=${OUT_NAME:-${mk}_${md}_${YEAR}}
 MAKE_DB=$CK/kb/$mk.db
 CARS=$CK/kb/cars
 WORK=$CARS/.work_$SLUG
-DB=$WORK/$mk.db                  # named <make>.db while building: the NHTSA/StackExchange loaders read the make from it
+DB=$WORK/$mk.db
 OUT=$CARS/$SLUG.db
 CHARM_MAKES=$(awk -F'|' -v m="$mk" '$1==m{print $2}' "$CK/kb/charm_make_groups.txt" 2>/dev/null)
 [ -n "$CHARM_MAKES" ] || CHARM_MAKES=$MAKE
@@ -105,7 +105,7 @@ say() { echo "$(date '+%F %T') $*"; }
 lap() { local now; now=$(date +%s); say "   ($1: $((now - TS)) s)"; TS=$now; }
 STEP="" STEP_IN=() STEP_GPU=0
 [ -n "$BENCH" ] && BENCH=$(realpath -m "$BENCH")
-run() {   # run CMD...: print it; in --dry-run only print; with --bench, time it as step $STEP
+run() {
     say "+ $*"
     [ "$DRY" = 1 ] && return 0
     if [ -n "$BENCH" ] && [ -n "$STEP" ]; then
@@ -124,12 +124,10 @@ say "== one-car DB: $MAKE $MODEL $YEAR -> $OUT${DRY:+ }$([ "$DRY" = 1 ] && echo 
 if [ -e "$OUT" ] && [ "$DRY" = 0 ]; then say "$OUT exists; move it away first"; exit 1; fi
 [ "$DRY" = 1 ] || { mkdir -p "$WORK"; rm -f "$DB"; }
 [ -f "$MAKE_DB" ] || say "note: no $MAKE_DB, so nothing can be copied from a make DB"
-# empty DB with the builder's schema (its 'labor' step creates the tables and finds no pages: 0 rows)
 run "$PY" "$B" --db "$DB" labor > /dev/null || { say "could not create $DB"; exit 1; }
 
-# a0. manuals given as a folder / zip / files: PDFs converted, markdown loaded, HTML manuals loaded
-FIG_DIRS=()                       # folders holding <title>/<figure> for the images step
-fsm_load() {   # fsm_load MD TITLE
+FIG_DIRS=()
+fsm_load() {
     step "fsm:$2" "$1"
     run "$PY" "$B" --db "$DB" fsm "$1" --model "$MODEL" --chassis "$CHASSIS" --years "$YEAR" \
         --engines "$ENGINES" --title "$2" || { say "fsm FAILED: $1"; exit 1; }
@@ -147,7 +145,6 @@ bad=[n for n in z.namelist() if n.startswith("/") or ".." in n.split("/")]
 sys.exit("unsafe zip paths: %s" % bad[:3]) if bad else z.extractall(sys.argv[2])' "$M" "$SRC" || exit 1
         fi
     fi
-    # an HTML manual (LEMON / CHARM-style: pages/*.html)
     HTML_ROOTS=$( [ -d "$SRC" ] && find "$SRC" -type d -name pages -exec sh -c 'ls "$1"/*.html >/dev/null 2>&1 && dirname "$1"' _ {} \; )
     while IFS= read -r HR; do
         [ -n "$HR" ] || continue
@@ -156,7 +153,6 @@ sys.exit("unsafe zip paths: %s" % bad[:3]) if bad else z.extractall(sys.argv[2])
             $([ "$IMAGES" = 0 ] && echo --no-images) || { say "html-manual FAILED: $HR"; exit 1; }
         lap "html-manual"
     done <<< "$HTML_ROOTS"
-    # PDFs: convert (text layer) into the work folder, then load
     while IFS= read -r P; do
         [ -n "$P" ] || continue
         N=$(basename "${P%.*}"); OUTD=$WORK/manuals/$N
@@ -169,7 +165,6 @@ sys.exit("unsafe zip paths: %s" % bad[:3]) if bad else z.extractall(sys.argv[2])
         fi
         [ "$DRY" = 1 ] || fsm_load "$OUTD/$N.fixed.md" "$N"
     done < <(if [ -d "$SRC" ]; then find "$SRC" -type f -iname '*.pdf' | sort; elif [ "$MX" = pdf ]; then echo "$SRC"; fi)
-    # converted markdown (skip <name>.md when <name>.fixed.md sits next to it)
     while IFS= read -r F; do
         [ -n "$F" ] || continue
         case "$F" in *.fixed.md) ;; *) [ -f "${F%.md}.fixed.md" ] && continue;; esac
@@ -178,14 +173,12 @@ sys.exit("unsafe zip paths: %s" % bad[:3]) if bad else z.extractall(sys.argv[2])
     done < <(if [ -d "$SRC" ]; then find "$SRC" -type f -name '*.md' ! -path "$WORK/*" | sort; elif [ "$MX" = md ]; then echo "$SRC"; fi)
 done
 
-# a. FSM
 if [ -n "$FSM" ]; then
     fsm_load "$FSM" "$TITLE"
 elif [ ${#MANUALS[@]} = 0 ]; then
     skip fsm "no --fsm or --manuals given"
 fi
 
-# b. CHARM
 step charm "$CHARM_DIR"
 if [ "$CHARM" = 0 ]; then
     skip charm "--no-charm"
@@ -208,12 +201,10 @@ if [ "$DRY" = 0 ] && [ "$(sqlite3 "$DB" 'SELECT count(*) FROM section')" = 0 ]; 
     say "no manual pages loaded (no --fsm, no CHARM, nothing for this car in $MAKE_DB): nothing to build"; exit 1
 fi
 
-# c. NHTSA, investigations, StackExchange
 step extras "$CK/kb/nhtsa_all.db"
 run "$PY" "$H" extras --db "$DB" || say "extras FAILED (carrying on)"
 lap extras
 
-# d. diag DB (DTC names, SSM params, TSBs/NHTSA, forum fixes) when this make has one
 if [ -f "$CK/${mk}_diag.db" ]; then
     step diag "$CK/${mk}_diag.db"
     run "$PY" "$B" --db "$DB" diag "$CK/${mk}_diag.db" || say "diag FAILED (carrying on)"
@@ -222,7 +213,6 @@ else
     skip diag "no ${mk}_diag.db"
 fi
 
-# e. cards
 CARDS=""
 if [ -f "$CK/kb/cards_$mk.db" ]; then CARDS=$CK/kb/cards_$mk.db
 elif [ -f "$CK/kb/cards.db" ] && sqlite3 "file:$CK/kb/cards.db?mode=ro" \
@@ -232,7 +222,6 @@ fi
 if [ -n "$CARDS" ]; then step cards "$CARDS"; run "$PY" "$B" --db "$DB" cards "$CARDS" || say "cards FAILED (carrying on)"; lap cards
 else skip cards "no cards DB for $MAKE $MODEL"; fi
 
-# f/g. community (fresh extraction or the make DB) + telemetry from the make DB
 if [ -n "$COMM_WORK" ]; then
     step community-load "$COMM_WORK"; [ "$DEVICE" = cuda ] && STEP_GPU=1
     run "$PY" "$H" community-load --db "$DB" --work-dir "$COMM_WORK" --make "$mk" --model "$MODEL" --year "$YEAR" \
@@ -254,12 +243,10 @@ else
     skip telemetry "no $MAKE_DB"
 fi
 
-# h. trim
 step trim
 run "$PY" "$H" trim --db "$DB" --model "$MODEL" --year "$YEAR" || { say "trim FAILED"; exit 1; }
 lap trim
 
-# h2. optional: the car's own codes and telemetry definitions (--scope)
 if [ "$SCOPE" = 1 ]; then
     step scope
     run "$PY" "$H" scope --db "$DB" --model "$MODEL" --year "$YEAR" ${ECU_IDS:+--ecu-ids "$ECU_IDS"} || say "scope FAILED (carrying on)"
@@ -268,7 +255,6 @@ else
     skip scope "no --scope (make-wide code and telemetry tables kept)"
 fi
 
-# h3. optional: this car's raw owner threads from an existing threads file (--threads)
 if [ "$THREADS" = 1 ]; then
     TSRC=${THREADS_SRC:-$CK/kb/$mk.threads.db}
     step threads "$TSRC"
@@ -283,7 +269,6 @@ else
     skip threads "no --threads"
 fi
 
-# i. embed
 step embed; [ "$DEVICE" = cuda ] && STEP_GPU=1
 if [ "$EMBED" = 1 ]; then
     if [ "$REUSE" = 1 ] && [ -f "$MAKE_DB" ]; then
@@ -297,7 +282,6 @@ else
     skip embed "--no-embed (keyword search only)"
 fi
 
-# i2. pictures inside the DB
 if [ "$IMAGES" = 1 ]; then
     FD=(); for d in "${FIG_DIRS[@]}"; do FD+=(--fsm-dir "$d"); done   # the converter writes <dir>/<title>/<title>.md
     [ ${#FD[@]} = 0 ] && FD=(--fsm-dir "$FSM_DIR")
@@ -308,7 +292,6 @@ else
     skip images "--no-images"
 fi
 
-# i3. vision (optional): read the DB's charts and spec tables with a vision model
 if [ -n "$VISION" ] && [ "$IMAGES" = 1 ]; then
     step vision; STEP_GPU=1
     run "$PY" "$H" vision --db "$DB" --model "$VISION" --url "$VISION_URL" --max-hours "$VISION_HOURS" \
@@ -321,7 +304,6 @@ else
     skip vision "no --vision (picture charts stay pictures)"
 fi
 
-# i4. cards (optional): bake per-code cards for this car on a local model
 if [ -n "$BAKE" ]; then
     step bake-cards; STEP_GPU=1
     CW=${CARDS_WORK:-$CK/kb/bake_work_$mk.db}
@@ -338,14 +320,12 @@ else
     skip bake-cards "no --bake-cards (optional)"
 fi
 
-# j. finish
 step finish
 run "$PY" "$B" --db "$DB" finish || { say "finish FAILED"; exit 1; }
 lap finish
 skip ann "one car is under the retriever's 100k-row ANN threshold"
 
 STEP=""
-# l. move into place + app view
 if [ "$DRY" = 0 ]; then
     mv "$DB" "$OUT"
     mkdir -p "$CARS/$SLUG"

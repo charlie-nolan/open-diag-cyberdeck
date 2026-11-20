@@ -56,12 +56,10 @@ def make_cases(db):
     rng = random.Random(SEED)
     c = ro(db)
     cases = []
-    # DTC: one (code, car) pair per model where possible
     rows = c.execute("SELECT DISTINCT d.code, v.model, v.year FROM dtc_procedure d JOIN vehicle v ON v.id=d.vehicle_id "
                      "ORDER BY 1,2,3").fetchall()
     for code, model, year in spread(rows, N["dtc"], lambda r: r[1], rng):
         cases.append({"type": "dtc", "model": model, "year": year, "code": code, "query": f"{year} {model} {code}"})
-    # spec: a torque row from a section tied to a car, with a usable part name
     rows = c.execute("SELECT p.id, p.component, p.value_si, p.value_us, p.unit_us, v.model, v.year FROM spec p "
                      "JOIN section_vehicle sv ON sv.section_id=p.section_id JOIN vehicle v ON v.id=sv.vehicle_id "
                      "WHERE p.value_si IS NOT NULL AND length(p.component) BETWEEN 6 AND 60 "
@@ -69,7 +67,6 @@ def make_cases(db):
     for sid, comp, nm, us, unit, model, year in spread(rows, N["spec"], lambda r: r[5], rng):
         cases.append({"type": "spec", "model": model, "year": year, "spec_id": sid, "component": comp,
                       "value_si": nm, "value_us": us, "unit_us": unit, "query": f"{comp}"})
-    # problem: an owner complaint whose car also has a TSB/recall naming the same component
     rows = c.execute("""
         SELECT k.id, k.model, k.year_min, k.title FROM knowledge k
         WHERE k.kind='nhtsa_complaint' AND k.title <> '' AND EXISTS (
@@ -118,7 +115,7 @@ def score(db, cases, embed):
             if ids:
                 right_car = ids[0] in mine
                 got = c.execute("SELECT path FROM section WHERE id=?", (ids[0],)).fetchone()[0][:90]
-            case["lookup_ok"] = bool(r.dtc(case["code"], chars=0) or "")   # the app's direct code lookup too
+            case["lookup_ok"] = bool(r.dtc(case["code"], chars=0) or "")
         elif case["type"] == "spec":
             lines = r.specs(case["query"], limit=10)
             want = [f"{case['value_si']:g} N·m"] + ([f"{case['value_us']:g} {case['unit_us'] or 'ft-lb'}"]
@@ -127,7 +124,7 @@ def score(db, cases, embed):
                 if any(w in ln for w in want):
                     rank = i
                     break
-            right_car = bool(lines)          # specs() only returns this car's rows when the car is known
+            right_car = bool(lines)
             got = lines[0][:90] if lines else ""
         else:
             ids = r.knowledge_ids(case["query"], k=10)

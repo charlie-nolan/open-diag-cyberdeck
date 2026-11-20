@@ -10,7 +10,6 @@ R=$(basename "$CK")                     # same folder name in the deck's home
 rsync -a --backup --suffix=.bak "$CK"/app/*.py "$DECK":"$R"/app/
 rsync -a "$CK/kb/romid.db" "$DECK":"$R"/kb/
 rsync -a "$CK/tools/vpic_setup_deck.sh" "$DECK":"$R"/tools/
-# no autostart: keep deck_setup.sh's entry as .off (rename back to turn it on again)
 ssh "$DECK" 'A=~/.config/autostart/cyberdeck.desktop; if [ -f "$A" ]; then mv "$A" "$A.off"; echo "autostart off"; fi
 cd ~/'"$R"'/app && python3 -m py_compile *.py && sha256sum cyberdeck_gui.py vehicle_id.py vpic_local.py'
 echo "Done. Open Cyberdeck Home on the deck to use them."

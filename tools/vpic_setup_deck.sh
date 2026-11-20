@@ -32,7 +32,6 @@ echo "   dump: $SQL"
 echo "== 3/5 load into database 'vpic' (a few minutes on the Pi)"
 dropdb --if-exists vpic
 createdb vpic
-# 17+-only settings and ownership lines would only print errors on 16: leave them out
 grep -vE '^SET (transaction_timeout|default_table_access_method)|^ALTER .* OWNER TO |^(GRANT|REVOKE) ' "$SQL" |
     psql -X -q -d vpic -v ON_ERROR_STOP=0 2>&1 | grep -viE '^(SET|CREATE|ALTER|COPY|COMMENT)' | tail -5 || true
 

@@ -7,4 +7,4 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 for _p in (os.path.join(ROOT, "app"), os.path.join(ROOT, "app", "ssm"), os.path.join(ROOT, "kb"),
            os.path.join(ROOT)):
     if _p not in sys.path:
-        sys.path.append(_p)   # appended, so teamdeck's own modules win any name clash
+        sys.path.append(_p)

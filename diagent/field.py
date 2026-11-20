@@ -68,7 +68,7 @@ def fits_code(cause, system_text, parts=()):
             names += _expand(v)[1]
         from .kb import ALSO
 
-        def has(w):        # the word, or the manual's wording for it (vocabulary only)
+        def has(w):
             return any(re.search(rf"(?<![a-z0-9]){re.escape(x)}", system_text) for x in [w] + ALSO.get(w, []))
         for n in names:
             words = [w for w in re.findall(r"[a-z0-9]{2,}", n) if w not in GENERIC_PART]
@@ -83,7 +83,6 @@ def reports(r, car, query, make_slug):
     forum threads, owner complaints. Counts are separate reports/threads, never posts quoted as patterns."""
     out = []
     code = (CODE.findall(query.upper()) or [None])[0]
-    # 1. TSBs and recalls for this model/year (the retriever's own scope)
     for kind in ("tsb", "recall"):
         ids = r.knowledge_ids(query, k=6, kinds=[kind])
         rows = [r.db.execute("SELECT ref, title, year_min, year_max, model FROM knowledge WHERE id=?", (i,)).fetchone()
@@ -92,8 +91,7 @@ def reports(r, car, query, make_slug):
         for ref, title, y0, y1, model in rows[:4]:
             out.append({"kind": kind, "label": f"{kind.upper()} {ref or ''}".strip(), "count": 1,
                         "match": f"{model} {y0}-{y1}", "text": (title or "")[:200], "refs": [ref or ""]})
-    sys_text = _system_text(r, code)      # the code's own manual pages: a cause must show up there
-    # 2. the baked card for this code (forum/TSB fixes with counts)
+    sys_text = _system_text(r, code)
     if code:
         row = None
         try:
@@ -107,7 +105,7 @@ def reports(r, car, query, make_slug):
                 counts = json.loads(row[1] or "{}")
             except ValueError:
                 counts = {}
-            for scope, items in counts.items():        # {"this_car": [{cause, confirmed_fixes}], "all_<make>": ...}
+            for scope, items in counts.items():
                 for it in (items or [])[:4]:
                     if isinstance(it, dict) and it.get("cause"):
                         flag = "" if fits_code(it["cause"], sys_text, it.get("parts") or []) else \
@@ -116,7 +114,6 @@ def reports(r, car, query, make_slug):
                                     "count": int(it.get("confirmed_fixes") or 0),
                                     "match": "this car's model/years" if scope == "this_car" else scope.replace("_", " "),
                                     "text": it["cause"] + " " + " ".join(it.get("parts") or []), "refs": []})
-    # 3. forum fixes already extracted into the kb (grouped by the fix, counted by thread)
     fixes = {}
     for scope_all in (False, True):
         for i in r.knowledge_ids(query, k=40, kinds=["forum_fix"], all_models=scope_all):
@@ -124,7 +121,7 @@ def reports(r, car, query, make_slug):
             if not k or (code and code not in k[0]):
                 continue
             m = re.search(r"Fix:[^\n]*\(([^)]+)\)\s*$", k[0], re.M) or re.search(r"Fix:\s*([^\n]+)", k[0])
-            fix = re.sub(r"\s+", " ", m.group(1)).strip().lower()[:120] if m else "(no fix stated)"   # the extractor's component
+            fix = re.sub(r"\s+", " ", m.group(1)).strip().lower()[:120] if m else "(no fix stated)"
             ent = fixes.setdefault(fix, {"urls": set(), "confirmed": 0, "same": 0})
             if k[1] not in ent["urls"]:
                 ent["urls"].add(k[1])
@@ -135,7 +132,6 @@ def reports(r, car, query, make_slug):
         out.append({"kind": "forum fix", "label": fix + flag, "count": len(e["urls"]),
                     "match": f"{e['same']} same model/year, {len(e['urls']) - e['same']} other", "text": fix,
                     "refs": sorted(e["urls"])[:3], "confirmed": e["confirmed"]})
-    # 4. Reddit posts and 5. forum threads tagged with the code
     if code:
         rp = os.path.join(ROOT, "raw", "reddit", f"reddit_{make_slug}.db")
         db = _ro(rp) if os.path.isfile(rp) else None
@@ -167,7 +163,6 @@ def reports(r, car, query, make_slug):
                 out.append({"kind": "forum", "label": f"{os.path.basename(fp)[:-3]} threads with {code}",
                             "count": len(same), "match": "same model", "text": "; ".join(x[2] for x in same[:3])[:300],
                             "refs": [x[3] for x in same[:3]]})
-    # 6. owner complaints for this model/year that match the query
     ids = r.knowledge_ids(query, k=25, kinds=["nhtsa_complaint"])
     if ids:
         out.append({"kind": "NHTSA complaints", "label": f"owner complaints matching '{query[:40]}'",

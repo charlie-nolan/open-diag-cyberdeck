@@ -33,7 +33,7 @@ import tempfile
 import time
 import urllib.request
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
 
 PROMPTS = {
@@ -75,7 +75,7 @@ def ollama_read(model, png, prompt):
     try:
         with urllib.request.urlopen(req, timeout=900) as r:
             data = json.loads(r.read())
-    except Exception as e:  # a missing model or a tag that doesn't take images: report it, keep going
+    except Exception as e:
         return f"[error: {e}]", time.time() - t0
     if data.get("error"):
         return f"[error: {data['error']}]", time.time() - t0
@@ -100,7 +100,7 @@ def main():
     out = os.path.expanduser(a.out or f"{ROOT}/logs/ocr_bench/{run}")
     os.makedirs(out, exist_ok=True)
 
-    items = []   # (label, png, text layer)
+    items = []
     if a.pdf:
         for p in a.pages.split(","):
             pno = int(p)
@@ -111,7 +111,7 @@ def main():
             if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp")):
                 src = os.path.join(a.images, f)
                 png = os.path.join(out, os.path.splitext(f)[0] + ".png")
-                if f.lower().endswith((".gif", ".webp")):   # Ollama wants png/jpeg
+                if f.lower().endswith((".gif", ".webp")):
                     import pymupdf
                     pymupdf.Pixmap(src).save(png)
                 else:
@@ -130,7 +130,6 @@ def main():
             txt, secs = ollama_read(m.strip(), png, PROMPTS[a.mode])
             open(os.path.join(out, f"{label}.{m.strip().replace(':', '_').replace('/', '_')}.md"), "w").write(txt)
             bad = sorted(numbers(txt) - known, key=lambda n: float(n))
-            # with no text layer and no tesseract there is nothing to check against
             flag = "nothing to check against" if not known else (", ".join(bad[:15]) or "none")
             rep.append(f"| {label} | {m} | {secs:.0f} | {len(txt)} | {len(numbers(txt))} | {flag} |")
         print(f"  {label} done", flush=True)

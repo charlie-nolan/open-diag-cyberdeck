@@ -23,8 +23,6 @@ import os
 import re
 import sqlite3
 
-# Generic physical limits: what a road vehicle's signal can physically read, not what is healthy, never a cause.
-# key: (low, high, unit, why)
 PHYSICAL = {
     "rpm": (0, 10000, "rpm", "a road engine's speed"),
     "speed": (0, 300, "km/h", "a road vehicle's speed"),
@@ -38,7 +36,6 @@ PHYSICAL = {
     "maf": (0, None, "g/s", "air flow can't be negative"),
     "map": (0, None, "kPa", "absolute pressure can't be negative"),
 }
-# Typed/scanned live-line labels -> canonical keys (telemetry_ref's names)
 LABELS = {"rpm": "rpm", "idle": "rpm", "engine speed": "rpm", "speed": "speed", "vss": "speed", "ect": "ect",
           "coolant": "ect", "iat": "iat", "intake air": "iat", "stft1": "stft1", "stft": "stft1", "ltft1": "ltft1",
           "ltft": "ltft1", "stft2": "stft2", "ltft2": "ltft2", "map": "map", "timing": "timing", "tps": "tps",
@@ -51,7 +48,7 @@ _UNITS = {"rpm": "rpm", "speed": "km/h", "ect": "°C", "iat": "°C", "stft1": "%
 _NAMES = {"rpm": "engine speed", "speed": "vehicle speed", "ect": "coolant temp", "iat": "intake air temp",
           "ecu_volts": "system voltage", "load_calc": "calculated load", "maf": "mass air flow", "tps": "throttle",
           "map": "manifold pressure", "stft1": "short-term fuel trim", "ltft1": "long-term fuel trim"}
-CODE_LIKE = re.compile(r"\b[PBCU](?=[0-9A-Z]*\d)[0-9A-Z]{2,6}\b", re.I)   # needs a digit: not "PENDING"
+CODE_LIKE = re.compile(r"\b[PBCU](?=[0-9A-Z]*\d)[0-9A-Z]{2,6}\b", re.I)
 CODE_OK = re.compile(r"^[PBCU][0-3][0-9A-F]{3}$")
 STATUS = re.compile(r"\(\s*(pending|history|permanent|stored|current|confirmed|active|intermittent)\s*\)", re.I)
 _NUM = r"[+-]?\d+(?:\.\d+)?"
@@ -61,7 +58,6 @@ def _name(key):
     return _NAMES.get(key, key)
 
 
-# ----------------------------------------------------------------------------------------------- codes
 def parse_codes(text):
     """[(code, status or '')] from 'P0420 (pending), P0141' as typed; malformed code-like tokens kept as is."""
     out = []
@@ -123,7 +119,7 @@ def check_codes(text, r):
             continue
         name = (desc[0] if desc and desc[0] else "")
         named = _has(db, "car_dtc") and db.execute("SELECT 1 FROM car_dtc WHERE code=? AND named=1",
-                                                   (code,)).fetchone()   # kb/car_db.py scope
+                                                   (code,)).fetchone()
         flags.append({"level": "note", "kind": "code", "item": code, "source": "this car's DB (dtc_procedure"
                       + (", car_dtc)" if named else ")"),
                       "reason": ("named on this car's manual pages, but " if named else "")
@@ -133,7 +129,6 @@ def check_codes(text, r):
     return flags
 
 
-# ------------------------------------------------------------------------------------------- live data
 def parse_live(text):
     """[(key, value, label as written)] for every reading in the line, ranges ('0.1-0.9 V') as two readings.
     Unknown labels are skipped, never guessed."""
@@ -243,7 +238,6 @@ def check_live(text, r):
     return flags
 
 
-# ------------------------------------------------------------------------------------------- equipment
 _WORD = re.compile(r"[A-Za-z][A-Za-z\-]{2,}")
 _VOCAB = {}
 
@@ -338,7 +332,7 @@ def check_equipment(text, r, ref_db, min_ref=10, max_car=2):
         n_ref = _in_vocab(term, vocab)
         if n_ref < min_ref:
             continue
-        if any(term in h or h in term for h in hit):        # 'timing chain' already says it; 'turbo' ~ 'turbocharger'
+        if any(term in h or h in term for h in hit):
             continue
         n_car = r.mentions(term)
         if 0 <= n_car <= max_car:
@@ -352,7 +346,6 @@ def check_equipment(text, r, ref_db, min_ref=10, max_car=2):
     return flags
 
 
-# ------------------------------------------------------------------------------------------- together
 def check(case, r, ref_db=None):
     flags = check_codes(case.get("dtcs_raw") or case.get("dtcs") or "", r)
     flags += check_live(case.get("telemetry") or "", r)

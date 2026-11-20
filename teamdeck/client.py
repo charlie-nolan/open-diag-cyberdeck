@@ -29,12 +29,11 @@ def _service_url():
 
 SERVICE = _service_url()
 VIN_RE = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
-# the case fields the main app keeps (CyberdeckApp.CASE_KEYS) that the team may see
 CASE_KEYS = ("dtcs", "telemetry", "mode06", "symptoms", "ruled_out", "suspect", "history", "intake_note",
              "intake_summary", "saved_debate", "saved_wildcard", "drive_log", "chart_reads", "chat_notes",
              "maint_selected")
-EARLIER = ("earlier_visits", "past_readings")      # sent only when the mechanic ticks it
-ROUNDS_MAX = 4                                      # brainstorm rounds per case (quota)
+EARLIER = ("earlier_visits", "past_readings")
+ROUNDS_MAX = 4
 
 
 def deck_case(path=SESSION_DB):

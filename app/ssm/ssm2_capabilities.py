@@ -32,7 +32,6 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 TABLES = os.path.join(HERE, "freessm_ssm2_tables.json")
 
-# SYS ID byte 3 -> engine, when SYS ID byte 2 is 0x10 (FreeSSM SysDescriptions)
 ENGINE_SYS = {0x01: "2.5L SOHC", 0x02: "2.5L SOHC", 0x03: "2.2L SOHC", 0x04: "2.2L SOHC",
               0x05: "1.5L SOHC", 0x06: "1.6L SOHC", 0x07: "1.8L SOHC", 0x08: "2.0L SOHC",
               0x09: "2.0L DOHC", 0x0A: "2.5L DOHC", 0x0B: "2.0L DOHC Turbo",
@@ -47,7 +46,6 @@ def load_tables(path=TABLES):
         return json.load(f)
 
 
-# ---------------------------------------------------------------- scaling
 def scale(raw, formula):
     """FreeSSM scaling: operators applied strictly left to right ('-128/128*100'
     means ((x-128)/128)*100). 's8'/'s16' prefix = signed. 'a=b,c=d' = lookup."""
@@ -77,7 +75,6 @@ def scale(raw, formula):
     return x
 
 
-# ---------------------------------------------------------------- init decode
 class ECUCaps:
     def __init__(self, init_payload, tables=None):
         p = bytes(init_payload)
@@ -90,12 +87,10 @@ class ECUCaps:
         self.flags = p[8:]
         self.t = tables or load_tables()
 
-    # FreeSSM tables use 1-based flag byte and bit numbers
     def bit(self, flagbyte, bit):
         i = flagbyte - 1
         return 0 <= i < len(self.flags) and bool(self.flags[i] & (1 << (bit - 1)))
 
-    # FreeSSM interface code uses 0-based (byteindex, bitnr)
     def bit0(self, byteindex, bitnr):
         return byteindex < len(self.flags) and bool(self.flags[byteindex] & (1 << bitnr))
 
@@ -197,7 +192,6 @@ class ECUCaps:
         return "\n".join(lines)
 
 
-# ---------------------------------------------------------------- live reads (A8 only)
 def read_addresses(poller, addrs, chunk=32):
     """Read single bytes at addrs with 0xA8. Returns {addr: value} or {} on failure."""
     out = {}
@@ -211,7 +205,7 @@ def read_addresses(poller, addrs, chunk=32):
     return out
 
 
-VIN_PTR = (0xDA, 0xDB, 0xDC)  # FreeSSM getVIN: these 3 bytes hold the address of the 17 VIN characters
+VIN_PTR = (0xDA, 0xDB, 0xDC)
 
 
 def read_vin(poller, caps):
@@ -233,7 +227,7 @@ def read_vin(poller, caps):
 def read_dtcs(poller, caps):
     """Returns {'current': [(code, title)], 'memorized': [...]} using caps' DTC table."""
     pairs = caps.dtc_address_pairs()
-    if not pairs:   # the init reply advertises no DTC blocks: that is "nothing to read", not a failed read
+    if not pairs:
         return {"current": [], "memorized": [], "note": "ECU init reply lists no DTC blocks"}
     vals = read_addresses(poller, [a for p in pairs for a in p])
     if not vals:

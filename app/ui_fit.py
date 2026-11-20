@@ -13,7 +13,7 @@ class ReflowRow(QWidget):
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setHorizontalSpacing(spacing)
         self.grid.setVerticalSpacing(spacing)
-        self.grid.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)   # our minimumSizeHint rules
+        self.grid.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
         self.widgets = []
         self.cols = 0
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
@@ -54,7 +54,7 @@ class ReflowRow(QWidget):
 
     def minimumSizeHint(self):
         s = super().minimumSizeHint()
-        s.setWidth(self._cell())       # one column is always possible, so never force the window wider
+        s.setWidth(self._cell())
         return s
 
     def resizeEvent(self, e):
@@ -71,4 +71,4 @@ class FitRoot(QWidget):
         return False
 
     def heightForWidth(self, w):
-        return -1      # QScrollArea asks the layout directly, then calls this: -1 = use the minimum size
+        return -1

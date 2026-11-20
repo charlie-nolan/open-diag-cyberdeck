@@ -25,9 +25,7 @@ from knowledge_load import HERE, make_names, target_dbs, write_kind   # noqa: E4
 RAW = os.path.join(os.path.dirname(HERE), "raw", "nhtsa", "inv")
 URL = "https://static.nhtsa.gov/odi/ffdd/inv/FLAT_INV.zip"
 Y0, Y1 = 1982, 2013
-ACTION = re.compile(r"^[A-Z]{2}\d{5,6}$")      # e.g. PE10022, EA11003, DP09001, RQ10002
-# FLAT_INV.txt columns (NHTSA INV.txt): action no, make, model, year, component, manufacturer, opened,
-# closed, recall campaign, subject, summary
+ACTION = re.compile(r"^[A-Z]{2}\d{5,6}$")
 
 
 def fetch(dest):

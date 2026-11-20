@@ -33,11 +33,10 @@ CREATE TABLE IF NOT EXISTS price_list (
 """
 PRICE_COLS = ("item_no", "vtype")
 MONEY_RE = re.compile(r"\$\s*(\d{1,4}(?:,\d{3})*(?:\.\d{2})?)|\b(\d{1,4}(?:,\d{3})*\.\d{2})\b")
-FEE_RE = re.compile(r"\b(admission|entry|entrance|environmental|fee)\b", re.I)   # 'feeder' isn't a fee
+FEE_RE = re.compile(r"\b(admission|entry|entrance|environmental|fee)\b", re.I)
 STOP = {"and", "the", "with", "assembly", "assy", "complete", "compl", "each", "only", "front", "rear", "left",
         "right", "replace", "remove", "install", "r&r", "w/", "for", "of", "or", "&", "all", "bulk", "type"}
-KEEP2 = {"cv", "ac"}          # two-letter words that mean something (C.V. axle, A/C)
-# Pick-n-Pull's abbreviations, spelled out so they meet CHARM's names
+KEEP2 = {"cv", "ac"}
 ABBREV = {"cyl": "cylinder", "trans": "transmission", "transaxle": "transmission", "exhst": "exhaust",
           "headlt": "headlight", "instr": "instrument", "mcpher": "strut", "thrtl": "throttle", "bdy": "body",
           "inj": "injection", "brk": "brake", "cbl": "cable", "contrl": "control", "shrd": "shroud",
@@ -49,9 +48,9 @@ ABBREV = {"cyl": "cylinder", "trans": "transmission", "transaxle": "transmission
 
 def words(s):
     s = (s or "").lower()
-    s = re.sub(r"\bconstant velocity( joint)?", "cv", s)                     # CHARM's name for a CV joint
-    s = re.sub(r"\bw/o(?:ut)?\s+[^\s)/]+|\bwithout\s+\S+", " ", s)      # 'W/O SPIN' says what it lacks
-    s = re.sub(r"\b(?:[a-z][./]){1,3}[a-z]\b\.?", lambda m: re.sub(r"[./]", "", m.group()), s)   # A/C, C.V., E.G.R.
+    s = re.sub(r"\bconstant velocity( joint)?", "cv", s)
+    s = re.sub(r"\bw/o(?:ut)?\s+[^\s)/]+|\bwithout\s+\S+", " ", s)
+    s = re.sub(r"\b(?:[a-z][./]){1,3}[a-z]\b\.?", lambda m: re.sub(r"[./]", "", m.group()), s)
     out = []
     for w in re.findall(r"[a-z0-9]{2,}", s):
         if len(w) < 3 and w not in KEEP2:
@@ -64,19 +63,16 @@ def words(s):
     return out
 
 
-# Words CHARM puts in a crumb to say which car or side, not what the part is: "(Manual Trans)", "Right", "(With ABS)"
 QUALIFIERS = {"manual", "automatic", "auto", "trans", "speed", "with", "without", "w", "wo", "abs",
               "right", "left", "front", "rear", "one", "side", "both", "sides", "each", "upper", "lower", "inner",
               "outer", "turbo", "non", "sohc", "dohc", "sedan", "wagon", "awd", "2wd", "4wd", "mt", "at", "california",
               "federal", "canada", "model", "models", "except", "from", "to", "and", "or", "only", "type", "lh", "rh",
               "cvt", "4at", "5mt", "6mt", "replace", "remove", "install", "r", "l", "part", "parts", "ac", "a/c"}
-# Price-list words that name a different system: an item carrying one the CHARM path doesn't mention is the wrong part
 CONFLICT = {"heater", "transmission", "engine", "radiator", "brake", "abs", "fuel", "steering", "door", "seat",
             "window", "hood", "deck", "wiper", "headlight", "taillight", "idle", "exhaust", "intake", "truck",
             "diesel", "hybrid", "trailer", "spindle", "hub", "rotor", "solenoid", "clutch", "carburetor", "smog"}
 
 
-# labor rows that aren't the replace job itself: tests, and "add" times stacked on another job
 NOT_REPLACE = re.compile(r"\b(diagnos\w*|test\w*|inspect\w*|check\w*|adjust\w*|add|additional|overhaul)\b", re.I)
 
 
@@ -84,7 +80,7 @@ def is_qualifier(seg):
     seg = seg.strip()
     if seg.startswith("(") and seg.endswith(")"):
         return True
-    if re.fullmatch(r"(front|rear) axle", seg.lower()):     # where it goes, not what it is ('Replace > Rear Axle')
+    if re.fullmatch(r"(front|rear) axle", seg.lower()):
         return True
     toks = re.findall(r"[a-z0-9&]+", seg.lower())
     return not toks or all(t in QUALIFIERS or t.isdigit() or len(t) == 1 or t == "&" for t in toks)
@@ -94,7 +90,7 @@ def split_part(op):
     """CHARM path -> (part name crumb, the crumbs above it), skipping qualifier crumbs like '(Manual Trans)'."""
     segs = [re.sub(r"\([^)]*\)", "", x).strip() if not is_qualifier(x) else x for x in (op or "").split(" > ")]
     real = [x for x in segs if x and not is_qualifier(x)]
-    if not real:                                    # a job typed as just 'Rear Axle'
+    if not real:
         last = next((x for x in reversed(segs) if re.fullmatch(r"(front|rear) axle", x.lower())), "")
         return last, []
     return real[-1], real[:-1]
@@ -117,7 +113,7 @@ def parse_tsv_line(line):
         return None
     pm = MONEY_RE.fullmatch(f[3]) or re.fullmatch(r"\$?\s*(\d+(?:\.\d{2})?)()", f[3])
     if not pm:
-        return None                         # the header row, or a row with no price
+        return None
     price = float((pm.group(1) or pm.group(2)).replace(",", ""))
     core = None
     if len(f) > 4 and f[4]:
@@ -159,7 +155,7 @@ def parse_price_lines(text):
 def ensure_schema(con):
     con.executescript(PRICE_SCHEMA)
     have = {r[1] for r in con.execute("PRAGMA table_info(price_list)")}
-    for c in PRICE_COLS:                    # price lists loaded before these columns existed
+    for c in PRICE_COLS:
         if c not in have:
             con.execute(f"ALTER TABLE price_list ADD COLUMN {c} TEXT")
 
@@ -187,7 +183,7 @@ def part_name(kb_db, pn):
     try:
         pn = normalize_pn(pn)
         r = con.execute("SELECT operation FROM labor WHERE replace(part_number,'-','') = ? LIMIT 1", (pn,)).fetchone()
-        if not r:   # DBs whose all-digit numbers (GM ...) are only in the row text
+        if not r:
             r = next(((op,) for op, raw in con.execute(
                 "SELECT operation, raw FROM labor WHERE part_number IS NULL AND replace(raw,'-','') LIKE ?",
                 (f"%{pn}%",)) if normalize_pn(pn_from_raw(raw)) == pn), None)
@@ -224,12 +220,10 @@ def match_price(yards_db, chain, op, aliases=None):
     best = None
     for it in items:
         iw = set(words(it["item"]))
-        # the item must name the whole part ("Radiator Cap" isn't "RADIATOR"), and not another system
-        # ("HEATER MOTOR AND FAN" isn't a radiator fan motor)
         if not iw or not name_w <= iw or (iw - path_w) & CONFLICT:
             continue
         score = (3 * len(iw & name_w) + len(iw & ctx_w) - 0.1 * len(iw - name_w - ctx_w)
-                 - (2 if it.get("vtype") and it["vtype"].lower() != "car" else 0))   # Pick-Up/Van rows last
+                 - (2 if it.get("vtype") and it["vtype"].lower() != "car" else 0))
         key = (score, -len(it["item"]), -(it["price"] or 0))
         if best is None or key > best[0]:
             best = (key, it)
@@ -274,13 +268,13 @@ def labor_hours(kb_db, op, model, year):
     if not need:
         return None
     r = _labor(kb_db, need, ctx, op, model, year)
-    if r is None and len(need) > 1 and set(need) & KEEP2:          # 'cv axle' -> the 'Axle Shaft' rows
+    if r is None and len(need) > 1 and set(need) & KEEP2:
         r = _labor(kb_db, [w for w in need if w not in KEEP2], ctx, op, model, year)
     return r
 
 
 def _labor(kb_db, need, ctx, op, model, year):
-    side = "rear" if re.search(r"\brear\b", op, re.I) else "front"    # front unless the part says rear
+    side = "rear" if re.search(r"\brear\b", op, re.I) else "front"
     other = "front" if side == "rear" else "rear"
     con = sqlite3.connect(f"file:{os.path.expanduser(kb_db)}?mode=ro", uri=True)
     try:
@@ -305,8 +299,8 @@ def _labor(kb_db, need, ctx, op, model, year):
         segs = r[0].lower().split(" > ")
         i = name_at(r[0].lower())
         tail = " ".join(segs[-3:])
-        extra = set(words(segs[i])) - set(need)                 # 'Fuel Pump Control Unit' isn't 'Fuel Pump'
-        after = [w for x in segs[i + 1:] if not is_qualifier(x) for w in words(x)]   # 'Alternator > Voltage Regulator'
+        extra = set(words(segs[i])) - set(need)
+        after = [w for x in segs[i + 1:] if not is_qualifier(x) for w in words(x)]
         return (sum(w in tail for w in ctx) + 2 * ("replace" in tail or "r&r" in tail)
                 + (side in tail) - (other in tail) + 0.5 * ("one side" in tail) - 0.5 * ("both" in tail)
                 - 1.5 * len(extra) - len(after) - 0.001 * len(r[0]))
@@ -315,8 +309,8 @@ def _labor(kb_db, need, ctx, op, model, year):
         ('Fuel Pump Control Unit > Replace > Fuel Pump Controller' counts the Control Unit)."""
         return max((len(set(words(x)) - set(need)) for x in r[0].lower().split(" > ")[-3:]
                     if not is_qualifier(x) and set(need) <= set(words(x))), default=0)
-    rows = [r for r in rows if name_at(r[0].lower()) is not None      # 'axle' and 'shaft' in different crumbs don't count
-            and extra_words(r) <= 1                                    # 'Starter Motor' yes, 'Fuel Pump Control Unit' no
+    rows = [r for r in rows if name_at(r[0].lower()) is not None
+            and extra_words(r) <= 1
             and not NOT_REPLACE.search(" ".join(r[0].split(" > ")[-3:]))]
     if not rows:
         return None
@@ -421,7 +415,7 @@ def main(argv=None):
         found = parts_for_job(os.path.expanduser(cfg["kb_db"]), a.job, car.get("model"), car.get("year"), limit=40)
         jw = set(words(a.job))
         kb = os.path.expanduser(cfg["kb_db"])
-        own = [f for f in found                     # the job names the part, not its area or its labor path
+        own = [f for f in found
                if jw <= set(words(split_part(f[1])[0])) and jw <= set(words(split_part(part_name(kb, f[0]) or f[1])[0]))]
         on_list = price_lines(os.path.expanduser(cfg["yards_db"]), cfg.get("price_chain", "Pick-n-Pull"), jw)
         if on_list:

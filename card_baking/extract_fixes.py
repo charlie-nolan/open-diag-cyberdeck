@@ -29,7 +29,7 @@ import time
 from llm import LLM
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_WORK = os.path.join(ROOT, "kb", "bake_work.db")
 
 DTC_RE = re.compile(r"\b([PCBU][0-3][0-9A-F]{3})\b", re.I)
@@ -42,7 +42,7 @@ FIX_RE = re.compile(
     r"no more (codes?|misfire|cel)|update:|edit:|replaced the|swapped (the|out)|after replacing|"
     r"cleared (it|the code)|haven'?t had|culprit)", re.I)
 
-SUB_MODEL = {  # subreddit -> model, when the post doesn't say
+SUB_MODEL = {
     "subaruforester": "Forester", "subaruoutback": "Outback", "subarulegacy": "Legacy",
     "subaruimpreza": "Impreza", "subarubaja": "Baja", "crosstrek": "Crosstrek", "wrx": "WRX",
     "subaruascent": "Ascent", "subarutribeca": "Tribeca", "brz": "BRZ", "wrxsti": "WRX STI",
@@ -50,7 +50,6 @@ SUB_MODEL = {  # subreddit -> model, when the post doesn't say
 MODELS = ["Forester", "Outback", "Legacy", "Impreza", "WRX", "WRX STI", "Crosstrek", "XV", "Baja",
           "Tribeca", "Ascent", "BRZ", "SVX", "Justy", "Loyale", "GL", "Other", "Unknown"]
 
-# Cause buckets so fixes can be counted with SQL. 'part' keeps the specific wording.
 CATEGORIES = [
     "spark plugs", "ignition coil", "spark plug wires", "fuel injector", "fuel pump", "fuel filter",
     "fuel pressure regulator", "vacuum leak", "intake gasket", "throttle body", "idle air control valve",
@@ -111,7 +110,6 @@ def configure_make(make, models):
     YEAR_MODEL_RE = rf"(?:^|\s)'?([890]\d|1[0-9])\s+(?:{re.escape(make.lower())}\s+)?({alts})\b"
 
 
-# ------------------------------------------------------------------ work DB
 WORK_SCHEMA = """
 CREATE TABLE IF NOT EXISTS thread (
   src TEXT NOT NULL, tid TEXT NOT NULL, url TEXT, title TEXT, sub TEXT, created INTEGER,
@@ -140,7 +138,6 @@ def ro(path):
     return sqlite3.connect(f"file:{os.path.abspath(os.path.expanduser(path))}?mode=ro", uri=True)
 
 
-# ------------------------------------------------------------------ source mapping
 def cols(conn, table):
     return [r[1] for r in conn.execute(f"PRAGMA table_info('{table}')")]
 
@@ -158,7 +155,6 @@ def map_source(conn, post_table=None, comment_table=None):
     Works for the Pushshift-style reddit_subaru.db and for most forum dumps; override with flags."""
     tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table' "
                                          "AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%fts%'")]
-    # Reddit: posts + comments. Forums: threads/topics + posts (the posts are the replies).
     thread_t = next((t for t in tables if re.search(r"(thread|topic|submission)s?$", t, re.I)), None)
     if thread_t:
         pt = post_table or thread_t
@@ -179,11 +175,10 @@ def map_source(conn, post_table=None, comment_table=None):
          "p_url": pick(pc, "permalink", "url", "link"),
          "p_score": pick(pc, "score", "ups"),
          "p_flair": pick(pc, "link_flair_text", "flair"),
-         # regex tags the scrapers already added (reddit_subaru.db, ultimatesubaru.db): fallbacks only
          "p_models": pick(pc, "models"), "p_years": pick(pc, "years"), "p_dtcs": pick(pc, "dtcs")}
     if ct:
         cc = cols(conn, ct)
-        own_pk = {r[1] for r in conn.execute(f"PRAGMA table_info('{ct}')") if r[5]}   # never the reply's own id
+        own_pk = {r[1] for r in conn.execute(f"PRAGMA table_info('{ct}')") if r[5]}
         parents = (("thread_id", "topic_id", "tid", "submission_id", "link_id", "post_id") if thread_t else
                    ("link_id", "post_id", "submission_id", "thread_id", "topic_id"))
         m.update({
@@ -192,7 +187,7 @@ def map_source(conn, post_table=None, comment_table=None):
             "c_score": pick(cc, "score", "ups"),
             "c_op": pick(cc, "is_op", "op", "is_submitter", "by_op", "author_is_op"),
             "c_order": pick(cc, "position", "created_utc", "created", "posted_at", "date", "timestamp", "id")})
-        if m["c_order"] == pick(cc, "position") and pick(cc, "page"):   # forum position may restart per page
+        if m["c_order"] == pick(cc, "position") and pick(cc, "page"):
             m["c_order"] = f"{pick(cc, 'page')} * 100000 + {m['c_order']}"
     return m
 
@@ -215,11 +210,11 @@ def iter_threads(conn, m, max_chars, max_comments):
                 comments.setdefault(norm_parent(parent), []).append((body, score or 0, op or 0, order or 0))
     for pid, title, body, sub, created, url, score, t_models, t_years, t_dtcs in conn.execute(
             f"SELECT {', '.join(sel)} FROM {p['post_table']}"):
-        cs = sorted(comments.get(norm_parent(pid), []), key=lambda c: c[3])     # thread order
-        if not body and cs and cs[0][2]:      # forums: the thread's first post is the OP's question
+        cs = sorted(comments.get(norm_parent(pid), []), key=lambda c: c[3])
+        if not body and cs and cs[0][2]:
             body, cs = cs[0][0], cs[1:]
-        op_cs = [c for c in cs if c[2]]                                          # OP's own replies, in order
-        others = sorted([c for c in cs if not c[2]], key=lambda c: -c[1])       # best-scored first (stable)
+        op_cs = [c for c in cs if c[2]]
+        others = sorted([c for c in cs if not c[2]], key=lambda c: -c[1])
         tags = {"models": t_models, "years": t_years, "dtcs": t_dtcs}
         lines = [f"TITLE: {title or ''}", f"[OP] {body or ''}".strip()]
         for c in op_cs[:max_comments]:
@@ -235,7 +230,7 @@ def prefilter_score(title, text, op_cs):
     s += 3 * bool(DTC_RE.search(text))
     s += 2 * bool(SYMPTOM_RE.search((title or "") + " " + text[:1500]))
     op_text = " ".join(c[0] for c in op_cs)
-    s += 4 * bool(FIX_RE.search(op_text))       # OP came back and said what fixed it
+    s += 4 * bool(FIX_RE.search(op_text))
     s += 1 * bool(FIX_RE.search(text))
     return s
 
@@ -262,10 +257,9 @@ def step_filter(a):
         if not m or not m["p_id"] or not (m["p_title"] or m["p_body"]):
             sys.exit(f"can't map {path}; run `inspect` and pass --post-table/--comment-table")
         rows = []
-        sql = "INSERT OR REPLACE INTO thread VALUES (?,?,?,?,?,?,?,?,?)"   # REPLACE: re-filter picks up new pages
+        sql = "INSERT OR REPLACE INTO thread VALUES (?,?,?,?,?,?,?,?,?)"
         for tid, title, sub, created, url, score, text, op_cs, tags in iter_threads(conn, m, a.max_chars, a.max_comments):
             total += 1
-            # the scraper's dtcs tag can be the string "[]": count it only if it holds a real code
             sc = prefilter_score(title, text, op_cs) + 3 * bool(DTC_RE.search(str(json.loads(tags)["dtcs"] or "")))
             if a.all or sc >= a.min_score:
                 if url and url.startswith("/r/"):
@@ -281,7 +275,6 @@ def step_filter(a):
     print(f"filter: {kept} of {total} threads kept (min score {a.min_score}{', --all' if a.all else ''})")
 
 
-# ------------------------------------------------------------------ LLM extraction
 def _norm(s):
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9 ]", " ", (s or "").lower())).strip()
 
@@ -289,7 +282,7 @@ def _norm(s):
 def evidence_ok(evidence, text):
     """True when the quoted evidence really is in the thread (exactly, or 60%+ of its 4-word runs)."""
     e, t = _norm(evidence), _norm(text)
-    if len(e.split()) < 5:   # "fixed" or "it worked" is in almost every thread: too short to prove anything
+    if len(e.split()) < 5:
         return 0
     if e in t:
         return 1
@@ -308,13 +301,13 @@ def guess_model_year(ex, title, sub, tags):
     if ex["model"] in ("Unknown", "Other"):
         tagged = _one_tag(tags.get("models"), r"[A-Za-z][A-Za-z ]+")
         tagged = next((m for m in MODELS[:-2] if tagged and m.lower() == tagged.strip().lower()), None)
-        named = next((m for m in MODELS[:-2] if sub and m.lower() in sub.lower()), None)  # board name
+        named = next((m for m in MODELS[:-2] if sub and m.lower() in sub.lower()), None)
         ex["model"] = tagged or SUB_MODEL.get((sub or "").lower()) or named or ex["model"]
     if not ex["year"] and _one_tag(tags.get("years"), r"\b(?:19|20)\d\d\b"):
         ex["year"] = int(_one_tag(tags.get("years"), r"\b(?:19|20)\d\d\b"))
     if not ex["year"]:
         y = re.search(r"\b(19[89]\d|20[0-2]\d)\b", title or "")
-        y2 = re.search(YEAR_MODEL_RE, title or "", re.I)        # "01 Forester", "'98 Legacy"
+        y2 = re.search(YEAR_MODEL_RE, title or "", re.I)
         if y:
             ex["year"] = int(y.group(1))
         elif y2:
@@ -339,7 +332,7 @@ def extract_one(llm, row):
         ex["evidence"] = re.sub(r"^\s*\[(OP|OP reply|reply[^\]]*)\]\s*", "", ex["evidence"])
     ok = evidence_ok(ex.get("evidence"), text)
     if not ok and ex["confirmed"] in ("op_confirmed", "other_confirmed"):
-        ex["confirmed"] = "suggested_only"     # can't point at the sentence: don't count it as confirmed
+        ex["confirmed"] = "suggested_only"
     return src, tid, ex, ok, ms, usage
 
 
@@ -361,11 +354,11 @@ def step_run(a):
             try:
                 src, tid, ex, ok, ms, usage = f.result()
                 streak = 0
-            except Exception as e:  # one bad thread is skipped (retried next run), the run goes on
+            except Exception as e:
                 failed += 1
                 streak += 1
                 print("  skip:", e, file=sys.stderr)
-                if streak >= 20 and not llm.ping():   # the server died: stop instead of skipping everything
+                if streak >= 20 and not llm.ping():
                     for x in futs:
                         x.cancel()
                     w.commit()
@@ -407,10 +400,6 @@ def step_stats(a):
             GROUP BY e.model, e.category ORDER BY n DESC LIMIT 20"""))
 
 
-# The model picks 'category' before it writes 'part' and 'fix' (JSON key order), so its bucket is often a guess
-# (cam sensors and O2 sensors filed under 'differential/viscous coupling'). recat re-derives the bucket from the
-# part and fix the owner actually named. Word lists only translate part names into bucket names; first match wins,
-# so the more specific names come first.
 RECAT_RULES = [
     ("other", r"\bavcs\b|\bvvt\b|oil control valve|\btgv\b|tumble"),
     ("spark plug wires", r"plug wires?|ignition wires?|plug leads?|spark plug connectors?|plug boots?"),

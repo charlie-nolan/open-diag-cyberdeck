@@ -18,7 +18,6 @@ import threading
 _RUN_LOCK = threading.Lock()
 
 
-# --------------------------------------------------------------------------- RKLLM ctypes
 class RKLLMExtendParam(ctypes.Structure):
     _fields_ = [("base_domain_id", ctypes.c_int32), ("embed_flash", ctypes.c_int8),
                 ("enabled_cpus_num", ctypes.c_int8), ("enabled_cpus_mask", ctypes.c_uint32),
@@ -179,7 +178,6 @@ class RKLLMModel:
         self.enable_thinking = enable_thinking
         self._sink = None
         self._error = False
-        # keep the CFUNCTYPE object alive for the lifetime of the handle
         self._cb_fn = _ResultCB(self._on_result)
 
         p = RKLLMParam()
@@ -194,12 +192,12 @@ class RKLLMModel:
         p.skip_special_token = True
         p.ignore_eos_token = False
         p.is_async = False
-        p.extend_param.base_domain_id = domain_id  # its own NPU memory domain when two models are loaded
+        p.extend_param.base_domain_id = domain_id
         p.extend_param.embed_flash = 1
         p.extend_param.n_batch = 1
         p.extend_param.use_cross_attn = 0
         p.extend_param.enabled_cpus_num = 4
-        p.extend_param.enabled_cpus_mask = (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7)  # A76 big cores
+        p.extend_param.enabled_cpus_mask = (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7)
 
         self._cb = RKLLMCallback()
         self._cb.result_callback = self._cb_fn
@@ -214,9 +212,7 @@ class RKLLMModel:
                                f"({os.path.getsize(model_path) / 1e9:.2f} GB on disk). Check the copy is "
                                "complete and was exported with the same rknn-llm version as librkllmrt.so.")
         if system_prompt:
-            # Qwen chat format; an empty <think> block keeps Qwen3 hybrid models out of thinking mode.
             postfix = "<|im_end|>\n<|im_start|>assistant\n"
-            # Think tags only for Qwen3 hybrid-thinking models: Qwen2.5 and the 2507 Instruct template have none
             low = self.name.lower()
             if "qwen3" in low and not ("instruct" in low and "2507" in low):
                 postfix += "<think>\n" if enable_thinking else "<think>\n\n</think>\n\n"
@@ -226,7 +222,7 @@ class RKLLMModel:
 
         self._infer = RKLLMInferParam()
         ctypes.memset(ctypes.byref(self._infer), 0, ctypes.sizeof(RKLLMInferParam))
-        self._infer.mode = 0  # RKLLM_INFER_GENERATE
+        self._infer.mode = 0
 
     def _on_result(self, result, userdata, state):
         if state == RUN_NORMAL and self._sink is not None and result and result.contents.text:
@@ -238,7 +234,7 @@ class RKLLMModel:
     def generate(self, prompt, on_token, keep_history=False, max_new_tokens=None, temperature=None):
         parts = []
         sampling = None
-        if temperature is not None:  # per-call override (v1.3.0+), e.g. /wildcard
+        if temperature is not None:
             top_k, top_p, rp = self._sampling
             sampling = RKLLMSamplingParam(top_k=top_k, top_p=top_p, temperature=temperature, repeat_penalty=rp,
                                           mirostat_tau=5.0, mirostat_eta=0.1)
@@ -247,9 +243,7 @@ class RKLLMModel:
             parts.append(t)
             on_token(t)
 
-        # last guard: a prompt built for a bigger context (Home mode falling back to the deck) is cut to fit
-        # instead of failing with "prompt is greater than max context". Keeps the start (case) and the end (question).
-        room = int((self.max_ctx - 512) * 2.6)          # ~2.6 chars a token, conservative
+        room = int((self.max_ctx - 512) * 2.6)
         if len(prompt) > room:
             head = room * 2 // 5
             print(f"rkllm: prompt {len(prompt)} chars > {room} the deck's context holds; trimming the middle")
@@ -261,7 +255,7 @@ class RKLLMModel:
         inp = RKLLMInput()
         inp.role = b"user"
         inp.enable_thinking = self.enable_thinking
-        inp.input_type = 0  # RKLLM_INPUT_PROMPT
+        inp.input_type = 0
         inp.prompt_input = prompt.encode("utf-8")
         with _RUN_LOCK:
             self._sink, self._error = sink, False
@@ -286,14 +280,13 @@ class RKLLMModel:
             self.handle = ctypes.c_void_p()
 
 
-# --------------------------------------------------------------------------- Ollama (desktop)
 class OllamaModel:
     """Same interface over Ollama's HTTP API: the desktop test setup, and the home PC's bigger models for the
     deck (Cyberdeck Home, over Tailscale). History kept client-side. Standard library only."""
 
     def __init__(self, model_name, system_prompt="", url="http://127.0.0.1:11434",
                  temperature=0.3, max_new_tokens=1024, enable_thinking=False, num_ctx=4096, options=None, **_):
-        self.options = dict(options or {})      # extra Ollama sampling options (top_p, top_k, presence_penalty...)
+        self.options = dict(options or {})
         self.name, self.url = model_name, url.rstrip("/")
         self.system_prompt, self.temperature, self.max_new_tokens = system_prompt, temperature, max_new_tokens
         self.think = enable_thinking
@@ -308,8 +301,6 @@ class OllamaModel:
         payload = {"model": self.name, "messages": msgs, "stream": True, "think": self.think,
                    "options": {"temperature": self.temperature if temperature is None else temperature,
                                "num_predict": max_new_tokens or self.max_new_tokens,
-                               # a fixed window instead of Ollama's default, which silently drops the
-                               # oldest messages (the case) when a prompt is long
                                "num_ctx": self.num_ctx, **self.options}}
         req = urllib.request.Request(f"{self.url}/api/chat", data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json"})
@@ -324,7 +315,7 @@ class OllamaModel:
                     if data.get("error"):
                         raise RuntimeError(data["error"])
                     msg = data.get("message", {})
-                    if msg.get("thinking"):  # same "<think>...</think>" shape the RKLLM stream has
+                    if msg.get("thinking"):
                         t = ("<think>\n" if not in_think else "") + msg["thinking"]
                         in_think = True
                         parts.append(t)
@@ -384,7 +375,7 @@ class OpenAICompatModel:
         with _RUN_LOCK:
             self._resp = urllib.request.urlopen(req, timeout=600)
             try:
-                for raw in self._resp:                      # server-sent events: "data: {...}"
+                for raw in self._resp:
                     line = raw.decode("utf-8", "replace").strip()
                     if not line.startswith("data:"):
                         continue
@@ -395,7 +386,6 @@ class OpenAICompatModel:
                     if chunk.get("error"):
                         raise RuntimeError(str(chunk["error"]))
                     delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
-                    # reasoning models on llama.cpp / vLLM / DeepSeek-style APIs send their thinking separately
                     think = delta.get("reasoning_content") or delta.get("reasoning")
                     if think:
                         t = ("<think>\n" if not in_think else "") + think
@@ -463,7 +453,7 @@ class CliModel:
                 self._proc = None
         if rc not in (0, None) or not (out or "").strip():
             raise RuntimeError(f"cli backend: '{self.name}' failed ({rc}): {(err or out or '').strip()[-300:]}")
-        answer = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", out).strip()    # terminal colour codes
+        answer = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", out).strip()
         on_token(answer)
         return answer
 
@@ -492,7 +482,6 @@ class ClaudeModel:
             raise RuntimeError("the claude backend needs: pip install anthropic") from e
         self.client = anthropic.Anthropic()
         self.name, self.system_prompt, self.effort = model_name, system_prompt, effort
-        # max_tokens covers thinking as well as the answer, so it gets a generous floor
         self.max_new_tokens = max(16000, max_new_tokens)
         self.show_thinking = enable_thinking
         self.history = []
@@ -505,7 +494,7 @@ class ClaudeModel:
                   betas=["server-side-fallback-2026-07-01"], fallbacks="default")
         if self.system_prompt:
             kw["system"] = self.system_prompt
-        if self.show_thinking:      # THINK HARDER shows a readable summary of the reasoning
+        if self.show_thinking:
             kw["thinking"] = {"type": "adaptive", "display": "summarized"}
         parts, in_think = [], False
         with _RUN_LOCK:
@@ -569,7 +558,7 @@ def mem_available_gb():
                     return int(line.split()[1]) / 1024 / 1024
     except OSError:
         pass
-    try:                        # Windows / macOS: no /proc (pip install psutil)
+    try:
         import psutil
         return psutil.virtual_memory().available / 1024 ** 3
     except ImportError:
@@ -584,14 +573,13 @@ def mem_total_gb():
                     return int(line.split()[1]) / 1024 / 1024
     except OSError:
         pass
-    try:                        # Windows / macOS: no /proc (pip install psutil)
+    try:
         import psutil
         return psutil.virtual_memory().total / 1024 ** 3
     except ImportError:
         return 0.0
 
 
-# --------------------------------------------------------------------------- out-of-process trial load
 def probe_rkllm(model_path, lib_path, domain_id=0, timeout=600):
     """Load the model in a child process and generate a few tokens. -> (ok, reason, output).
     A model the NPU driver can't hold can kill the whole process instead of raising, which would take the GUI

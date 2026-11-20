@@ -50,8 +50,6 @@ def _check(sc, case, store, tools, human):
     if exp.get("confirmed_state"):
         if not any(exp["confirmed_state"].lower() in t.get("confirm", "").lower() for t in human.transcript):
             fails.append(f"no safety confirm for {exp['confirmed_state']!r}")
-    # accuracy checks (review 2026-10-25): the chart fits the engine, the question was shown, live values were
-    # read when the car could give them, DTC steps were answered only from a scan, another path was tried
     if p.get("mode") == "steps" and p.get("variant"):
         v = next((v for v in tools._proc(p["code"])["variants"] if v["key"] == p["variant"]), None)
         if v and v["tag"] and not kb.fits(kb.tag_features(v["tag"]), case.car.get("features") or {}):
@@ -82,7 +80,7 @@ def _check(sc, case, store, tools, human):
         if p.get("mode") != "symptom" or not walked:
             fails.append("the symptom chart's suspects weren't walked")
     parts = [v["label"].split(": ", 1)[-1].split(" (")[0].lower() for v in case.sources.values() if v["kind"] == "field"]
-    for r in rows:     # a field-report part looked up must be offered (or reported as not offered), never dropped
+    for r in rows:
         q = (json.loads(r[4]).get("query") or "").lower() if r[3] == "search_manual" else ""
         if q and any(pt and pt in q for pt in parts) and not any(x[3] == "offer_detour" for x in rows):
             fails.append("searched for a field-report part but offered no detour")
@@ -98,12 +96,11 @@ def _check(sc, case, store, tools, human):
             summ = json.loads(hit[0][2])
             if (summ.get("trigger") or {}).get("met_at_s") is None:
                 fails.append(f"watch at step {n}: trigger not met")
-            stored, again = W.replay(store.db, hit[0][0], case.car)      # offline replay gives the same answer
+            stored, again = W.replay(store.db, hit[0][0], case.car)
             if json.dumps(stored, sort_keys=True) != json.dumps(again, sort_keys=True):
                 fails.append(f"watch {hit[0][0]} replays differently")
     if exp.get("symptom_sid") and exp["symptom_sid"] not in {v.get("sid") for v in case.sources.values()}:
         fails.append("the symptom's own chart wasn't found")
-    # every run: a finished case cites only ids from this run; accepted texts pass the claim check again
     known = case.known_ids()
     if case.status == "finished" and ((not res.get("citations") and known)
                                       or any(x not in known for x in res.get("citations", []))):
@@ -120,7 +117,7 @@ def _check(sc, case, store, tools, human):
             for k in harness.CHECKED_ARGS[r[3]]:
                 if harness.check_claims(str(args.get(k) or ""), case, tools, store):
                     fails.append(f"accepted uncited text in {r[3]}.{k}")
-    again = store.load(case.id)            # crash-safety: the saved state is the state
+    again = store.load(case.id)
     if again.proc.get("path") != p.get("path") or again.status != case.status:
         fails.append("saved case differs from the live one")
     return fails, len(rejects), len(rows)
@@ -139,7 +136,7 @@ def prompt_content():
     bad += [f"make {m}" for m in vehicle_id.MAKES if m.lower() in words]
     for f in glob.glob(os.path.join(ROOT, "kb", "*.db")):
         if os.path.basename(f).count(".") > 1 or os.path.getsize(f) < 1e6:
-            continue                                    # backups (x.pre_*.db) and small side DBs
+            continue
         try:
             with sqlite3.connect(f"file:{f}?mode=ro", uri=True) as c:
                 models = {m.lower() for (m,) in c.execute("SELECT DISTINCT model FROM vehicle") if m and len(m) > 3}
@@ -152,14 +149,14 @@ def prompt_content():
 def run_one(sc, store, cfg, agent, log):
     human = ScriptedHuman(sc)
     reader = FakeCar(sc.get("fake_car"))
-    car, r, path, notes = identify(cfg, human, reader, store, sc.get("given", {}))   # always first
+    car, r, path, notes = identify(cfg, human, reader, store, sc.get("given", {}))
     log("  car: " + " | ".join(notes))
     if car is None or sc.get("expect", {}).get("ident_fail"):
         ok = car is None and sc.get("expect", {}).get("ident_fail", False)
         return {"name": sc["name"], "ok": ok, "fails": [] if ok else ["identification: " + "; ".join(notes)],
                 "status": "not identified" if car is None else "identified", "result": None, "path": [],
                 "rejects": 0, "calls": 0, "s": 0, "case": None}
-    if agent == "pc" and sc.get("inject"):     # injected bad calls are a scripted-model test only
+    if agent == "pc" and sc.get("inject"):
         sc = dict(sc, expect={k: v for k, v in sc["expect"].items() if k != "rejections_min"})
     case = Case(car=car, codes=list(sc.get("codes", [])), symptoms=sc.get("symptoms", ""))
     store.new(case, label="test:" + sc["name"])
@@ -195,7 +192,7 @@ def run_all(names, agent, cfg):
     if agent == "pc":
         from .__main__ import gpu_busy
         why = gpu_busy()
-        if why:   # CLAUDE.md: no Home/Ollama while a GPU build holds the GPU
+        if why:
             print(f"Not running with the PC model: {why}. Try again when tools/status.sh gpu shows it free.")
             return 3
     stamp = time.strftime("%Y%m%d_%H%M%S")
@@ -212,7 +209,7 @@ def run_all(names, agent, cfg):
             log(f"=== {sc['name']}: {sc.get('about', '')}")
             try:
                 res = run_one(sc, store, cfg, agent, log)
-            except Exception as e:   # one broken scenario mustn't hide the rest
+            except Exception as e:
                 import traceback
                 log(traceback.format_exc())
                 res = {"name": sc["name"], "ok": False, "fails": [f"crash: {e!r}"], "status": "crash", "result": None,

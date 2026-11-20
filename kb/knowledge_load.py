@@ -9,7 +9,6 @@ import sqlite3
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ALT = os.path.join(os.environ.get("CYBERDECK_ARCHIVE", os.path.expanduser("~/cyberdeck_archive")), "kb_build")
-# kb file name -> make names as written in NHTSA files and on forums (default: the file name, '_' -> ' ')
 MAKES = {"dodge": ["DODGE", "RAM"], "mercedes_benz": ["MERCEDES-BENZ", "MERCEDES BENZ", "MERCEDES", "BENZ"],
          "nissan": ["NISSAN", "DATSUN"], "land_rover": ["LAND ROVER", "LANDROVER"], "chevrolet": ["CHEVROLET", "CHEVY"],
          "volkswagen": ["VOLKSWAGEN", "VW"], "mitsubishi_fuso": ["MITSUBISHI FUSO"], "ud": ["UD", "UD TRUCKS"],
@@ -45,7 +44,7 @@ def nhtsa_models(c):
 
 def write_kind(db, kind, rows, marker):
     """rows: (ref, model, year_min, year_max, title, body, url, confirmed). Returns the row count."""
-    c = sqlite3.connect(db, timeout=600)       # waits if another job is writing this DB
+    c = sqlite3.connect(db, timeout=600)
     c.execute("CREATE TEMP TABLE new (ref TEXT, model TEXT, year_min INTEGER, year_max INTEGER, title TEXT, "
               "body TEXT, url TEXT, confirmed INTEGER)")
     c.executemany("INSERT INTO new VALUES (?,?,?,?,?,?,?,?)", rows)
@@ -53,7 +52,7 @@ def write_kind(db, kind, rows, marker):
         "SELECT id FROM knowledge k WHERE kind=? AND NOT EXISTS (SELECT 1 FROM new n WHERE n.ref IS k.ref AND "
         "n.model IS k.model AND n.year_min IS k.year_min)", (kind,))]
     if gone:
-        try:                                   # drop their vectors too, so a reused id can't inherit one
+        try:
             import sqlite_vec
             c.enable_load_extension(True)
             sqlite_vec.load(c)
@@ -62,7 +61,6 @@ def write_kind(db, kind, rows, marker):
         except Exception:
             pass
         c.executemany("DELETE FROM knowledge WHERE id=?", [(i,) for i in gone])
-    # update rows that exist (IS, not =, so a blank model or year still matches), add the rest
     same = "k.kind=? AND k.ref IS n.ref AND k.model IS n.model AND k.year_min IS n.year_min"
     c.execute(f"UPDATE knowledge AS k SET year_max=n.year_max, title=n.title, body=n.body, url=n.url, "
               f"confirmed=n.confirmed FROM new n WHERE {same}", (kind,))

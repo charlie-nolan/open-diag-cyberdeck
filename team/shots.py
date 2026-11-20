@@ -45,7 +45,7 @@ def _msgs(run):
             text = d.get("reply") or f"(no answer: {d.get('status') or ''} {(d.get('error') or '')[:300]})"
             out.append((who, meta, text))
     v = os.path.join(run, "verdict.txt")
-    if os.path.isfile(v) and out and out[-1][0] == "claude":    # the shown verdict: ids marked, lookups listed
+    if os.path.isfile(v) and out and out[-1][0] == "claude":
         out[-1] = (out[-1][0], out[-1][1], open(v).read())
     return case, out
 

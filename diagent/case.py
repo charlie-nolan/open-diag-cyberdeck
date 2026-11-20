@@ -20,17 +20,17 @@ CREATE TABLE IF NOT EXISTS watch (id INTEGER PRIMARY KEY, case_id INTEGER, ts RE
 
 @dataclass
 class Case:
-    car: dict                                        # make, model, year, engine, vin, ecu_id, kb
-    codes: list = field(default_factory=list)        # from the scan (or typed), replaced on each scan
-    symptoms: str = ""                               # in the user's words
-    readings: list = field(default_factory=list)     # {id, step, value, unit, raw, how, ts, assumed_unit}
-    live: list = field(default_factory=list)         # snapshots from read_car: {id, ts, text, meanings}
-    proc: dict = field(default_factory=dict)         # code, variant, current, path, ended, end_text, end_src
-    hypotheses: list = field(default_factory=list)   # {cause, status, evidence, general, ts}
-    sources: dict = field(default_factory=dict)      # id -> {kind, label, sid, page, text}
-    scan_ts: float = 0.0                             # when codes last came from a scan of this car (0 = typed)
-    state_ok: str = ""                               # last safety state the user confirmed
-    status: str = "open"                             # open, finished, stopped, stalled, timeout
+    car: dict
+    codes: list = field(default_factory=list)
+    symptoms: str = ""
+    readings: list = field(default_factory=list)
+    live: list = field(default_factory=list)
+    proc: dict = field(default_factory=dict)
+    hypotheses: list = field(default_factory=list)
+    sources: dict = field(default_factory=dict)
+    scan_ts: float = 0.0
+    state_ok: str = ""
+    status: str = "open"
     result: dict = field(default_factory=dict)
     turn: int = 0
     id: int = 0
@@ -79,7 +79,7 @@ class Store:
         row = self.db.execute("SELECT state FROM case_ WHERE id=?", (case_id,)).fetchone()
         if not row:
             raise KeyError(f"no case {case_id}")
-        d = json.loads(row[0])  # inf readings (open circuit) round-trip as Infinity
+        d = json.loads(row[0])
         return Case(**d)
 
     def audit(self, case, kind, tool="", args=None, result="", source_ids=(), ok=True):

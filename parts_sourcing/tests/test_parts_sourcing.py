@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from parts_sourcing import alert_mail, interchange, junk_quote, qr, sourcing, yard_paste, yard_sync, yards  # noqa: E402
 from parts_sourcing.sheet import render  # noqa: E402
 
-TODAY = dt.date(2026, 10, 15)   # fixture cars were added Sep 30 - Oct 10, 2026; a fixed date keeps the 45-day cutoff stable
+TODAY = dt.date(2026, 10, 15)
 
 KB_SCHEMA = """
 CREATE TABLE vehicle (id INTEGER PRIMARY KEY, model TEXT NOT NULL, chassis TEXT, year INTEGER NOT NULL, engine TEXT,
@@ -24,7 +24,7 @@ CREATE TABLE section_vehicle (vehicle_id INTEGER, section_id INTEGER, PRIMARY KE
 CREATE TABLE labor (id INTEGER PRIMARY KEY, section_id INTEGER NOT NULL, operation TEXT NOT NULL, hours REAL,
   part_number TEXT, price TEXT, raw TEXT NOT NULL);
 """
-VEHICLES = [  # (model, year, engine)
+VEHICLES = [
     ("Forester", 2002, "F4-2.5L SOHC"), ("Forester", 2004, "F4-2.5L SOHC"), ("Forester", 2004, "F4-2.5L DOHC Turbo"),
     ("Impreza", 2002, "F4-2.5L SOHC"), ("Impreza", 2002, "F4-2.0L DOHC Turbo"), ("Impreza", 2005, "F4-2.5L SOHC"),
     ("Outback", 1998, "F4-2.5L DOHC"), ("Legacy", 2001, "F4-2.5L SOHC"),
@@ -45,17 +45,17 @@ def make_kb(path):
         con.execute("INSERT INTO section VALUES (?,1,?,?)", (sid, f"Exhaust > Parts {m} {y} {e}", "x"))
         con.execute("INSERT INTO section_vehicle VALUES (?,?)", (v, sid))
         if any(g[0] == m and g[1] == y and (len(g) == 2 or g[2] == e) for g in GASKET):
-            num = "14038AA000" if m != "Legacy" else "14038AA001"   # Legacy lists a sibling revision
+            num = "14038AA000" if m != "Legacy" else "14038AA001"
             con.execute("INSERT INTO labor(section_id,operation,part_number,price,raw) VALUES (?,?,?,?,?)",
                         (sid, "Exhaust > Exhaust Manifold > Gasket", num, "9.80", "x"))
-        if (m, y) == ("Forester", 2002):        # alternator part + book time
+        if (m, y) == ("Forester", 2002):
             con.execute("INSERT INTO labor(section_id,operation,part_number,price,raw) VALUES (?,?,?,?,?)",
                         (sid, "Engine > Charging System > Alternator", "23700AA62A", "389.00", "x"))
             con.execute("INSERT INTO labor(section_id,operation,hours,raw) VALUES (?,?,?,?)",
                         (sid, "Engine > Charging System > Alternator > Replace", 1.2, "x"))
             con.execute("INSERT INTO labor(section_id,operation,hours,raw) VALUES (?,?,?,?)",
                         (sid, "Engine > Charging System > Alternator > Voltage Regulator > Replace", 1.6, "x"))
-        if (m, y) == ("Forester", 2002):        # labor rows that must not win: tests, add-ons, a bigger component
+        if (m, y) == ("Forester", 2002):
             for op_, h in [("Fuel System > Fuel Pump Control Unit > Replace > Fuel Pump Controller", 1.4),
                            ("Fuel System > Fuel Pump Control Unit > Replace > Fuel Pump Controller", 1.4),
                            ("Fuel System > Fuel Pump > Replace", 0.9),
@@ -72,7 +72,7 @@ def make_kb(path):
                            ("Transaxle > Transaxle Assembly > Replace", 6.0),
                            ("Starting System > Starter Motor > To R&R Starter Motor Seals, Add > Each", 0.2)]:
                 con.execute("INSERT INTO labor(section_id,operation,hours,raw) VALUES (?,?,?,?)", (sid, op_, h, "x"))
-        if (m, y) == ("Forester", 2002):        # intake gasket filed under the same chapter
+        if (m, y) == ("Forester", 2002):
             con.execute("INSERT INTO labor(section_id,operation,part_number,price,raw) VALUES (?,?,?,?,?)",
                         (sid, "Engine, Cooling and Exhaust > Intake Manifold > Gasket", "14035AA383", "5.92", "x"))
         if (m, e) == ("Impreza", "F4-2.0L DOHC Turbo"):
@@ -101,7 +101,7 @@ PAGE = "<html><body>" + "".join([
     card("SALAG2D46CA000043", 2012, "Land Rover LR4", "PICK-n-PULL Lynnwood", 54, "Lynnwood", "33", "Oct 15, 2026"),
 ]) + "<div>1 of 1</div></body></html>"
 
-VPIC = {  # made-up decodes in vPIC's field names
+VPIC = {
     "JF1SG63614H700002": {"DisplacementL": "2.5", "EngineCylinders": "4", "ValveTrainDesign": "Single Overhead Cam (SOHC)", "Turbo": ""},
     "JF1SG69684H700003": {"DisplacementL": "2.5", "EngineCylinders": "4", "ValveTrainDesign": "Dual Overhead Cam (DOHC)", "Turbo": "Yes"},
     "JF1GD70652L700005": {"DisplacementL": "2.0", "EngineCylinders": "4", "ValveTrainDesign": "", "Turbo": "Yes"},
@@ -144,20 +144,17 @@ class T(unittest.TestCase):
         self.assertEqual(ic.part_number, "14038AA000")
         self.assertIn("Forester 2.5L SOHC 2002, 2004", ic.summary())
         self.assertEqual({f.match for f in ic.fits if f.model == "Legacy"}, {"family"})
-        self.assertNotIn("14038AA050", ic.numbers)    # different family (AA05x)
+        self.assertNotIn("14038AA050", ic.numbers)
 
     def test_yard_counts(self):
         ic = interchange.lookup(self.kb, "14038AA000")
         rep = yards.report(self.ydb, self.kb, ic, today=TODAY)
         by = {y.yard: y for y in rep.yards}
         lyn = by["PICK-n-PULL Lynnwood"]
-        # 2002 Forester: one engine that year -> likely; 2004 decoded SOHC -> likely
         self.assertEqual(lyn.count("likely"), 2)
         tac = by["PICK-n-PULL Tacoma"]
-        # 2004 turbo Forester excluded; 2002 Impreza undecoded and two engines that year -> possible
         self.assertEqual((tac.count("likely"), tac.count("possible")), (0, 1))
         arl = by["PICK-n-PULL Arlington"]
-        # WRX (2.0 turbo) excluded; Saab 9-2X 2.5 via alias -> possible
         self.assertEqual([(c.model, c.level) for c in arl.cars], [("9-2X", "possible")])
         self.assertEqual(by["PICK-n-PULL Tumwater"].count("family"), 1)
         self.assertEqual(rep.yards[0].yard, "PICK-n-PULL Lynnwood")
@@ -171,11 +168,11 @@ class T(unittest.TestCase):
         page = render([s], "2002 Subaru Forester")
         if qr.available():
             self.assertGreaterEqual(page.count("<svg"), 4)
-            self.assertIn("PICK-n-PULL Lynnwood: 2004 Forester, row 13", page)   # yard QR for the best car
+            self.assertIn("PICK-n-PULL Lynnwood: 2004 Forester, row 13", page)
 
     def test_parts_for_job(self):
         rows = interchange.parts_for_job(self.kb, "exhaust manifold gasket", "Forester", 2002)
-        self.assertEqual([r[0] for r in rows], ["14038AA000"])      # not the intake gasket
+        self.assertEqual([r[0] for r in rows], ["14038AA000"])
         rows = interchange.parts_for_job(self.kb, "intake manifold gasket", "Forester", 2002)
         self.assertEqual([r[0] for r in rows], ["14035AA383"])
 
@@ -205,7 +202,7 @@ VIN: 4S4BP61C057300009  Row: 7  Added to yard: Oct 12, 2026
         t1, t2 = "2026-10-15T00:00:00+00:00", "2026-10-16T00:00:00+00:00"
         first = yard_paste.parse_text("2002 Subaru Forester row 1\n2004 Subaru Forester row 2\n", "Y1")
         yard_sync.store(con, first, t1, full_yards={"Y1"})
-        yard_sync.store(con, first[:1], t2, full_yards={"Y1"})          # row 2 car was crushed
+        yard_sync.store(con, first[:1], t2, full_yards={"Y1"})
         con.execute("INSERT INTO sync_log VALUES (?,?,?,?,?,?,NULL)", (t2, "paste-full", None, 1, 1, 1))
         con.commit()
         con.close()
@@ -226,7 +223,7 @@ Alternator Bracket $9.99
         self.assertEqual(q["price"]["item"], "Alternator")
         self.assertEqual(q["labor"]["hours"], 1.2)
         self.assertEqual(q["total"], 34.99 + 2.00 + 120.0)
-        g = junk_quote.quote("14038AA000", cfg)      # a gasket isn't the manifold
+        g = junk_quote.quote("14038AA000", cfg)
         self.assertIsNone(g["price"])
 
     def test_junk_quote_pick_n_pull_table(self):
@@ -242,12 +239,12 @@ Alternator Bracket $9.99
                "560-4B\t(BULK) WHEEL ALUMINUM\tCar\t$34.99\t$0.00\n"
                "422\tPULSE AIR FEEDER(CHRYS TYP)\tCar\t$19.99\t$0.00\n")
         rows = junk_quote.parse_price_lines(tsv)
-        self.assertEqual(len(rows), 10)                       # header skipped
+        self.assertEqual(len(rows), 10)
         alt = rows[0]
         self.assertEqual((alt["item"], alt["price"], alt["core"], alt["item_no"], alt["vtype"]),
                          ("ALTERNATOR", 32.99, 9.99, "601", "Car"))
-        self.assertIsNone(rows[8]["core"])                    # $0.00 core = none
-        self.assertFalse(any(r["is_fee"] for r in rows))      # FEEDER isn't a fee
+        self.assertIsNone(rows[8]["core"])
+        self.assertFalse(any(r["is_fee"] for r in rows))
         junk_quote.load(self.ydb, "PnP test", tsv)
 
         def m(op):
@@ -259,11 +256,10 @@ Alternator Bracket $9.99
         self.assertEqual(m("Exhaust > Exhaust Manifold"), "MANIFOLD EXHAUST")
         self.assertIsNone(m("Exhaust > Exhaust Manifold > Gasket"))
         self.assertEqual(m("Brakes > Master Cylinder"), "BRAKE MASTER CYL OR BOOSTER")
-        # CHARM crumbs that only say which car ("(Manual Trans)", "Right") aren't the part name
-        self.assertEqual(m("Starting System > Starter > (Manual Trans)"), None)   # no STARTER line in this list
+        self.assertEqual(m("Starting System > Starter > (Manual Trans)"), None)
         self.assertEqual(m("Brakes > Master Cylinder > (With ABS)"), "BRAKE MASTER CYL OR BOOSTER")
         self.assertEqual(m("Exhaust > Exhaust Manifold > Right"), "MANIFOLD EXHAUST")
-        self.assertIsNone(m("Front Suspension > Strut Mount > Left"))          # a mount isn't the strut
+        self.assertIsNone(m("Front Suspension > Strut Mount > Left"))
         self.assertIsNone(m("Cooling > Radiator > Radiator Cap"))
         self.assertEqual(junk_quote.split_part("Engine > Starter Assembly (Manual Trans) > 5 Speed"),
                          ("Starter Assembly", ["Engine"]))
@@ -272,9 +268,9 @@ Alternator Bracket $9.99
         cfg = dict(self.cfg, car={"model": "Forester", "year": 2002}, labor_rate=100, price_chain="PnP test",
                    admission=2.0)
         q = junk_quote.quote("23700AA62A", cfg)
-        self.assertEqual(q["total"], 32.99 + 2.0 + 120.0)     # admission from sourcing.json, core apart
+        self.assertEqual(q["total"], 32.99 + 2.0 + 120.0)
         self.assertIn("(item 601)", q["text"])
-        g = junk_quote.quote("14038AA000", cfg)               # gasket: not on the list, labor unknown
+        g = junk_quote.quote("14038AA000", cfg)
         self.assertIsNone(g["total"])
         self.assertIn("TOTAL unknown", g["text"])
 
@@ -285,12 +281,12 @@ Alternator Bracket $9.99
         self.assertEqual(h("Part > Fuel Pump"), 0.9)
         self.assertEqual(h("Part > Starter > (Manual Trans)"), 1.1)
         self.assertIsNone(h("Part > Fuel Pump Relay"))
-        self.assertEqual(h("Cv Axle"), 1.0)                 # front, one side
-        self.assertEqual(h("Axle"), 1.0)                    # not the differential's 'Rear Axle' crumb
+        self.assertEqual(h("Cv Axle"), 1.0)
+        self.assertEqual(h("Axle"), 1.0)
         self.assertEqual(h("Drive Axles > Axle Shaft > Rear"), 0.8)
         self.assertEqual(h("Cv Boot"), 1.5)
         self.assertEqual(h("Rear Axle"), 0.8)
-        self.assertEqual(junk_quote.part_label("Fuel Pump > Part"), "Fuel Pump")      # only the Control Unit row: too many extra words
+        self.assertEqual(junk_quote.part_label("Fuel Pump > Part"), "Fuel Pump")
         self.assertEqual(junk_quote.split_part("Radiator > Part > (Without AC)")[0], "Radiator")
 
     def test_alert_mail(self):
@@ -309,7 +305,7 @@ Alternator Bracket $9.99
         c = cars[0]
         self.assertEqual((c["year"], c["model"], c["yard"], c["row"], c["added"]),
                          (2001, "Forester", "PICK-n-PULL Lynnwood", "17", "2026-10-06"))
-        self.assertFalse(alert_mail.handle(con, raw, "2026-10-17T01:00:00+00:00")[2])   # used once
+        self.assertFalse(alert_mail.handle(con, raw, "2026-10-17T01:00:00+00:00")[2])
         self.assertEqual(con.execute("SELECT count(*) FROM yard_vehicle").fetchone()[0], 1)
         con.close()
 

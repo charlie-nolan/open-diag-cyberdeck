@@ -55,11 +55,11 @@ class OlderLayout(unittest.TestCase):
         self.assertIn("P0301", steps[1].yes.text)
         self.assertEqual((steps[2].yes.step, steps[2].no.kind, steps[2].instructions), (3, "action", ["1) Turn ignition switch to ON."]))
         self.assertEqual(steps[3].limit.op, "between")
-        self.assertIsNone(steps[3].yes.step)          # another chart's step is not a step in this one
+        self.assertIsNone(steps[3].yes.step)
 
     def test_unclear_step_is_not_walked(self):
         steps, problems = C.parse_labelled(["10B1 : CHECK X.", ": Is it more than 1 V?", ": Go to step 10B2."])
-        self.assertTrue(steps[1].broken)              # kept as page text for the mechanic, never guessed
+        self.assertTrue(steps[1].broken)
         self.assertEqual(steps[1].question, "")
         self.assertIn(": Go to step 10B2.", steps[1].raw)
 

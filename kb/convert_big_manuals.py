@@ -22,9 +22,9 @@ import shutil
 import subprocess
 import sys
 
-import pymupdf  # only to count pages; pip install pymupdf if missing
+import pymupdf
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo root
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PDF_DIR = os.path.join(ROOT, "manual_pdfs")
 OUT_DIR = os.path.join(ROOT, "test_batch_out")
 CHUNK_DIR = os.path.join(OUT_DIR, "_chunks")
@@ -40,8 +40,6 @@ MANUALS = [
 ]
 
 
-# marker_single, but empty images (0 px) are skipped and logged instead of crashing save_output
-# ("cannot write empty image as JPEG"), which used to fail the whole chunk.
 MARKER_GUARDED = r"""
 import sys
 import marker.output as mo
@@ -60,7 +58,7 @@ sys.exit(cs.convert_single_cli())
 
 
 def marker_env():
-    env = os.environ.copy()          # same settings as batch_convert_fsm_pdfs.py
+    env = os.environ.copy()
     env["SURYA_INFERENCE_BACKEND"] = "llamacpp"
     env["INFERENCE_BACKEND"] = "llamacpp"
     env["CUDA_VISIBLE_DEVICES"] = "0"
@@ -97,7 +95,6 @@ def convert(pdf_rel, chunk_pages):
                   f"try --chunk 100 if it ran out of memory.")
             return False
 
-    # Merge chunks into the normal layout
     os.makedirs(final_dir, exist_ok=True)
     with open(final_md + ".tmp", "w", encoding="utf-8") as out:
         for cdir, md in parts:

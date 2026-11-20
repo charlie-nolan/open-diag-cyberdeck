@@ -17,7 +17,6 @@ STATE_RX = [("key_off", re.compile(r"ignition switch to off|ignition (switch )?o
             ("running", re.compile(r"start (and idle )?the engine|idle the engine|warm(-| )?up the engine|"
                                    r"engine (is )?running|run the engine|drive the vehicle", re.I)),
             ("test_connector", re.compile(r"test mode connector", re.I))]
-# manual steps that need a write to the car: done only from the main app's TESTS screen, with its own guards
 WRITE_RX = re.compile(r"clear memory|operation check mode|compulsory|\bmode 04\b|clear (the )?(dtcs?|codes?|trouble codes?)\b|"
                       r"\boperate (the )?[^.;]{0,60}(using|with) (the )?(subaru )?select monitor|"
                       r"\b(activate|drive) (the )?[^.;]{0,40}(using|with) (the )?(subaru )?select monitor|actuator test", re.I)
@@ -34,7 +33,6 @@ def states_in(text):
     return [n for _, n in sorted(hits)]
 
 
-# notes in a step that are about operating the dealer scan tool, not about the car: dropped from the card
 BOILER = re.compile(r"(select monitor|general scan tool|scan tool).{0,80}(operation|operating|procedure|manual|"
                     r"instruction)|for detailed operation|refer to .{0,40}(operation manual|instruction manual)", re.I)
 
@@ -64,7 +62,7 @@ def actions_of(step_cell):
         x = re.sub(r"^(\d)\)\s*", r"\1) ", x)
         if out and (re.match(r"^[(\[]?[A-Z]\d{1,3}[)\]]|^No\. \d|^Terminals?\b|^Connector (&|and) terminal", x)
                     or out[-1].endswith(":") or out[-1].endswith("terminal")):
-            out[-1] = f"{out[-1]} {x}"      # 'Connector & terminal:' + '(B135) No. 9 (+) — Chassis ground (-):'
+            out[-1] = f"{out[-1]} {x}"
         else:
             out.append(x)
     return title, out
@@ -179,7 +177,6 @@ class Tools:
             case, r, kb_path, human, car, store, cfg
         self._procs = {}
 
-    # ------------------------------------------------------------------ procedure state
     def _proc(self, code):
         if code not in self._procs:
             self._procs[code] = kb.procedure(self.r, code, car_features=self.case.car.get("features") or None)
@@ -213,7 +210,7 @@ class Tools:
         nxt = kb.next_of(cell)
         p["path"].append({"step": s["n"], "answer": answer, "next": nxt, "how": how, "readings": list(reading_ids),
                           "why": why, "src": self.step_src(s)})
-        p["unconfirmed"] = [u for u in p.get("unconfirmed", []) if u.get("step") != s["n"]]   # answered now
+        p["unconfirmed"] = [u for u in p.get("unconfirmed", []) if u.get("step") != s["n"]]
         p["declined"] = [d for d in p.get("declined", []) if d != f"step:{s['n']}"]
         msg = [f"Step {s['n']} [{self.step_src(s)}]: {answer} ({how}{': ' + why if why else ''})."]
         if nxt is None:
@@ -254,7 +251,6 @@ class Tools:
                     f"yet (codes were typed). read_car, or ask the user: {s['check']}")
         return f"Current step {s['n']} [{self.step_src(s)}]: {s['step']} | Check: {s['check']}"
 
-    # ------------------------------------------------------------------ tools
     def get_procedure(self, code, variant=None):
         code = code.strip().upper()
         if not re.fullmatch(r"[PBCU][0-9A-F]{4}", code):
@@ -266,7 +262,7 @@ class Tools:
             raise ToolError(f"{code} is neither a scanned code nor named in a manual page of this case")
         old = c.proc or {}
         if old.get("code") == code and old.get("mode") == "steps" and not variant and not old.get("ended"):
-            s = self.current()                       # already walking it: keep the position, don't restart
+            s = self.current()
             return (f"Already walking {code} (variant {old['variant']}); the tree is at "
                     + (f"step {s['n']} [{self.step_src(s)}]: {s['check']}" if s else "its stop point")
                     + ". Carry on from there."), []
@@ -275,7 +271,7 @@ class Tools:
             self.case.proc = {"code": code, "via": None, "mode": "pages", "variant": None, "current": None,
                               "path": [], "history": []}
             return f"No manual procedure is linked to {code} for this car. Use search_manual.", []
-        cands = [v for v in proc["variants"] if v["usable"]]     # already filtered to the car's engine (kb.fits)
+        cands = [v for v in proc["variants"] if v["usable"]]
         chosen = None
         if variant:
             chosen = next((v for v in proc["variants"] if v["key"] == variant), None)
@@ -343,9 +339,9 @@ class Tools:
                                f"[{scans[-1]}])" if scans else ""))
         declined = (p or {}).get("declined", [])
         s_now = self.current() if p and p.get("mode") == "steps" and not p.get("broken") and not p.get("detour") else None
-        intake = source_id.startswith("SC")          # the symptom question cites whichever scan is latest
+        intake = source_id.startswith("SC")
         key = f"step:{s_now['n']}" if s_now else ("intake" if intake else f"src:{source_id}")
-        if key in declined:            # The user said can't / skip / done: asking again is not another manual path
+        if key in declined:
             raise ToolError(f"{'step ' + str(s_now['n']) if s_now else 'that question' if intake else '[' + source_id + ']'}"
                             " was already answered or declined by the user: give the next instruction, look for another "
                             "manual path (search_manual / read_section / page_steps), or finish unconfirmed")
@@ -366,7 +362,7 @@ class Tools:
                 notes.append(f"Python set the reply to a number in {dim} (the step's check is a {dim} comparison).")
             expect, unit = "number", dim
         elif step_mode and NOT_SIMPLE_YESNO.match(check):
-            if expect != "yesno":       # a yes/no question with no single value to compare: the user answers yes/no
+            if expect != "yesno":
                 notes.append("Python set the reply to yes/no (the step's check is a yes/no question).")
             expect, unit = "yesno", None
         if step_mode and kb.scan_answers({s["n"]: s}, c.codes) and not c.scan_ts and getattr(self.car, "can_scan", True):
@@ -374,14 +370,14 @@ class Tools:
         if not step_mode and not check and expect in ("yesno", "number"):
             q = re.search(r"[^.;?]*\b(If|Does|Do|Is|Are|Was|Were|Did|Has|Have|Can)\b[^?]*\?",
                           c.sources.get(source_id, {}).get("text", ""))
-            if q:                        # the cited text's own question
+            if q:
                 check = q.group(0).strip()
                 notes.append(f"Question taken from [{source_id}].")
-            else:                        # the cited text asks nothing: the user reports, no yes/no branch is taken
+            else:
                 expect = "text"
                 notes.append(f"[{source_id}] has no question of its own: the user's reply is recorded as a report.")
         if not step_mode and not check:
-            check = "Say done when it's done, or tell me what you found."   # what to report when the page asks nothing
+            check = "Say done when it's done, or tell me what you found."
         text = (s["step"] + " " + check) if step_mode else instruction
         need = states_in(text) or states_in(instruction)
         if need and need[0] != c.state_ok:
@@ -404,11 +400,11 @@ class Tools:
         title, acts = actions_of(s["step"]) if step_mode else ("", [instruction])
         watched = ""
         if step_mode:
-            watched = self._auto_watch(s)                 # "until <value> reaches <mark>": Python watches it
-            got = self._live(s, check, dim, header)       # the deck reads the value itself when it can
+            watched = self._auto_watch(s)
+            got = self._live(s, check, dim, header)
             if got:
                 return (watched + got[0], got[1]) if watched else got
-        for i, act in enumerate(acts if step_mode and len(acts) > 1 else []):    # one action per prompt
+        for i, act in enumerate(acts if step_mode and len(acts) > 1 else []):
             r = self.human.act(header, title, act, i + 1, len(acts))
             self.store.audit(c, "human", "action", {"header": header, "n": i + 1, "action": act}, r)
             cmd = units.parse_reply(r or "done", "done").get("command") if r else None
@@ -442,7 +438,7 @@ class Tools:
                 return self._back()
             if cmd == "done":
                 if not step_mode and p is not None:
-                    p.setdefault("declined", []).append(key)    # done: that instruction is finished, move on
+                    p.setdefault("declined", []).append(key)
                 return f"The user: done with [{source_id}]. Give the next instruction (or finish).", []
             return self._cant(s if step_mode else None, parsed.get("note") or ("skipped" if cmd == "skip" else "can't do it"),
                               skip=cmd == "skip", source_id=source_id)
@@ -504,7 +500,7 @@ class Tools:
         value, unit = got
         u = units.norm_unit(unit)
         if not u or u[0] != dim:
-            return None                           # can't compare it with this check's unit: ask the user instead
+            return None
         value = value * u[1]
         lid = f"LV{len(self.case.live) + 1}"
         self.case.live.append({"id": lid, "ts": time.time(), "text": f"{key} {value:g} {dim}", "meanings": []})
@@ -525,7 +521,7 @@ class Tools:
         if p is not None and (s is not None or source_id):
             p.setdefault("declined", []).append(f"step:{s['n']}" if s is not None else
                                                 "intake" if source_id.startswith("SC") else f"src:{source_id}")
-        if p and p.get("detour"):        # a detour that can't be done doesn't touch the tree
+        if p and p.get("detour"):
             p["detour"].setdefault("cant", []).append(why)
             return (f"The user {'skipped' if skip else 'could not do'} that detour instruction: {why}. "
                     "end_detour to go back to the tree."), []
@@ -561,7 +557,7 @@ class Tools:
         if not ev:
             raise ToolError(f"cite a reading the user gave at step {s['n']} (have: {', '.join(here) or 'none'}); "
                             "ask_human first")
-        for e in ev:   # a number Python can judge overrides the model's answer
+        for e in ev:
             r = here[e]
             if isinstance(r["value"], float):
                 v = units.judge(s["check"], r["value"], r["unit"])
@@ -681,7 +677,7 @@ class Tools:
         words = [w for w in re.findall(r"[a-z0-9]{3,}", component.lower()) if w not in kb._STOPWORDS]
         is_test = re.search(r"inspect|inspection|test|check|diagnos", path, re.I)
         where = (path + " " + body[:1500]).lower()
-        names_it = words and all(w in where for w in words)     # every word of the component, not just one
+        names_it = words and all(w in where for w in words)
         if not (is_test and names_it):
             raise ToolError("that manual section isn't an inspection of this component: search_manual for the "
                             "component's inspection first (a field report never supplies the test itself)")
@@ -714,7 +710,7 @@ class Tools:
     def symptom_chart(self, query):
         c = self.case
         p = c.proc or {}
-        if p.get("mode") == "symptom":               # already on a chart: keep it, don't start over
+        if p.get("mode") == "symptom":
             return (f"Already on the chart [{p['chart_src']}] for \"{p['symptom']}\". Suspects in the manual's order: "
                     + "; ".join(f"{x['text']}" + (f" [{x['src']}]" if x["src"] else "") for x in p["suspects"][:8])
                     + ". Carry on with the next one."), []
@@ -802,7 +798,7 @@ class Tools:
         samples, summary = watch.run(c.car, self.car, keys, float(seconds), trig, self.human)
         s = self.current()
         if s and p is not None:
-            p.setdefault("watched", []).append(s["n"])     # this step's watch is done: no second automatic one
+            p.setdefault("watched", []).append(s["n"])
         wid = watch.store(self.store.db, c.id, s["n"] if s else None, keys, samples, summary)
         src = c.add_source("watch", f"watch session {wid}: {', '.join(keys)}", text=watch.text(summary))
         ids, lines = [src], [f"[{src}] watched {', '.join(keys)} for {samples[-1]['t'] if samples else 0:g} s "
@@ -882,7 +878,7 @@ class Tools:
         res = self.car.read()
         c = self.case
         if res.get("codes") is not None:
-            c.codes = list(dict.fromkeys(res["codes"]))     # scans replace codes, never append
+            c.codes = list(dict.fromkeys(res["codes"]))
             c.scan_ts = time.time()
         ids = [c.add_source("scan", f"scan {time.strftime('%H:%M:%S')}: codes {', '.join(c.codes) or 'none'}; "
                             f"{res.get('note', '')}", text=json.dumps(res))]
@@ -907,7 +903,7 @@ class Tools:
                            f"source_id {ids[0]}.")
         p = c.proc or {}
         if c.scan_ts and p.get("mode") == "steps" and p.get("current") is not None and not p.get("broken"):
-            out.append(self._enter())               # a waiting "which DTCs are set" step answers itself now
+            out.append(self._enter())
         return "\n".join(out), ids
 
     def update_hypothesis(self, cause, status, evidence_ids, general_knowledge=False):

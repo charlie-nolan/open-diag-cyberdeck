@@ -54,7 +54,7 @@ def values(live, source, car):
                 return [{"key": j["key"], "value": j["value"], "unit": j["unit"], "status": j["status"],
                          "low": j["low"], "high": j["high"], "citation": j["citation"]}
                         for j in telemetry_ref.judge(got, car)]
-    except Exception:       # a records problem must never stop a read
+    except Exception:
         pass
     try:
         import live_data
@@ -98,7 +98,7 @@ class CarRecords:
                              "VALUES (?,?,?,?,?,?,?,?)", (t, kind, str(visit_ref or ""), str(drive_id or ""),
                                                           source, codes, live, miles))
             if not cur.rowcount:
-                return False            # already recorded (a pending reading flushed twice)
+                return False
             rid = cur.lastrowid
             db.executemany("INSERT OR REPLACE INTO reading_value VALUES (?,?,?,?,?,?,?,?)",
                            [(rid, x["key"], x["value"], x["unit"], x["status"], x["low"], x["high"],

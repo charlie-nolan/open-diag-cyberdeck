@@ -22,8 +22,6 @@ import re
 import sqlite3
 import time
 
-# ------------------------------------------------------------------------------------------- units
-# Canonical units: kPa absolute for pressures, °C, %, rpm, V, g/s, km/h, degrees, ms, A.
 UNIT_ALIASES = {
     "kpa": "kPa", "kilopascal": "kPa", "hpa": "hPa", "pa": "Pa", "pascal": "Pa", "bar": "bar", "mpa": "MPa",
     "psi": "psi", "inhg": "inHg", "mmhg": "mmHg",
@@ -39,7 +37,6 @@ UNIT_ALIASES = {
     "ms": "ms", "millisecond": "ms", "milliseconds": "ms", "µs": "µs", "us": "µs",
     "a": "A", "amp": "A", "ampere": "A", "ma": "mA", "s": "s", "second": "s", "seconds": "s",
 }
-# unit -> (dimension, factor, offset): canonical = value * factor + offset
 _UNIT = {
     "kPa": ("pressure", 1.0, 0.0), "hPa": ("pressure", 0.1, 0.0), "Pa": ("pressure", 0.001, 0.0),
     "bar": ("pressure", 100.0, 0.0), "MPa": ("pressure", 1000.0, 0.0), "psi": ("pressure", 6.894757, 0.0),
@@ -84,7 +81,6 @@ def canonical(value, unit):
     return convert(value, u, cu), cu
 
 
-# ------------------------------------------------------------------------- safe expression evaluator
 _OPS = {ast.Add: lambda a, b: a + b, ast.Sub: lambda a, b: a - b, ast.Mult: lambda a, b: a * b,
         ast.Div: lambda a, b: a / b, ast.Mod: lambda a, b: a % b, ast.FloorDiv: lambda a, b: a // b,
         ast.BitAnd: lambda a, b: int(a) & int(b), ast.RShift: lambda a, b: int(a) >> int(b),
@@ -118,13 +114,7 @@ def bytes_env(data):
     return env
 
 
-# ------------------------------------------------------------------------ canonical parameters
-# One row per physical quantity that more than one cable/protocol can report. The ids beside each key are
-# the definitions that report the same quantity: SAE J1979 mode 01 PID, RomRaider SSM parameter id, and
-# PCMHammer mode $22 parameter id. Quantities only one protocol reports get a namespaced key (ssm.P123,
-# gm22.<id>, obd01.<pid>) made by the builder from that definition's own name.
 CANON = {
-    #  key        name                                 unit    J1979  RomRaider SSM  PCMHammer
     "rpm":       ("Engine speed",                      "rpm",  "0C", ["P8"],  ["EngineSpeed"]),
     "speed":     ("Vehicle speed",                     "km/h", "0D", ["P9"],  ["VehicleSpeedSensor"]),
     "ect":       ("Engine coolant temperature",        "°C",   "05", ["P2"],  ["ECTSensor"]),
@@ -156,11 +146,7 @@ CANON = {
     "desired_idle": ("Desired idle speed",             "rpm",  None, [],      ["DesiredIdleSpeed"]),
     "adapter_volts": ("Voltage at the OBD connector (measured by the adapter, pin 16)", "V", None, [], []),
 }
-# Some adapters measure the connector voltage themselves (ELM/STN ATRV); that is a different measuring
-# point from the ECU's own supply-voltage reading, so it gets its own key.
 
-# SAE J1979 mode 01 scalar PIDs: pid -> (bytes, expression in A,B,C,D, unit). Every formula here is
-# unit-tested against python-obd's decoder (kb/tests/test_telemetry.py).
 OBD01 = {
     "04": (1, "A*100/255", "%"), "05": (1, "A-40", "°C"), "06": (1, "(A-128)*100/128", "%"),
     "07": (1, "(A-128)*100/128", "%"), "08": (1, "(A-128)*100/128", "%"), "09": (1, "(A-128)*100/128", "%"),
@@ -186,7 +172,6 @@ OBD01 = {
     "61": (1, "A-125", "%"), "62": (1, "A-125", "%"), "63": (2, "A*256+B", "Nm"),
 }
 
-# Labels of the mode 01 PIDs in the live-data text (app/obd_all.py). Core readings come first, in this order.
 OBD01_FIRST = [0x0C, 0x05, 0x06, 0x07, 0x0B, 0x10, 0x0E, 0x04, 0x0D, 0x11, 0x0F]
 OBD01_LABELS = {
     "0C": "RPM", "05": "ECT", "06": "STFT1", "07": "LTFT1", "0B": "MAP", "10": "MAF", "0E": "Timing", "04": "Load",
@@ -200,12 +185,9 @@ OBD01_LABELS = {
     "57": "O2 sec STFT B2", "58": "O2 sec LTFT B2", "59": "Fuel rail abs", "5A": "Rel pedal", "5B": "Hybrid battery",
     "5C": "Oil temp", "5D": "Injection timing", "5E": "Fuel rate", "61": "Demand torque", "62": "Actual torque",
     "63": "Ref torque"}
-# O2 voltage labels name the sensor's place, so a car whose PID 1D moves B2S1 to PID 16 still gets the right key
 OBD01_O2 = {"O2 B1S1": "14", "O2 B1S2": "15", "O2 B1S3": "16", "O2 B1S4": "17", "O2 B2S1": "18", "O2 B2S2": "19",
             "O2 B2S3": "1A", "O2 B2S4": "1B"}
 
-# Labels the app's live-data text uses (ssm_reader.LIVE for SSM; app/obd_all.py for OBD-II) -> the
-# definition id they were read with. 'text' readings are already decoded; the unit comes with the text.
 TEXT_IDS = {
     "ssm": {"RPM": "P8", "Speed": "P9", "ECT": "P2", "STFT1": "P3", "LTFT1": "P4", "MAP": "P7", "Timing": "P10",
             "Knock corr": "P23", "IAT": "P11", "TPS": "P13", "O2 front": "P14", "Volts": "P17"},
@@ -213,8 +195,6 @@ TEXT_IDS = {
 }
 
 
-# Units of those labels when the text carries none (ssm_reader writes 'RPM 812'): the definitions' own units
-# (RomRaider P8 rpm; J1979 PID 0C rpm).
 TEXT_UNITS = {"ssm": {"P8": "rpm"}, "obd01": {pid: u for pid, (_, _, u) in OBD01.items()}}
 
 
@@ -233,7 +213,6 @@ def canon_key(source, ident):
     return f"{source}.{ident}"
 
 
-# --------------------------------------------------------------------------------- DB access
 def _ro(path):
     path = os.path.expanduser(path)
     if not os.path.isfile(path):
@@ -278,7 +257,6 @@ def _db_for(car, db=None):
     return open_db((car or {}).get("db") or "")
 
 
-# ----------------------------------------------------------------------------------- normalize
 def _source_def(db, source, ident):
     """(expr, raw_unit, nbytes, signed) for one definition from telem_source_map, or None."""
     if db is None:
@@ -317,7 +295,7 @@ def normalize(raw_readings, source, t=None, db=None):
             else:
                 d = _source_def(db, source, ident)
                 if d is None:
-                    continue                      # no definition: no number (never guess a scaling)
+                    continue
                 expr, unit, n = d
                 if "bytes" in r:
                     env = bytes_env(r["bytes"])
@@ -370,7 +348,6 @@ def from_live_text(text, source):
     return out
 
 
-# ----------------------------------------------------------------------------------- conditions
 def _val(readings, key):
     for r in readings or []:
         if r.get("key") == key:
@@ -425,7 +402,6 @@ def condition(readings, db=None, car=None):
     return c[0] if c else None
 
 
-# ----------------------------------------------------------------------------------------- judge
 def _scope_sql(car, alias="z"):
     car = car or {}
     sql, args = [], []
@@ -492,7 +468,7 @@ def judge(readings, car, condition_name=None, db=None):
                 lo = convert(z["low"], z["unit"], r["unit"]) if z["low"] is not None else None
                 hi = convert(z["high"], z["unit"], r["unit"]) if z["high"] is not None else None
                 if (z["low"] is not None and lo is None) or (z["high"] is not None and hi is None):
-                    continue                      # zone in a unit this reading can't be compared with
+                    continue
                 v = r["value"]
                 res.update(low=lo, high=hi, source_kind=z["source_kind"], citation=_citation(db, z),
                            quote=z["quote"], condition=z["condition"], zone_unit=z["unit"],
@@ -503,7 +479,6 @@ def judge(readings, car, condition_name=None, db=None):
     return out
 
 
-# -------------------------------------------------------------------------------------- pathways
 def pathways(key, direction, car, k=5, db=None):
     """Manual sections that diagnose this parameter in this direction (each backed by quoted manual text)."""
     db = _db_for(car, db)
@@ -525,7 +500,6 @@ def pathways(key, direction, car, k=5, db=None):
             for r in rows]
 
 
-# --------------------------------------------------------------------------------------- summary
 def _name(key, db=None):
     if key in CANON:
         return CANON[key][0]
@@ -573,7 +547,6 @@ def summary(judged, budget=1500, car=None, db=None, paths_per=2):
     return text
 
 
-# ---------------------------------------------------------------------------------- capabilities
 SEEN_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cache", "telemetry_seen.db")
 
 
@@ -634,7 +607,7 @@ def ssm_support(init_payload, db):
     for raw_id, gate in rows:
         m = re.match(r"flag byte (\d+)(?:, bit (\d+))?", gate)
         i = int(m.group(1))
-        if m.group(2) is None:                     # switches: the byte's presence gates the whole switch byte
+        if m.group(2) is None:
             (yes if i < len(flags) and flags[i] else no).append(raw_id)
             continue
         b = int(m.group(2))

@@ -33,19 +33,18 @@ wait_for_queue() {
       echo "$(date +%T) waiting: manual conversion / embedding still running"; sleep 300
     done
   fi
-  # the database builder writing subaru.db is never stopped; the bake reads that file, so always wait
   while pgrep -u "$ME" -f -- 'build_subaru_kb\.py|charm_ingest' >/dev/null; do
     echo "$(date +%T) waiting: database builder is writing subaru.db"; sleep 120
   done
 }
 
-start_server() {   # $1 = serve script, $2 = port
+start_server() {
   wait_for_queue
   ./free_resources.sh --yes
   "./$1" > "$CK/logs/${1%.sh}.log" 2>&1 &
   SERVER=$!
   echo "$(date +%T) starting $1 (log $CK/logs/${1%.sh}.log)"
-  for _ in $(seq 360); do   # model download + load can take a while the first time
+  for _ in $(seq 360); do
     curl -sf "http://127.0.0.1:$2/health" >/dev/null && { echo "$(date +%T) server ready"; return; }
     kill -0 "$SERVER" 2>/dev/null || { echo "llama-server exited, see the log"; exit 1; }
     sleep 5
@@ -53,7 +52,7 @@ start_server() {   # $1 = serve script, $2 = port
   echo "llama-server not ready after 30 min"; exit 1
 }
 
-wait_for_scrape() {   # job 1 reads the forum DBs, so it starts only once the scrapers have exited
+wait_for_scrape() {
   local q="${SCRAPE_PATTERN:-wayback|ultimatesubaru|scrape_reddit}"
   while pgrep -u "$ME" -f -- "$q" | grep -vx "$$" >/dev/null; do
     echo "$(date +%T) waiting: forum scrape still running"; sleep 600

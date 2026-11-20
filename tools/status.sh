@@ -44,7 +44,7 @@ dbs() {
 }
 disk() { df -h --output=avail,size,target / "$SEA" 2>/dev/null | awk 'NR>1{a=$1; s=$2; $1=$2=""; print "Disk" $0 ": " a " free of " s}'; }
 gpu() { echo "GPU: $(nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader 2>/dev/null)"; }
-telemetry() {   # kb/build_telemetry.py: per-make telemetry DBs and whether each is merged into its make DB
+telemetry() {
     echo "Telemetry build: $(up build_telemetry.py), $(ls $CK/kb/telemetry/*.telemetry.db 2>/dev/null | wc -l) make DBs in kb/telemetry/"
     for f in $(ls -t $CK/logs/telemetry_*.log 2>/dev/null | grep -v '\.run\.log' | head -3); do echo "  $(basename $f .log): $(tail -1 $f | cut -c1-110)"; done
 }

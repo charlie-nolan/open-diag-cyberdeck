@@ -34,16 +34,12 @@ import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime, timezone
 
-HOME = os.path.dirname(os.path.abspath(__file__))  # repo root
+HOME = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DB = os.path.join(HOME, "subaru_diag.db")
 DEFAULT_RAW = os.path.join(HOME, "raw")
 
 DTC_RE = re.compile(r"\b([PCBU][0-3][0-9A-F]{3})\b")
 
-# NHTSA flat files on static.nhtsa.gov (checked 2026-10). TSBs and recalls are
-# now split into several zips; every file listed for a kind is fetched. If a URL
-# 404s, get the current links from https://www.nhtsa.gov/nhtsa-datasets-and-apis
-# and drop the zips into raw/nhtsa/<kind>/ (every .zip there is read).
 _FFDD = "https://static.nhtsa.gov/odi/ffdd"
 NHTSA_URLS = {
     "tsbs": [f"{_FFDD}/tsbs/TSBS_RECEIVED_{r}.zip" for r in
@@ -147,9 +143,6 @@ def parse_years(spec):
     return int(a), int(b or a)
 
 
-# ---------------------------------------------------------------------------
-# FSM: DTC list and procedures from a manual_chunks knowledge DB
-# ---------------------------------------------------------------------------
 LIST_ROW_RE = re.compile(
     r"^\|\s*\*?\s*([PCBU][0-3][0-9A-F]{3})\s*\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|", re.M)
 TOP_SECTION_RE = re.compile(r"^(?:<span[^>]*></span>)?\**\s*[A-Z]{1,2}:\s")
@@ -160,7 +153,7 @@ def module_for(code):
     if code[0] != "P":
         return {"C": "chassis", "B": "body", "U": "network"}[code[0]]
     n = int(code[1:]) if code[1:].isdigit() else -1
-    if 700 <= n % 1000 <= 799:  # P07xx and P17xx are transmission on these cars
+    if 700 <= n % 1000 <= 799:
         return "transmission"
     return "engine"
 
@@ -168,7 +161,6 @@ def module_for(code):
 def step_fsm(conn, a):
     kb = os.path.expanduser(a.knowledge_db)
     y0, y1 = parse_years(a.years)
-    # Read-only and without sqlite-vec: we only touch the plain manual_chunks table.
     src_conn = sqlite3.connect(f"file:{kb}?mode=ro", uri=True)
     files = [r[0] for r in src_conn.execute("SELECT DISTINCT file_name FROM manual_chunks")]
     src_id = upsert_source(conn, f"FSM:{os.path.basename(kb)}", kb,
@@ -184,7 +176,6 @@ def step_fsm(conn, a):
     rows = src_conn.execute(
         "SELECT id, section_title, content FROM manual_chunks ORDER BY id").fetchall()
 
-    # 1) DTC list tables ("A: LIST" sections): | code | description | <Ref. to ...> |
     defs = {}
     for _id, title, text in rows:
         if "LIST" not in (title or "").upper():
@@ -200,7 +191,6 @@ def step_fsm(conn, a):
         "VALUES(?,?,?,?,?,?)",
         [(c, module_for(c), d, r, veh_id, src_id) for c, (d, r) in sorted(defs.items())])
 
-    # 2) Procedures: from a lettered "X: DTC Pxxxx —" heading until the next lettered heading.
     cur, seq, procs = None, 0, []
     for _id, title, text in rows:
         title = title or ""
@@ -219,9 +209,6 @@ def step_fsm(conn, a):
           f"procedures ({len(procs)} chunks) for {a.model} {a.chassis} {y0}-{y1}")
 
 
-# ---------------------------------------------------------------------------
-# NHTSA flat files
-# ---------------------------------------------------------------------------
 def step_download(conn, a):
     for kind, urls in NHTSA_URLS.items():
         dest_dir = os.path.join(a.raw, "nhtsa", kind)
@@ -252,7 +239,7 @@ def step_download(conn, a):
 
 def _year_ok(v):
     v = v.strip()
-    return v.isdigit() and (1900 <= int(v) <= 2100 or v == "9999")      # 9999: year not known
+    return v.isdigit() and (1900 <= int(v) <= 2100 or v == "9999")
 
 
 def _date_ok(v):
@@ -260,9 +247,7 @@ def _date_ok(v):
     return not v or (len(v) == 8 and v.isdigit() and 1900 <= int(v[:4]) <= 2100)
 
 
-# Fields are read by position. Before a file is used, its first rows must show a model year, a make and a
-# date where the code reads them; a reordered layout stops that file instead of filling the wrong columns.
-LAYOUT = {  # folder -> (minimum fields, {index: (name, check)})
+LAYOUT = {
     "tsbs": (14, {9: ("model year", _year_ok), 7: ("make", lambda v: bool(re.search(r"[A-Za-z]", v))),
                   4: ("communication date", _date_ok)}),
     "cmpl": (20, {5: ("YEARTXT", _year_ok), 3: ("MAKETXT", lambda v: bool(re.search(r"[A-Za-z]", v))),
@@ -348,10 +333,6 @@ def step_nhtsa(conn, a):
     def keep(mk, yr):
         return mk.strip().upper() == make and yr is not None and y0 <= yr <= y1
 
-    # TSBs. Field order per TSBS.txt (2024+ "MfrComms" layout, 14 fields):
-    # 0 NHTSA ID, 1 replacement bulletin, 2 date added, 3 TSB/doc id, 4 comm date,
-    # 5 campaign id, 6 comm type, 7 make, 8 model, 9 model year, 10 NHTSA components,
-    # 11 mfr system, 12 mfr subsystem, 13 summary
     src = upsert_source(conn, "NHTSA TSB flat file", NHTSA_URLS["tsbs"][0], "US public domain")
     n = bad = 0
     batch = []
@@ -368,8 +349,6 @@ def step_nhtsa(conn, a):
     conn.executemany("INSERT OR REPLACE INTO tsb VALUES(?,?,?,?,?,?,?,?,?,?,?)", batch)
     print(f"nhtsa: {n} Subaru TSB rows {y0}-{y1}" + (f" ({bad} short rows skipped)" if bad else ""))
 
-    # Complaints, per CMPL.txt: 0 CMPLID, 1 ODINO, 3 MAKETXT, 4 MODELTXT, 5 YEARTXT,
-    # 7 FAILDATE, 11 COMPDESC, 17 MILES, 19 CDESCR
     src = upsert_source(conn, "NHTSA complaints flat file", NHTSA_URLS["cmpl"][0], "US public domain")
     n, batch = 0, []
     for r in iter_flat_rows(os.path.join(a.raw, "nhtsa", "cmpl")):
@@ -384,8 +363,6 @@ def step_nhtsa(conn, a):
     conn.executemany("INSERT OR REPLACE INTO complaint VALUES(?,?,?,?,?,?,?,?,?)", batch)
     print(f"nhtsa: {n} Subaru complaint rows {y0}-{y1}")
 
-    # Recalls, per RCL.txt: 1 CAMPNO, 2 MAKETXT, 3 MODELTXT, 4 YEARTXT, 6 COMPNAME,
-    # 19 DESC_DEFECT, 20 CONEQUENCE_DEFECT, 21 CORRECTIVE_ACTION
     src = upsert_source(conn, "NHTSA recalls flat file", NHTSA_URLS["rcl"][0], "US public domain")
     n, batch = 0, []
     for r in iter_flat_rows(os.path.join(a.raw, "nhtsa", "rcl")):
@@ -394,7 +371,6 @@ def step_nhtsa(conn, a):
         yr = _int(r[4])
         if not keep(r[2], yr):
             continue
-        # pre-2010 records often leave DESC_DEFECT empty and put the text in NOTES (22)
         defect = r[19].strip() or (r[22].strip() if len(r) > 22 else "")
         batch.append((r[1].strip(), r[3].strip().upper(), yr, r[6].strip(),
                       defect, r[20].strip(), r[21].strip(), src))
@@ -404,9 +380,6 @@ def step_nhtsa(conn, a):
     conn.commit()
 
 
-# ---------------------------------------------------------------------------
-# RomRaider logger definitions
-# ---------------------------------------------------------------------------
 def step_romraider(conn, a):
     path = os.path.expanduser(a.xml)
     root = ET.parse(path).getroot()
@@ -471,9 +444,6 @@ def step_romraider(conn, a):
     print(f"romraider: {kinds} rows, {len(dtcs)} DTC definitions (version {version})")
 
 
-# ---------------------------------------------------------------------------
-# Cross-links + full-text index
-# ---------------------------------------------------------------------------
 def step_index(conn, a):
     conn.execute("DELETE FROM dtc_mention")
     conn.execute("DELETE FROM fts_diag")
@@ -515,9 +485,6 @@ def step_index(conn, a):
     print(f"index: {len(fts)} documents indexed, {len(ment)} DTC mentions")
 
 
-# ---------------------------------------------------------------------------
-# Lookup: what the agent should pull before calling the LLM
-# ---------------------------------------------------------------------------
 def step_lookup(conn, a):
     code = a.code.upper()
     model = (a.model or "").upper()
@@ -529,7 +496,7 @@ def step_lookup(conn, a):
               + (f"  SSM tmp {tmp}" if tmp else ""))
     n = conn.execute("SELECT count(*) FROM dtc_procedure WHERE code=?", (code,)).fetchone()[0]
     print(f"  FSM procedure chunks: {n}")
-    def filt(t):        # the code/model/year filter for the table aliased t (tsb or complaint)
+    def filt(t):
         where, args = "m.code=?", [code]
         if model:
             where += f" AND upper({t}.model) LIKE ?"

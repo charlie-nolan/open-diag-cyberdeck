@@ -20,7 +20,7 @@ SEP_RE = re.compile(r"^\|?[\s\-:|]+\|?$")
 
 def _clean(text):
     text = re.sub(r"<Ref\. to [^>]*>", "", text)
-    text = re.sub(r"<[^>]+>", " ", text)  # html lists the converter left in cells
+    text = re.sub(r"<[^>]+>", " ", text)
     text = text.replace("\\Omega", "Ω").replace(" ;", ";")
     return re.sub(r"[ \t]+", " ", text).strip(" ;")
 
@@ -51,10 +51,10 @@ def parse(bodies):
                     steps[int(cells[0])] = tuple(cells[1:5])
                 continue
             if s.startswith("### ") and ("DTC" in s and "—" in s):
-                continue  # the title, repeated on every continued section
-            if s.startswith("[PICTURE READ"):   # steps a vision model read from the manual's pictures (kb/car_db.py vision)
+                continue
+            if s.startswith("[PICTURE READ"):
                 if s not in head:
-                    head.insert(0, s)           # first, so the prompt always says they are unverified
+                    head.insert(0, s)
                 continue
             if s != "[fig]":
                 head.append(_clean(s.lstrip("# ")))
@@ -72,7 +72,7 @@ def fetch(r, code, _seen=None):
         return None
     head, steps = parse(bodies)
     m = REFER_RE.search(" ".join(bodies))
-    if not steps and m and m.group(1) not in seen:  # "For the diagnostic procedure, refer to DTC P0304."
+    if not steps and m and m.group(1) not in seen:
         target = fetch(r, m.group(1), seen)
         if target:
             target["via"] = code
@@ -93,7 +93,6 @@ def answered(steps, codes):
             out[n] = "Yes" if len(have) == 1 else "No"
             continue
         if re.search(r"any other DTC", check, re.I):
-            # "other" = codes besides the ones the step's own NOTE says not to inspect (this procedure's codes)
             mine = set(CODE_RE.findall(yes + " " + no))
             out[n] = "Yes" if (have - mine if mine else len(have) > 1) else "No"
             continue
@@ -114,7 +113,6 @@ def path_from_scan(steps, ans):
     def nxt_of(n):
         _, _, yes, no = steps[n]
         return _next(yes if ans[n] == "Yes" else no)
-    # a run starts at an answered step that no other answered step can lead to (either branch)
     fed = {_next(cell) for n in ans for cell in steps[n][2:4]}
     out = []
     for start in sorted(n for n in ans if n not in fed):
@@ -146,7 +144,7 @@ def render(proc, codes, budget=3500):
     if path:
         lines.append("Answered from the scan (codes " + ", ".join(codes) + "): " + "; ".join(
             f"step {n}: {a}" + (f" -> step {nx}" if nx else "") for n, a, nx in path))
-    keep = {nx for _, _, nx in path if nx and nx not in ans}  # where the scan answers lead: always in full
+    keep = {nx for _, _, nx in path if nx and nx not in ans}
 
     def fmt(n, short):
         step, check, yes, no = steps[n]
@@ -154,7 +152,7 @@ def render(proc, codes, budget=3500):
             step, yes, no = _cut(step, 90), _cut(yes, 90), _cut(no, 90)
         return f"{n}. {step} | {check} | Yes: {yes} | No: {no}"
 
-    def brief(n):  # "2. CHECK OUTPUT SIGNAL FROM ECM. Is the voltage more than 10 V? Yes: step 7 | No: step 3"
+    def brief(n):
         step, check, yes, no = steps[n]
         if n in ans:
             nxt = _next(yes if ans[n] == "Yes" else no)
@@ -168,9 +166,6 @@ def render(proc, codes, budget=3500):
         text = "\n".join(lines + [tier(n) for n in sorted(steps)])
         if len(text) <= budget:
             return text
-    # still too long: the scan path and where it lands in full, everything else as its title only, then
-    # shorter titles, then only the other steps' numbers. The steps in keep are never the ones that get cut:
-    # cutting the whole text at the budget used to drop exactly the step the scan leads to (it's often last).
     for tl in (60, 30):
         body = [fmt(n, False) if n in keep else f"{n}. {_cut(steps[n][0].split(';')[0], tl)}" for n in sorted(steps)]
         text = "\n".join(lines + body)
@@ -182,7 +177,6 @@ def render(proc, codes, budget=3500):
     text = "\n".join(lines + kept + tail)
     if len(text) <= budget:
         return text
-    # the kept steps alone are too long: shorten each one evenly, still keeping every one of them
     room = max(120, (budget - len("\n".join(lines + tail))) // max(1, len(kept)) - 1)
     return "\n".join(lines + [_cut(k, room) for k in kept] + tail)
 
