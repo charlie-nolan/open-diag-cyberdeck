@@ -1,0 +1,86 @@
+{
+ "EJ18": {
+  "cam": "SOHC",
+  "cylinders": 4,
+  "litres": 1.8,
+  "turbo": false
+ },
+ "EJ20": {
+  "cam": "DOHC",
+  "cylinders": 4,
+  "litres": 2.0,
+  "turbo": true
+ },
+ "EJ205": {
+  "cam": "DOHC",
+  "cylinders": 4,
+  "litres": 2.0,
+  "turbo": true
+ },
+ "EJ22": {
+  "cam": "SOHC",
+  "cylinders": 4,
+  "litres": 2.2,
+  "turbo": false
+ },
+ "EJ251": {
+  "cam": "SOHC",
+  "cylinders": 4,
+  "litres": 2.5,
+  "turbo": false
+ },
+ "EJ252": {
+  "cam": "SOHC",
+  "cylinders": 4,
+  "litres": 2.5,
+  "turbo": false
+ },
+ "EJ253": {
+  "cam": "SOHC",
+  "cylinders": 4,
+  "litres": 2.5,
+  "turbo": false
+ },
+ "EJ255": {
+  "cam": "DOHC",
+  "cylinders": 4,
+  "litres": 2.5,
+  "turbo": true
+ },
+ "EJ257": {
+  "cam": "DOHC",
+  "cylinders": 4,
+  "litres": 2.5,
+  "turbo": true
+ },
+ "EJ25D": {
+  "cam": "DOHC",
+  "cylinders": 4,
+  "litres": 2.5,
+  "turbo": false
+ },
+ "EZ30": {
+  "cam": "DOHC",
+  "cylinders": 6,
+  "litres": 3.0,
+  "turbo": false
+ },
+ "EZ36": {
+  "cam": "DOHC",
+  "cylinders": 6,
+  "litres": 3.6,
+  "turbo": false
+ },
+ "FB20": {
+  "cam": "DOHC",
+  "cylinders": 4,
+  "litres": 2.0,
+  "turbo": false
+ },
+ "FB25": {
+  "cam": "DOHC",
+  "cylinders": 4,
+  "litres": 2.5,
+  "turbo": false
+ }
+}

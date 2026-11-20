@@ -149,13 +149,29 @@ TOP_SECTION_RE = re.compile(r"^(?:<span[^>]*></span>)?\**\s*[A-Z]{1,2}:\s")
 DTC_HEADING_RE = re.compile(r"DTC\s+([PCBU][0-3][0-9A-F]{3})")
 
 
-def module_for(code):
+TRANSMISSION_WORDS = re.compile(r"\b(transmission|transaxle|gear|shift|torque converter|clutch|line pressure)\b",
+                                re.I)
+TRANSMISSION_ABBREVIATIONS = re.compile(r"\b(A/T|AT|CVT|TCM|TCU)\b")
+
+
+def module_for(code, description=""):
+    """System of a trouble code. Generic codes (P0, P2, P34-P39) by SAE J2012 groups: P07-P09 and P27 are
+    transmission, P0A hybrid, the rest engine. Manufacturer codes (P1, P30-P33) mean something different per make:
+    transmission only when their own description says so, otherwise None (unknown), never guessed."""
+    code = (code or "").upper()
+    if not re.fullmatch(r"[PCBU][0-9][0-9A-F]{3}", code):
+        return None
     if code[0] != "P":
         return {"C": "chassis", "B": "body", "U": "network"}[code[0]]
-    n = int(code[1:]) if code[1:].isdigit() else -1
-    if 700 <= n % 1000 <= 799:
+    generic = code[1] in "02" or (code[1] == "3" and code[2] in "456789")
+    if generic:
+        if code[2] == "A":
+            return "hybrid"
+        trans = code[2] in "789" if code[1] == "0" else code[1:3] == "27"
+        return "transmission" if trans else "engine"
+    if TRANSMISSION_WORDS.search(description or "") or TRANSMISSION_ABBREVIATIONS.search(description or ""):
         return "transmission"
-    return "engine"
+    return None
 
 
 def step_fsm(conn, a):
@@ -189,7 +205,7 @@ def step_fsm(conn, a):
     conn.executemany(
         "INSERT OR REPLACE INTO dtc_subaru(code,module,description,fsm_ref,vehicle_id,source_id) "
         "VALUES(?,?,?,?,?,?)",
-        [(c, module_for(c), d, r, veh_id, src_id) for c, (d, r) in sorted(defs.items())])
+        [(c, module_for(c, d), d, r, veh_id, src_id) for c, (d, r) in sorted(defs.items())])
 
     cur, seq, procs = None, 0, []
     for _id, title, text in rows:
@@ -432,7 +448,7 @@ def step_romraider(conn, a):
         m = DTC_RE.search(name)
         code = m.group(1) if m else d.get("id")
         desc = re.sub(r"^\s*[PCBU][0-3][0-9A-F]{3}\s*[-–—:]?\s*", "", name)
-        dtcs.append((code, module_for(code) if m else None, desc, d.get("tmpaddr"),
+        dtcs.append((code, module_for(code, desc) if m else None, desc, d.get("tmpaddr"),
                      d.get("memaddr"), _int(d.get("bit", "")), None, src))
     conn.executemany(
         "INSERT OR REPLACE INTO dtc_subaru(code,module,description,ssm_tmp_addr,ssm_mem_addr,"

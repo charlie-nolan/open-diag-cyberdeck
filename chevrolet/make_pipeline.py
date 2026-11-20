@@ -386,14 +386,14 @@ def dtc_names(c):
                     break
         if desc:
             n += conn.execute("UPDATE dtc SET description=?, module=coalesce(module, ?) WHERE code=? AND description IS NULL",
-                              (desc[:200], bd.module_for(code), code)).rowcount
+                              (desc[:200], bd.module_for(code, desc), code)).rowcount
     n_ph, lst = 0, c.path("raw/pcmhammer/Apps/UI/WindowsForms/PcmLogger/DiagnosticCodes.txt")
     if os.path.exists(lst):
         for ln in open(lst, encoding="utf-8", errors="replace"):
             code, _, desc = ln.strip().partition(",")
             if re.fullmatch(r"[PBCU][0-9A-F]{4}", code) and desc:
                 n_ph += conn.execute("UPDATE dtc SET description=?, module=coalesce(module, ?) WHERE code=? AND "
-                                     "description IS NULL", (desc.strip()[:200], bd.module_for(code), code)).rowcount
+                                     "description IS NULL", (desc.strip()[:200], bd.module_for(code, desc), code)).rowcount
     conn.commit()
     left = conn.execute("SELECT count(*) FROM dtc WHERE description IS NULL").fetchone()[0]
     log(f"dtc-names: {n} DTC descriptions from CHARM pages, {n_ph} from PCMHammer's code list, {left} still without one")

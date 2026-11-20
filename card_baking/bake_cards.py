@@ -81,15 +81,15 @@ VERIFY_SCHEMA = {
     "required": ["supported", "reason"],
 }
 
-SYSTEM = """You write a diagnostic card for a Subaru trouble code, for a home mechanic with a scan tool.
+SYSTEM_TEMPLATE = """You write a diagnostic card for a {make} trouble code, for a home mechanic with a scan tool.
 Use ONLY the numbered sources given. Every cause and step lists the source ids it comes from, like ["S1","F3"].
 - Order causes as in FORUM COUNTS 'ranked' (already ordered: this car's count where 3+ owners of it confirmed
-  the fix, else every Subaru's count). Put an FSM-required check first only when the FSM says to check it first.
+  the fix, else every {make}'s count). Put an FSM-required check first only when the FSM says to check it first.
 - Any count you state must match FORUM COUNTS exactly.
 - A cause with zero sources must not appear. Do not add causes the sources don't mention.
 - Each cause cites the forum threads (F ids) whose cause bucket matches it, plus any manual section (S ids) that covers it.
 - Never write torque values, capacities or part numbers; the deck adds those from the manual itself.
-- live_data: SSM/OBD values worth watching for that cause (named as a scan tool shows them, e.g. "short term fuel trim").
+- live_data: scan tool values worth watching for that cause (named as a scan tool shows them, e.g. "short term fuel trim").
 - fsm_steps: the manual's diagnostic checks in order, each 'check' written out as a short sentence saying what to check
   and how (e.g. "Check the harness between the sensor and the ECM for continuity"). Never just a step number or
   step code like "3" or "10AH2".
@@ -100,6 +100,10 @@ Use ONLY the numbered sources given. Every cause and step lists the source ids i
   sources may be called this car's fix. Never attach a part or engine detail from the other sources to this car (a
   newer model's timing chain, turbo or CVT); keep only the cause bucket they share.
 - Plain, short sentences."""
+
+def system_prompt(make):
+    return SYSTEM_TEMPLATE.replace("{make}", make)
+
 
 VERIFY_SYSTEM = """You check one cause listed on a car diagnostic card for a trouble code against the sources it cites.
 supported=yes if a source reports it as the confirmed fix for this code, or the manual names it as something to check;
@@ -164,13 +168,13 @@ CODE_RE = re.compile(r"\b[PBCU][0-9][0-9A-F]{3}\b")
 
 
 def forum_counts(work, code, model, y0, y1, slack, min_car=3):
-    """Confirmed fixes per cause bucket for this model+years and for every Subaru, plus one ranking.
+    """Confirmed fixes per cause bucket for this model+years and for every car of the make, plus one ranking.
     A bucket is ranked by this car's count only when at least min_car owners of this car confirmed it;
-    otherwise every Subaru's count decides, so one-off threads don't outrank the common fixes.
+    otherwise the whole make's count decides, so one-off threads don't outrank the common fixes.
     "This car" needs a known model year in range: a thread with no year can be any generation of the model (a
     newer engine's timing chain cover once read as a 1998-2002 Forester fix), so it counts for the make only."""
     if not work:
-        return {"this_car": [], "all_subaru": [], "ranked": []}, []
+        return {"this_car": [], "all_make": [], "ranked": []}, []
     rows = work.execute("""SELECT t.url, t.title, e.model, e.year, e.fix, e.evidence, e.category, e.part,
             (upper(e.model)=upper(?) AND e.year BETWEEN ? AND ?) AS same_car,
             e.confirmed='op_confirmed' AS op, t.score
@@ -196,7 +200,7 @@ def forum_counts(work, code, model, y0, y1, slack, min_car=3):
         picked += [r[:7] + (r[8],) for r in ex]
     counts = {"this_car": [{"cause": b, "confirmed_fixes": n, "parts": sorted(parts.get(b, []))[:5]}
                            for b, n in sorted(car.items(), key=lambda x: -x[1])[:10]],
-              "all_subaru": [{"cause": b, "confirmed_fixes": n}
+              "all_make": [{"cause": b, "confirmed_fixes": n}
                              for b, n in sorted(allc.items(), key=lambda x: -x[1])[:10]],
               "ranked": ranked[:8]}
     return counts, picked[:10]
@@ -264,7 +268,7 @@ def verify_card(llm, card, by_id, counts=None, max_tokens=600):
         if counts:
             text += "\n\n[FORUM COUNTS] confirmed fixes per cause: " + json.dumps(
                 {"this_car": {x["cause"]: x["confirmed_fixes"] for x in counts.get("this_car", [])},
-                 "all_subaru": {x["cause"]: x["confirmed_fixes"] for x in counts.get("all_subaru", [])}})
+                 "all_make": {x["cause"]: x["confirmed_fixes"] for x in counts.get("all_make", [])}})
         res, _ = llm.json(VERIFY_SYSTEM, f"CLAIM: {claim}\n\nSOURCES:\n{text}", VERIFY_SCHEMA, max_tokens=max_tokens)
         return res["supported"], res["reason"]
 
@@ -419,7 +423,7 @@ def step_bake(a):
                 print(f"  {code}: no sources, skipped")
                 continue
             by_id = {s["id"]: s for s in sources}
-            card, _ = llm.json(SYSTEM, prompt_for(code, desc, a, y0, y1, counts, sources), CARD_JSON_SCHEMA)
+            card, _ = llm.json(system_prompt(a.make), prompt_for(code, desc, a, y0, y1, counts, sources), CARD_JSON_SCHEMA)
             for st in card["fsm_steps"]:
                 st["step"] = st.pop("check", st.get("step", ""))
             dropped = []
@@ -487,9 +491,6 @@ def main():
     ap.add_argument("--force", action="store_true", help="rebuild cards that already exist")
     ap.add_argument("--no-verify", action="store_true", help="skip the source check (faster, less safe)")
     a = ap.parse_args()
-    if a.make.lower() != "subaru":
-        global SYSTEM
-        SYSTEM = SYSTEM.replace("Subaru", a.make)
     step_bake(a)
 
 
