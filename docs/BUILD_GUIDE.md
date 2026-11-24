@@ -233,8 +233,8 @@ the deck (section 12).
 
 ### 7c. Public data
 ```bash
-venv/bin/python build_subaru_diag_db.py download nhtsa index                # NHTSA flat files
-venv/bin/python build_subaru_diag_db.py romraider --xml <logger_STD_EN_v370.xml> index
+venv/bin/python kb/sources/diag_db.py download nhtsa index                # NHTSA flat files
+venv/bin/python kb/sources/diag_db.py romraider --xml <logger_STD_EN_v370.xml> index
 venv/bin/python kb/add_nhtsa.py ...                                         # NHTSA into each make DB
 venv/bin/python kb/add_stackexchange.py ...                                 # Mechanics StackExchange dump
 bash tools/run_general_kb.sh                                                # general automotive KB
@@ -346,7 +346,7 @@ automatically when there's no RKLLM. To use an LLM desktop app or API instead, s
 - **Parts sourcing:** set `home_zip` in `parts_sourcing/parts_sourcing/sourcing.json` for local store and yard links.
   Yard inventory alerts can read a mailbox (`alert_mail.py`). The password comes from an environment variable or
   a `chmod 600` file, never from the repo.
-- **GM extended live data:** `chevrolet/make_pipeline.py <profile> gm-pids` builds the mode 22 list from PCMHammer.
+- **GM extended live data:** `makes/make_pipeline.py <profile> gm-pids` builds the mode 22 list from PCMHammer.
 
 ## 13. Settings reference
 

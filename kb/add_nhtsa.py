@@ -4,7 +4,7 @@ Add NHTSA TSBs, complaints and recalls to a per-make knowledge DB (kb/<make>.db)
 rows build_subaru_kb.py's diag step gives subaru.db, so the app's retriever finds them unchanged.
 
 Reads only the NHTSA flat files already on the PC (raw/nhtsa/{tsbs,cmpl,rcl}/*.zip, fetched by
-build_subaru_diag_db.py). The first run sorts them by make into kb/nhtsa_all.db (one pass, a few minutes);
+kb/sources/diag_db.py). The first run sorts them by make into kb/nhtsa_all.db (one pass, a few minutes);
 later runs read that. Model years 1982-2013, like CHARM. No GPU: run `build_subaru_kb.py --db X embed --missing`
 afterwards to give the new rows vectors (keyword search finds them without).
 
@@ -30,8 +30,8 @@ SKIP = {"subaru"}
 
 
 def build_cache():
-    sys.path.insert(0, CK)
-    from build_subaru_diag_db import iter_flat_rows, _int, _date
+    sys.path.insert(0, os.path.join(CK, "kb", "sources"))
+    from diag_db import iter_flat_rows, _int, _date
     tmp = CACHE + ".part"
     if os.path.exists(tmp):
         os.remove(tmp)

@@ -17,8 +17,8 @@ Runs on the PC (the cloud can't reach NHTSA, archive.org, Reddit or vPIC). Every
   python3 make_pipeline.py PROFILE embed        (GPU, after the Subaru bake) Qwen3-Embedding-0.6B vectors
   python3 make_pipeline.py PROFILE status       one short report of everything above
 
-It reuses the Subaru scripts as libraries (build_subaru_diag_db.py, scrape_reddit_subaru.py,
-load_pushshift_subaru.py, kb/build_subaru_kb.py, cyberdeck_forge/charm_ingest.py) without editing them.
+It reuses the Subaru scripts as libraries (kb/sources/diag_db.py, kb/sources/reddit_scrape.py,
+kb/sources/pushshift_load.py, kb/build_subaru_kb.py, kb/sources/charm_ingest.py) without editing them.
 Manual-derived output (kb/<slug>.db) is personal use only, like subaru.db.
 """
 import argparse
@@ -61,7 +61,7 @@ class Ctx:
         self.diag_db = os.path.join(self.root, f"{self.slug}_diag.db")
         self.builder = os.path.join(self.root, "kb", "build_subaru_kb.py")
         self.venv_py = os.path.join(self.root, "venv", "bin", "python")
-        sys.path[:0] = [self.root, os.path.join(self.root, "kb"), os.path.join(self.root, "cyberdeck_forge")]
+        sys.path[:0] = [self.root, os.path.join(self.root, "kb"), os.path.join(self.root, "kb", "sources")]
 
     def path(self, rel):
         return os.path.join(self.root, rel)
@@ -97,7 +97,7 @@ def http_get(url, timeout=120, tries=6, delay=1.0, _last=[0.0]):
 
 
 class Tagger:
-    """Same output shape as scrape_reddit_subaru.tag(): models, years, chassis, engines, dtcs, implied."""
+    """Same output shape as reddit_scrape.tag(): models, years, chassis, engines, dtcs, implied."""
     DTC_RE = re.compile(r"\b([PCBU][0-3][0-9A-F]{3})\b", re.I)
     YEAR4_RE = re.compile(r"\b(19[89]\d|20[0-2]\d)\b")
     YEAR2_RE = re.compile(r"(?:\b|['’])(\d{2})(?!\d)\s*(?:[a-z]+\s+)?$", re.I)
@@ -161,11 +161,11 @@ def step_check(c):
         print(f"  {'PASS' if good else 'FAIL'}  {what}" + (f"  ({hint})" if hint and not good else ""))
 
     print(f"profile: {c.p['label']}")
-    for f in ("build_subaru_diag_db.py", "scrape_reddit_subaru.py", "load_pushshift_subaru.py",
-              "kb/build_subaru_kb.py", "cyberdeck_forge/charm_ingest.py"):
+    for f in ("kb/sources/diag_db.py", "kb/sources/reddit_scrape.py", "kb/sources/pushshift_load.py",
+              "kb/build_subaru_kb.py", "kb/sources/charm_ingest.py"):
         line(os.path.exists(c.path(f)), f)
     for kind in ("tsbs", "cmpl", "rcl"):
-        line(glob.glob(c.path(f"raw/nhtsa/{kind}/*.zip")), f"NHTSA {kind} zips", "run build_subaru_diag_db.py download")
+        line(glob.glob(c.path(f"raw/nhtsa/{kind}/*.zip")), f"NHTSA {kind} zips", "run kb/sources/diag_db.py download")
     py = c.venv_py if os.path.exists(c.venv_py) else sys.executable
     for mod in ("lmdb", "bs4", "lxml", "zstandard"):
         r = subprocess.run([py, "-c", f"import {mod}"], capture_output=True)
@@ -181,7 +181,7 @@ def step_check(c):
 
 
 def step_nhtsa(c):
-    import build_subaru_diag_db as bd
+    import diag_db as bd
     make = c.p["nhtsa"]["make"].upper()
     models = {k.upper(): v for k, v in c.p["nhtsa"]["models"].items()}
 
@@ -368,7 +368,7 @@ DTC_HEAD_RE = re.compile(r"^\s*(?:DTC\s+)?([PBCU][0-9][0-9A-F]{3})\b[\s:\-–]*(
 def dtc_names(c):
     """Fill dtc.description (left NULL by `diag`, which only knows Subaru's dtc_subaru table) from the CHARM
     DTC page itself: the title after the code, else the first line of the page that repeats the code."""
-    import build_subaru_diag_db as bd
+    import diag_db as bd
     conn = sqlite3.connect(c.kb_db)
     n = 0
     for code, title, body in conn.execute(
@@ -452,8 +452,8 @@ def step_reddit_get(c):
 
 
 def step_reddit(c):
-    import scrape_reddit_subaru as s
-    import load_pushshift_subaru as lp
+    import reddit_scrape as s
+    import pushshift_load as lp
     r = c.p["reddit"]
     tagger = Tagger(c.p)
     need_model = set(r.get("require_model", []))
@@ -630,7 +630,7 @@ def forum_index(c, f, conn):
 
 
 def forum_fetch(c, f, conn, tagger):
-    import scrape_reddit_subaru as s
+    import reddit_scrape as s
     engine = f["engine"]
     cand = conn.execute("SELECT thread_id, page, url, wayback_ts, slug FROM capture c WHERE NOT EXISTS "
                         "(SELECT 1 FROM page_fetch p WHERE p.thread_id=c.thread_id AND p.page=c.page) "

@@ -30,7 +30,7 @@ To add another car, run `fsm` again with its markdown and a different `--title`.
 
 ## Operation CHARM
 
-`charm` reads the mounted CHARM image through `cyberdeck_forge/charm_ingest.py` and loads every Subaru and Subaru Truck vehicle from 1990 to 2012 into the same `section` table, so `search_fsm()` finds those pages too. Results are tagged `[CHARM: ...]` instead of `[FSM: ...]`, and FSM results come first for DTCs and specs.
+`charm` reads the mounted CHARM image through `kb/sources/charm_ingest.py` and loads every Subaru and Subaru Truck vehicle from 1990 to 2012 into the same `section` table, so `search_fsm()` finds those pages too. Results are tagged `[CHARM: ...]` instead of `[FSM: ...]`, and FSM results come first for DTCs and specs.
 
 - Pages are deduped by a hash of their text. CHARM content ids aren't safe to dedupe on, because the same id can point at different HTML. Each page is linked to every vehicle it appears under through `section_vehicle`.
 - Folder listing pages (`expand-all`) are skipped. Image-only pages are counted but not stored, because the CHARM image database isn't on disk.

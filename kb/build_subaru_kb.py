@@ -7,7 +7,7 @@ Steps (run in order; each is safe to re-run):
          python build_subaru_kb.py fsm "<FSM>.md" --model Forester --chassis SF --years 2002 \
              --engines EJ251 --title "USDM Forester FSM 2002 G8050BE"
   diag   Pull DTC descriptions, SSM params, TSBs, NHTSA complaints/recalls, forum fixes
-         from subaru_diag.db (built by build_subaru_diag_db.py). Re-run after that DB grows.
+         from subaru_diag.db (built by kb/sources/diag_db.py). Re-run after that DB grows.
          python build_subaru_kb.py diag subaru_diag.db
   charm  Load Operation CHARM pages (the mounted lmdb-pages image) for Subaru 1990-2012 into the same
          section/spec tables, deduped by page body, plus labor times. Runs in the venv that has lmdb + bs4:
@@ -1104,7 +1104,7 @@ def main():
     d.add_argument("diag_db")
     c = sub.add_parser("charm")
     c.add_argument("--charm", default="~/mnt/charm", help="mounted CHARM lmdb-pages directory")
-    c.add_argument("--charm-script", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cyberdeck_forge"),
+    c.add_argument("--charm-script", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kb", "sources"),
                    help="folder holding charm_ingest.py")
     c.add_argument("--years", default="1990-2012")
     c.add_argument("--makes", default=",".join(CHARM_MAKES),
@@ -1133,7 +1133,7 @@ def main():
     r = sub.add_parser("relink", help="rename CHARM cars by NHTSA model names and re-attach their pages "
                                       "(needs the CHARM mount; keeps pages and vectors)")
     r.add_argument("--charm", default="~/mnt/charm", help="mounted CHARM lmdb-pages directory")
-    r.add_argument("--charm-script", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cyberdeck_forge"), help="folder holding charm_ingest.py")
+    r.add_argument("--charm-script", default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "kb", "sources"), help="folder holding charm_ingest.py")
     r.add_argument("--years", default="1982-2013")
     r.add_argument("--makes", required=True, help="the CHARM makes this DB was built from, e.g. Chevrolet,'Chevy Truck'")
     sub.add_parser("finish")

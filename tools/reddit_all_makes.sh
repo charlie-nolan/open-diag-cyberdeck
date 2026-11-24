@@ -8,8 +8,8 @@ set -o pipefail
 exec 8>"$CK/.reddit_loop.lock"
 flock -n 8 || { echo "another reddit_all_makes.sh is already running"; exit 1; }
 P=$CK/venv/bin/python
-MP=$CK/chevrolet/make_pipeline.py
-PR=$CK/chevrolet/profiles/makes
+MP=$CK/makes/make_pipeline.py
+PR=$CK/makes/profiles/makes
 echo "=== $(date -Is) reddit-get (all subreddits)"
 $P "$MP" "$PR/_all_reddit.json" reddit-get || echo "=== reddit-get FAILED"
 for f in "$PR"/*.json; do

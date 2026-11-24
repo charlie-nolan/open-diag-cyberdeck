@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Load the Pushshift per-subreddit dumps (Watchful1 "subreddits24", 2005-06 .. 2024-12) into
 raw/reddit/reddit_subaru.db, using the same schema, relevance filter and tags as
-scrape_reddit_subaru.py. Rows are deduped by post/comment id (dump rows replace API rows,
+kb/sources/reddit_scrape.py. Rows are deduped by post/comment id (dump rows replace API rows,
 since dump scores are final). Usernames are never stored; comments get an is_op flag.
 
-  python3 load_pushshift_subaru.py                  # every *_submissions.zst in raw/reddit/pushshift
-  python3 load_pushshift_subaru.py --subs SubaruForester subaru
+  python3 kb/sources/pushshift_load.py                  # every *_submissions.zst in raw/reddit/pushshift
+  python3 kb/sources/pushshift_load.py --subs SubaruForester subaru
 """
 import argparse
 import glob
@@ -18,9 +18,9 @@ import time
 
 import zstandard
 
-import scrape_reddit_subaru as s
+import reddit_scrape as s
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DUMP_DIR = os.path.join(HERE, "raw", "reddit", "pushshift", "reddit", "subreddits24")
 
 IMPLIED = dict(s.SUBREDDITS, Subaru_Outback="Outback", Subaru_Crosstrek="Crosstrek",
