@@ -322,6 +322,11 @@ Cable tips:
 Team mode (optional, PC models working together) is the same app with a different backend; see
 [TEAM_MODE.md](TEAM_MODE.md).
 
+shopdeck, the no-LLM chart walker (GUI, or `--tui` over ssh):
+```bash
+cd ~/open-diag-cyberdeck/shopdeck && ../venv/bin/python -m shopdeck [--tui]
+```
+
 ## 11. Home mode: big models from your PC
 
 **On the PC:**
