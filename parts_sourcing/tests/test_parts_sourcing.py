@@ -314,6 +314,28 @@ Alternator Bracket $9.99
         self.assertEqual((e.disp, e.cam, e.turbo), (2.5, "SOHC", False))
         self.assertEqual(interchange.norm_model("B9"), interchange.norm_model("B9 Tribeca"))
 
+    def test_engine_names_of_any_make(self):
+        E = interchange.Engine.from_charm
+        cases = {"5.3L V8 OHV": (8, 5.3, "OHV"), "3.5L V6": (6, 3.5, None), "2.4 L I4 DOHC": (4, 2.4, "DOHC"),
+                 "2.0L 4cyl DOHC Turbo": (4, 2.0, "DOHC"), "L4-1.8L DOHC": (4, 1.8, "DOHC"),
+                 "V8-5.7L": (8, 5.7, None), "Vortec 5300 V8": (8, None, None)}
+        for text, want in cases.items():
+            e = E(text)
+            self.assertEqual((e.cyl, e.disp, e.cam), want, text)
+        self.assertTrue(E("2.0L 4cyl DOHC Turbo").turbo)
+        self.assertFalse(E("5.3L V8").compatible(E("4.8L V8")))
+        self.assertFalse(E("Vortec 5300 V8").compatible(E("3.5L V6")))
+        self.assertTrue(E("Vortec 5300 V8").compatible(E("5.3L V8 OHV")))
+        self.assertFalse(E("Hemi").known())
+
+    def test_engine_code_table_takes_any_make(self):
+        codes = {"LM7": {"cylinders": 8, "litres": 5.3, "cam": "OHV", "turbo": False},
+                 "2AZ": {"cylinders": 4, "litres": 2.4, "cam": "DOHC", "turbo": False}}
+        e = interchange.Engine.from_charm("LM7", codes=codes)
+        self.assertEqual((e.cyl, e.disp, e.cam), (8, 5.3, "OHV"))
+        self.assertEqual(interchange.Engine.from_charm("2AZ-FE", codes=codes).disp, 2.4)
+        self.assertFalse(interchange.Engine.from_charm("LM7", codes={}).known())
+
 
 if __name__ == "__main__":
     unittest.main()

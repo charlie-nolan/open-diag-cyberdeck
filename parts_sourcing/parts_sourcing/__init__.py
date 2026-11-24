@@ -7,26 +7,11 @@ plus how many cars at each nearby self-service yard probably carry the part.
 
 Everything here reads kb/subaru.db and the cached yards.db; nothing touches the car or the network.
 """
-import json
 import os
 
-from . import interchange, qr, yards
+from . import interchange, junk_quote, qr, yards
 from .interchange import parts_for_job, normalize_pn  # noqa: F401
-
-HERE = os.path.dirname(os.path.abspath(__file__))
-
-
-ROOT = os.path.dirname(os.path.dirname(HERE))
-
-
-def settings(path=None):
-    """sourcing.json; its relative DB paths are relative to the checkout."""
-    with open(path or os.path.join(HERE, "sourcing.json")) as f:
-        cfg = json.load(f)
-    for k in ("kb_db", "yards_db"):
-        if cfg.get(k):
-            cfg[k] = os.path.join(ROOT, os.path.expanduser(cfg[k]))
-    return cfg
+from .settings import settings  # noqa: F401
 
 
 def sourcing(part_number, name=None, price=None, cfg=None):
@@ -50,7 +35,6 @@ def sourcing(part_number, name=None, price=None, cfg=None):
                  "parts_sourcing.yard_paste, or use the Row52 link and look for the cars on the fit list above."))
     jq = None
     if os.path.exists(yards_db):
-        from . import junk_quote
         jq = junk_quote.quote(pn, cfg)
         if jq["price"] or jq["labor"]:
             lines.append(jq["text"])
