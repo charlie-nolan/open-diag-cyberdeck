@@ -333,7 +333,7 @@ class UI:
 
     MENU = [("1", "Ticket & car"), ("2", "Customer interview"), ("3", "Codes & live data"), ("4", "Diagnose"),
             ("5", "Your notes & theories"), ("6", "Jobs, parts & quote"), ("7", "Search the manual"),
-            ("8", "Work order (print)")]
+            ("8", "Print, bill & email")]
 
     def run(self):
         sel = 0
@@ -481,10 +481,23 @@ class UI:
 
     def screen_settings(self):
         d, c = self.desk, self.desk.case
+        from .desk import save_config
+        from . import mail
         while True:
-            items = [f"Labor rate:     ${c.labor_rate:g}/h", f"Tax on parts:   {c.tax_rate * 100:g}%",
-                     f"Shop supplies:  {c.supplies_rate * 100:g}% of labor", "Save these as the default for new tickets"]
-            r = self.choose("settings (this ticket)", items, filtering=False)
+            biz = d.business
+            items = [f"Labor rate:     ${c.labor_rate:g}/h",
+                     f"Sales tax:      {c.tax_rate * 100:g}%",
+                     f"Tax applies to: {'parts and labor (Washington)' if c.tax_labor else 'parts only'}",
+                     f"Shop supplies:  {c.supplies_rate * 100:g}% of labor",
+                     f"Trip fee:       ${c.trip_fee:g}",
+                     "Save these as the default for new tickets",
+                     f"Business name:  {biz['name'] or '-'}",
+                     f"Phone:          {biz['phone'] or '-'}",
+                     f"Email:          {biz['email'] or '-'}",
+                     f"Service area:   {biz['area'] or '-'}",
+                     f"Warranty text:  {(biz['warranty'] or 'standard 90 days / 3,000 miles')[:50]}",
+                     f"Email app password: {'set' if mail.password() else 'not set'}"]
+            r = self.choose("settings", items, filtering=False)
             if r is None:
                 return
             if r == 0:
@@ -492,18 +505,36 @@ class UI:
                 if v is not None:
                     c.labor_rate = v
             elif r == 1:
-                v = self.number("Tax on parts %", c.tax_rate * 100)
+                v = self.number("Sales tax %", c.tax_rate * 100)
                 if v is not None:
                     c.tax_rate = v / 100
             elif r == 2:
+                c.tax_labor = not c.tax_labor
+            elif r == 3:
                 v = self.number("Shop supplies % of labor", c.supplies_rate * 100)
                 if v is not None:
                     c.supplies_rate = v / 100
-            elif r == 3:
-                from .desk import save_config
-                d.cfg.update(labor_rate=c.labor_rate, tax_rate=c.tax_rate, supplies_rate=c.supplies_rate)
+            elif r == 4:
+                v = self.number("Trip fee $ (0 for none)", c.trip_fee)
+                if v is not None:
+                    c.trip_fee = v
+            elif r == 5:
+                d.cfg.update(labor_rate=c.labor_rate, tax_rate=c.tax_rate, supplies_rate=c.supplies_rate,
+                             tax_labor=c.tax_labor)
                 save_config(d.cfg)
                 self.flash = "saved as defaults"
+            elif 6 <= r <= 10:
+                field = ["name", "phone", "email", "area", "warranty"][r - 6]
+                v = self.ask(items[r].split(":")[0], biz[field])
+                if v is not None:
+                    biz[field] = v
+                    d.cfg["business"] = biz
+                    save_config(d.cfg)
+            elif r == 11:
+                v = self.ask("Gmail app password (16 letters, from Google account > Security > App passwords)")
+                if v:
+                    mail.save_password(v)
+                    self.flash = "app password saved on this deck only"
             d.save()
 
     def screen_interview(self):
@@ -1012,13 +1043,17 @@ class UI:
             if kind == "job":
                 lines.append((f"  {text}", self.B))
                 continue
+            if kind == "fee":
+                continue
             lines.append((f"    {text[:68]:68} {('$%.2f' % amt) if amt is not None else 'PRICE NEEDED':>12}",
                           self.c["warn"] if amt is None else 0))
         lines += ["", f"  {'Labor':70} {q.labor:>12,.2f}", f"  {'Parts':70} {q.parts:>12,.2f}"]
-        if q.tax:
-            lines.append(f"  {'Tax on parts':70} {q.tax:>12,.2f}")
         if q.supplies:
             lines.append(f"  {'Shop supplies':70} {q.supplies:>12,.2f}")
+        if q.fees:
+            lines.append(f"  {'Trip fee':70} {q.fees:>12,.2f}")
+        if q.tax:
+            lines.append(f"  {'Sales tax (' + q.taxed + ')':70} {q.tax:>12,.2f}")
         lines += [(f"  {'TOTAL':70} {q.total:>12,.2f}", self.B), ""]
         if q.missing:
             lines.append((f"Not included until priced: {'; '.join(q.missing)}", self.c["warn"]))
@@ -1053,28 +1088,94 @@ class UI:
                 lines += [""] + render(s.body)
                 self.view("manual", lines)
 
-    def screen_print(self):
-        try:
-            path = self.desk.work_order()
-        except Exception as e:
-            self.flash = f"couldn't write the work order: {e}"
+    def open_file(self, path):
+        import subprocess
+        if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+            self.flash = "no screen attached to this session (over ssh): copy the file instead"
             return
-        k = self.view("work order", [("Written:", self.B), path, "",
-                                 "Press o to open it in the browser and print from there, or copy it off the deck.",
-                                 "It has the diagnosis with how each answer was decided, the quote, the parts list "
-                                 "and the manual's repair procedures with torque values."], "o open in browser   q back", keys="o")
-        if k == "o":
-            import subprocess
-            if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
-                self.flash = "no screen attached to this session (over ssh): copy the file instead"
+        try:
+            subprocess.Popen(["xdg-open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+            self.flash = "opening in the browser"
+        except OSError:
+            self.flash = "xdg-open isn't installed: open the file from the file manager"
+
+    def screen_print(self):
+        from . import billing as B
+        from . import mail
+        d, c = self.desk, self.desk.case
+        while True:
+            q = d.quote()
+            a = c.approval
+            over = d.over_estimate()
+            items = ["Work order (diagnosis, quote, parts list, repair steps)",
+                     "Estimate (for the customer to approve before work starts)",
+                     "Invoice", "Receipt",
+                     f"Customer's OK on the estimate:  " + (f"{a['by']}, {a['how']}, {a['at']}" if a.get("by") else "not yet"),
+                     "Add an approved change (extra work the customer OK'd)",
+                     f"Record a payment:  paid ${B.paid(c):,.2f} of ${q.total:,.2f}",
+                     f"Customer email:  {c.customer_email or '-'}",
+                     "Email the estimate", "Email the invoice", "Email the receipt",
+                     f"Send waiting emails ({len(mail.waiting())})"]
+            if over:
+                items[4] = (items[4] + f"   OVER the approved amount by ${over:,.2f}: get an OK first", self.c["warn"])
+            r = self.choose(f"print, bill & email  #{c.doc_no or 'new'}", items, filtering=False)
+            if r is None:
                 return
             try:
-                subprocess.Popen(["xdg-open", path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                 start_new_session=True)
-                self.flash = "opening in the browser"
-            except OSError:
-                self.flash = "xdg-open isn't installed: open the file from the file manager"
-
+                if r <= 3:
+                    path = d.work_order() if r == 0 else d.bill(B.KINDS[r - 1])
+                    k = self.view("written", [("Written:", self.B), path, "",
+                                              "Press o to open it in the browser and print from there, or copy it off the deck."],
+                                  "o open in browser   q back", keys="o")
+                    if k == "o":
+                        self.open_file(path)
+                elif r == 4:
+                    by = self.ask("Approved by (customer name)", c.customer)
+                    if by:
+                        how = self.ask("How (signed / text / email / phone)", "signed")
+                        if how is not None:
+                            d.approve(by, how, self.confirm("Return the replaced parts to them"))
+                elif r == 5:
+                    t = self.ask("What was added")
+                    if t:
+                        amt = self.number("Amount $")
+                        how = self.ask("How they OK'd it (text / phone / in person)", "phone")
+                        if amt is not None and how is not None:
+                            d.add_change(t, amt, how)
+                elif r == 6:
+                    due = B.balance(c, q)
+                    m = self.choose(f"payment method (balance ${due:,.2f})", list(B.METHODS), filtering=False)
+                    if m is not None:
+                        amt = self.number("Amount $", f"{due:.2f}")
+                        if amt:
+                            ref = self.ask("Reference / check # (optional)", "")
+                            d.add_payment(B.METHODS[m], amt, ref or "")
+                elif r == 7:
+                    v = self.ask("Customer email", c.customer_email)
+                    if v is not None:
+                        c.customer_email = v.strip()
+                        d.save()
+                elif r <= 10:
+                    kind = B.KINDS[r - 8]
+                    if not c.customer_email:
+                        v = self.ask("Customer email")
+                        if not v:
+                            continue
+                        c.customer_email = v.strip()
+                    if self.confirm(f"Email the {kind} (${q.total:,.2f}) to {c.customer_email}"):
+                        self.busy("sending...")
+                        how, detail = d.email(kind)
+                        self.flash = (f"sent to {detail}" if how == "sent" else
+                                      "no connection: it's waiting in the outbox, send it when you're online")
+                elif r == 11:
+                    self.busy("sending...")
+                    sent, left = mail.send_waiting(d.cfg)
+                    self.flash = f"sent {sent}" + (f", {left} still waiting (no connection?)" if left else "")
+            except (PermissionError, ValueError) as e:
+                self.flash = str(e)
+            except Exception as e:
+                self.flash = f"couldn't do that: {e}"
 
 def main(desk):
     os.environ.setdefault("ESCDELAY", "25")

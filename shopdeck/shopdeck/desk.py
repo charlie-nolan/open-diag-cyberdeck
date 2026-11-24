@@ -15,7 +15,11 @@ DEFAULTS = {
     "labor_rate": 100.0,
     "tax_rate": 0.0,
     "supplies_rate": 0.0,
+    "tax_labor": False,
+    "trip_fee": 0.0,
     "out_dir": "~/shopdeck_workorders",
+    "business": {"name": "", "phone": "", "email": "", "area": "", "warranty": ""},
+    "next_no": 1,
 }
 
 
@@ -52,7 +56,8 @@ class Desk:
 
     def new_case(self):
         self.case = Case(labor_rate=self.cfg["labor_rate"], tax_rate=self.cfg["tax_rate"],
-                         supplies_rate=self.cfg["supplies_rate"])
+                         supplies_rate=self.cfg["supplies_rate"], tax_labor=bool(self.cfg.get("tax_labor")),
+                         trip_fee=float(self.cfg.get("trip_fee") or 0))
         self.veh = None
         self._charts = {}
 
@@ -193,7 +198,66 @@ class Desk:
         return out
 
     def quote(self):
-        return R.quote(self.case.jobs, self.case.labor_rate, self.case.tax_rate, self.case.supplies_rate)
+        c = self.case
+        return R.quote(c.jobs, c.labor_rate, c.tax_rate, c.supplies_rate, c.tax_labor, [("Trip fee", c.trip_fee)])
+
+    @property
+    def business(self):
+        return dict(DEFAULTS["business"], **(self.cfg.get("business") or {}))
+
+    def doc_number(self):
+        """This ticket's estimate/invoice/receipt number; the first one asked for takes the next in sequence."""
+        if not self.case.doc_no:
+            from .billing import number
+            self.case.doc_no = number(self.cfg)
+            save_config(self.cfg)
+            self.save()
+        return self.case.doc_no
+
+    def bill(self, kind):
+        from .billing import document
+        self.doc_number()
+        return document(self.case, self.quote(), kind, self.business, os.path.expanduser(self.cfg["out_dir"]))
+
+    def bill_text(self, kind):
+        from .billing import text
+        self.doc_number()
+        return text(self.case, self.quote(), kind, self.business)
+
+    def approve(self, by, how, return_parts=False, cap=None):
+        self.case.approval = {"by": by, "how": how, "at": time.strftime("%Y-%m-%d %H:%M"),
+                              "return_parts": bool(return_parts), "cap": cap or self.quote().total}
+        self.save()
+
+    def add_change(self, text, amount, how):
+        self.case.changes.append({"text": text, "amount": float(amount), "how": how,
+                                  "at": time.strftime("%Y-%m-%d %H:%M")})
+        self.save()
+
+    def over_estimate(self):
+        """How far the current total is over what the customer approved (0 if not over 10% of it)."""
+        cap = self.case.approval.get("cap")
+        if not cap:
+            return 0.0
+        allowed = cap + sum(c["amount"] for c in self.case.changes)
+        over = self.quote().total - allowed * 1.10
+        return round(over, 2) if over > 0 else 0.0
+
+    def add_payment(self, method, amount, ref=""):
+        self.case.payments.append({"method": method, "amount": round(float(amount), 2), "ref": ref,
+                                   "date": time.strftime("%Y-%m-%d")})
+        self.save()
+
+    def email(self, kind, to=None, smtp=None):
+        """Email this document to the customer. Returns ('sent'|'queued', detail); see mail.send."""
+        from . import mail
+        to = to or self.case.customer_email
+        if not to or "@" not in to:
+            raise ValueError("no customer email on this ticket")
+        path = self.bill(kind)
+        name = self.business.get("name") or "your mechanic"
+        subject = f"{kind.capitalize()} {self.case.doc_no} from {name}" + (f": {self.case.car}" if self.case.model else "")
+        return mail.send(self.cfg, mail.build(self.cfg, to, subject, self.bill_text(kind), path), smtp=smtp)
 
     def add_note(self, text, kind):
         self.case.notes.append(Note(text, kind))

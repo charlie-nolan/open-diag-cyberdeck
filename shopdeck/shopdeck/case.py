@@ -50,6 +50,13 @@ class Case:
     labor_rate: float = 0.0
     tax_rate: float = 0.0
     supplies_rate: float = 0.0
+    tax_labor: bool = False
+    trip_fee: float = 0.0
+    customer_email: str = ""
+    doc_no: str = ""
+    approval: dict = field(default_factory=dict)
+    changes: list = field(default_factory=list)
+    payments: list = field(default_factory=list)
     created: float = field(default_factory=time.time)
 
     @property
