@@ -171,9 +171,13 @@ class Quote:
     supplies: float
     total: float
     missing: list
+    fees: float = 0.0
+    taxed: str = "parts"
 
 
-def quote(jobs, rate, tax_rate=0.0, supplies_rate=0.0):
+def quote(jobs, rate, tax_rate=0.0, supplies_rate=0.0, tax_labor=False, fees=()):
+    """Labor, parts, shop supplies and flat fees (trip fee), with sales tax on the parts only, or with
+    tax_labor on everything (Washington taxes repair labor too)."""
     lines, labor, parts, missing = [], 0.0, 0.0, []
     for j in jobs:
         lines.append(("job", j.title, None))
@@ -189,7 +193,15 @@ def quote(jobs, rate, tax_rate=0.0, supplies_rate=0.0):
             amt = round(p.unit_price * p.qty, 2)
             parts += amt
             lines.append(("part", f"{p.what} {p.part_number} × {p.qty:g} @ ${p.unit_price:,.2f}", amt))
-    tax = round(parts * tax_rate, 2)
     supplies = round(labor * supplies_rate, 2)
-    total = round(labor + parts + tax + supplies, 2)
-    return Quote(lines, round(labor, 2), round(parts, 2), tax, supplies, total, missing)
+    fee = 0.0
+    for what, amt in fees:
+        if amt:
+            fee += amt
+            lines.append(("fee", what, round(amt, 2)))
+    fee = round(fee, 2)
+    base = parts + (labor + supplies + fee if tax_labor else 0)
+    tax = round(base * tax_rate, 2)
+    total = round(labor + parts + tax + supplies + fee, 2)
+    return Quote(lines, round(labor, 2), round(parts, 2), tax, supplies, total, missing, fee,
+                 "parts and labor" if tax_labor else "parts")

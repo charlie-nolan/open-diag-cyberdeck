@@ -28,7 +28,7 @@ cd ~/open-diag-cyberdeck/shopdeck && ~/open-diag-cyberdeck/venv/bin/python -m sh
 - **Over ssh:** add `--tui` to run the same screens inside the terminal.
 - **Database:** it uses `~/open-diag-cyberdeck/kb/subaru.db` by default. Use `--kb /path/to/subaru.db` to point it at another file.
 - **Car cable:** reading the car needs `pyserial`, and the window needs PyQt6. The deck's venv has both, which is why the commands above use it.
-- **Where things are saved:** tickets go to `~/.shopdeck/tickets/`, one JSON file per car, saved after every change. Work orders go to `~/shopdeck_workorders/`.
+- **Where things are saved:** tickets go to `~/.shopdeck/tickets/`, one JSON file per car, saved after every change. Work orders, estimates, invoices and receipts go to `~/shopdeck_workorders/`. Emails that couldn't go out yet wait in `~/.shopdeck/outbox/`.
 
 ## Keys
 
@@ -42,7 +42,7 @@ In the window, the buttons along the bottom show each screen's keys, and F1–F8
 | Where | Keys |
 |---|---|
 | Everywhere | arrows, PgUp and PgDn move; Enter picks; Esc or q goes back; the bottom line lists that screen's keys |
-| Menu | 1–8 open the screens; n starts a new ticket; o opens an old one; s opens settings (rates); Q quits |
+| Menu | 1–8 open the screens; n starts a new ticket; o opens an old one; s opens settings (rates, tax, your business details, email); Q quits |
 | Long lists (models, CHARM, search) | type to filter |
 | Walking a chart | y or n answers; type a number to enter a reading; b goes back a step; g jumps to a step (noted as your call); m shows the manual pages; j turns the result into a job |
 | Job | c adds CHARM book hours and part numbers; s attaches a manual procedure; h adds hours; p adds a part; d deletes a line |
@@ -79,6 +79,24 @@ In the window, the buttons along the bottom show each screen's keys, and F1–F8
    - the quote;
    - the parts list;
    - the factory repair steps, with "must be new" lines and torque values.
+
+   The same screen makes the customer's paperwork from the ticket's jobs, so nothing is typed twice:
+   - **Estimate** to approve before work starts, with the authorization terms (no more than 10% over without the customer's OK, replaced parts returned on request, a waiver box) and a signature line. Record how the customer approved it (signed, text, email, phone) and any extra work they OK'd later. The screen warns when the total goes more than 10% over what was approved.
+   - **Invoice** and **Receipt**, numbered in sequence (`2026-001`, `2026-002`, ...). Record payments by cash, card, Venmo, Zelle, Cash App or check; the receipt shows the balance and is stamped PAID when it's zero.
+   - **Email** any of the three to the customer from your own address. The message has a plain-text summary, and the printable page is attached. You get a copy (Bcc). With no connection, it waits in the outbox; "Send waiting emails" sends it later.
+
+## Email and your business details
+
+Settings (s) holds what goes at the top of every estimate, invoice and receipt: business name, phone, email, service area and warranty wording. They're saved in `~/.shopdeck/config.json` on the deck, never in this repository.
+
+Sending uses Gmail by default (`smtp.gmail.com`, port 587). Gmail needs an app password, not your normal password:
+1. Turn on 2-step verification for the Google account.
+2. Make an app password at Google account > Security > App passwords.
+3. Enter it in Settings > Email app password. It's saved in `~/.shopdeck/mail_password`, readable only by you. You can use the `SHOPDECK_MAIL_PASSWORD` environment variable instead.
+
+For another provider, add `"mail": {"host": "...", "port": 587, "user": "..."}` to `config.json`.
+
+Sales tax can apply to parts only or to parts and labor. In Washington, repair labor is taxed too, so pick "parts and labor" there. The rate depends on where the work is done.
 
 ## Accuracy rules the code follows
 

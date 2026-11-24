@@ -96,6 +96,140 @@ class Tickets(unittest.TestCase):
         self.assertFalse(Case(customer="x").empty)
 
 
+def bare_desk(out_dir, **cfg):
+    """A Desk without a knowledge database: billing and email don't need one."""
+    from shopdeck.desk import Desk, DEFAULTS
+    d = Desk.__new__(Desk)
+    d.cfg = dict(DEFAULTS, out_dir=out_dir, **cfg)
+    d.kb, d.veh, d._charts = None, None, {}
+    d.new_case()
+    return d
+
+
+def read(path):
+    with open(path) as f:
+        return f.read()
+
+
+def job(hours=1.5, price=40.0):
+    j = R.Job("Replace ignition coil", "test")
+    j.labor.append(R.LaborLine("Replace coil", hours, "book"))
+    j.parts.append(R.PartLine("Ignition coil", "22433AA420", 1, price, "x"))
+    return j
+
+
+class Ticket:
+    def setUp(self):
+        import shutil
+        from shopdeck import mail
+        shutil.rmtree(mail.OUTBOX, ignore_errors=True)
+        self.out = tempfile.mkdtemp()
+        self.d = bare_desk(self.out, labor_rate=110, tax_rate=0.105, tax_labor=True, trip_fee=25,
+                           business={"name": "Charles Nolan", "phone": "206-555-0100", "email": "shop@example.com",
+                                     "area": "Mobile mechanic · Shoreline, WA", "warranty": ""})
+        self.d.case.customer = "Jordan"
+        self.d.case.customer_email = "jordan@example.com"
+        self.d.add_job(job())
+
+
+class Billing(Ticket, unittest.TestCase):
+    def test_tax_on_labor_and_fees(self):
+        q = self.d.quote()
+        self.assertEqual((q.labor, q.parts, q.fees), (165.0, 40.0, 25.0))
+        self.assertEqual(q.tax, round(230 * 0.105, 2))
+        self.assertEqual(q.total, round(230 + q.tax, 2))
+        self.assertEqual(R.quote([job()], 110, 0.105).tax, round(40 * 0.105, 2))
+
+    def test_numbers_stay_with_the_ticket(self):
+        first = self.d.doc_number()
+        self.assertEqual(self.d.doc_number(), first)
+        self.d.new_case()
+        self.assertNotEqual(self.d.doc_number(), first)
+        self.assertTrue(first.endswith("-001"))
+
+    def test_documents(self):
+        est = read(self.d.bill("estimate"))
+        self.assertIn("Customer authorization", est)
+        self.assertIn("10%", est)
+        self.assertIn("Charles Nolan", est)
+        self.assertNotIn("PAID", est)
+        self.d.add_payment("Venmo", self.d.quote().total, "@jordan")
+        rec = read(self.d.bill("receipt"))
+        self.assertIn("PAID", rec)
+        self.assertIn("Venmo", rec)
+        self.assertIn("Balance: $0.00", self.d.bill_text("receipt"))
+
+    def test_partial_payment_leaves_balance(self):
+        from shopdeck import billing as B
+        self.d.add_payment("Cash", 100)
+        q = self.d.quote()
+        self.assertEqual(B.balance(self.d.case, q), round(q.total - 100, 2))
+        self.assertNotIn("PAID", read(self.d.bill("receipt")))
+
+    def test_over_estimate(self):
+        self.d.approve("Jordan", "signed")
+        self.assertEqual(self.d.over_estimate(), 0)
+        self.d.add_job(job(hours=0.1, price=5))
+        self.assertEqual(self.d.over_estimate(), 0)
+        self.d.add_job(job(hours=2, price=100))
+        self.assertGreater(self.d.over_estimate(), 0)
+        self.d.add_change("Second coil and plugs", 400, "phone")
+        self.assertEqual(self.d.over_estimate(), 0)
+
+    def test_round_trip(self):
+        self.d.approve("Jordan", "text", return_parts=True)
+        self.d.add_payment("Card", 50)
+        c = Case.load(self.d.case.path)
+        self.assertEqual((c.approval["how"], c.payments[0]["method"], c.tax_labor), ("text", "Card", True))
+
+
+class Email(Ticket, unittest.TestCase):
+    def test_message(self):
+        from shopdeck import mail
+        sent = []
+        how, to = self.d.email("invoice", smtp=lambda cfg, msgs: sent.extend(msgs))
+        self.assertEqual((how, to), ("sent", "jordan@example.com"))
+        m = sent[0]
+        self.assertEqual(m["Bcc"], "shop@example.com")
+        self.assertIn("Charles Nolan", m["From"])
+        self.assertIn("Invoice", m["Subject"])
+        self.assertIn("TOTAL", m.get_body(("plain",)).get_content())
+        self.assertEqual([p.get_filename() for p in m.iter_attachments()], [f"invoice-{self.d.case.doc_no}.html"])
+        self.assertEqual(mail.waiting(), [])
+
+    def test_offline_waits_then_sends(self):
+        from shopdeck import mail
+
+        def offline(cfg, msgs):
+            raise OSError("network unreachable")
+        how, path = self.d.email("estimate", smtp=offline)
+        self.assertEqual(how, "queued")
+        self.assertIn(path, mail.waiting())
+        self.assertEqual(mail.send_waiting(self.d.cfg, smtp=offline), (0, 1))
+        sent = []
+        self.assertEqual(mail.send_waiting(self.d.cfg, smtp=lambda cfg, msgs: sent.extend(msgs)), (1, 0))
+        self.assertEqual((sent[0]["To"], mail.waiting()), ("jordan@example.com", []))
+
+    def test_not_set_up(self):
+        from shopdeck import mail
+        os.environ.pop("SHOPDECK_MAIL_PASSWORD", None)
+        if os.path.exists(mail.PASSWORD_FILE):
+            os.remove(mail.PASSWORD_FILE)
+        with self.assertRaises(PermissionError):
+            self.d.email("invoice")
+        self.assertEqual(mail.waiting(), [])
+        self.d.case.customer_email = ""
+        with self.assertRaises(ValueError):
+            self.d.email("invoice")
+
+    def test_password_file_is_private(self):
+        from shopdeck import mail
+        mail.save_password("abcd efgh ijkl mnop")
+        self.assertEqual(mail.password(), "abcdefghijklmnop")
+        self.assertEqual(os.stat(mail.PASSWORD_FILE).st_mode & 0o777, 0o600)
+        os.remove(mail.PASSWORD_FILE)
+
+
 @unittest.skipUnless(HAVE_KB, f"no knowledge database at {KB_PATH}")
 class WithKB(unittest.TestCase):
     @classmethod
