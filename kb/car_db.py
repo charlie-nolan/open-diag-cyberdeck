@@ -212,6 +212,10 @@ def cmd_copy_docs(a):
             c.execute("INSERT OR IGNORE INTO charm_image SELECT i.img_key, m.new, i.page_title, i.bytes, i.width, "
                       "i.height, i.fmt, i.kind FROM s.charm_image i JOIN m ON m.old=i.section_id")
         st[title] = len(smap)
+    if has_table(c, "synonym", "s"):
+        from kb_synonyms import SYNONYM_SQL
+        c.execute(SYNONYM_SQL)
+        c.execute("INSERT OR IGNORE INTO synonym SELECT shop, manual FROM s.synonym")
     c.execute("DELETE FROM spec_fts")
     c.execute("INSERT INTO spec_fts(rowid, component, context) SELECT p.id, p.component, "
               "coalesce(s2.topic,'') || ' ' || s2.title FROM spec p JOIN section s2 ON s2.id=p.section_id")

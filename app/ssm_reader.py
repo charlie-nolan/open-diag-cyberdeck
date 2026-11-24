@@ -14,7 +14,25 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssm
 
 LIVE = [("RPM", "rpm", ""), ("Speed", "speed_kph", " km/h"), ("ECT", "ect_c", " C"), ("STFT1", "stft_pct", " %"), ("LTFT1", "ltft_pct", " %"),
         ("MAP", "map_kpa", " kPa"), ("Timing", "timing_advance_deg", " deg"), ("Knock corr", "knock_corr_deg", " deg"),
-        ("IAT", "iat_c", " C"), ("TPS", "tps_pct", " %"), ("O2 front", "front_o2_v", " V"), ("Volts", "battery_v", " V")]
+        ("IAT", "iat_c", " C"), ("TPS", "tps_pct", " %"), ("O2 front", "front_o2_v", " V"), ("Volts", "battery_v", " V"),
+        ("Misfires cyl1", "cyl1_misfires", ""), ("Misfires cyl2", "cyl2_misfires", ""),
+        ("Misfires cyl3", "cyl3_misfires", ""), ("Misfires cyl4", "cyl4_misfires", "")]
+
+
+def advertised_addresses(caps):
+    """Start addresses of the measuring blocks this ECU's init reply says it supports."""
+    return {m["addr_high"] if m["addr_high"] is not None else m["addr_low"] for m in caps.measuring_blocks()}
+
+
+def live_items(caps):
+    """LIVE, in its display order, cut to the values this ECU advertises. An ECU whose init reply advertises
+    no measuring blocks at all gets the values every SSM2 engine ECU has, without the per-cylinder counters."""
+    from telemetry_logger import PARAMS
+    addr = {key: a for key, a, _, _ in PARAMS}
+    have = advertised_addresses(caps)
+    if not have:
+        return [item for item in LIVE if not item[1].endswith("_misfires")]
+    return [item for item in LIVE if addr.get(item[1]) in have]
 
 
 def _read_ecu(link, poller, cache_dir, hex_name):
@@ -35,7 +53,8 @@ def _read_ecu(link, poller, cache_dir, hex_name):
         if dtcs.get("note"):
             dtc_note += f" ({dtcs['note']})"
     frame = poller.read_once()
-    live = " | ".join(f"{label} {frame[k]}{unit}" for label, k, unit in LIVE if k in frame) or "(no live data)"
+    live = " | ".join(f"{label} {frame[k]}{unit}" for label, k, unit in live_items(caps) if k in frame) \
+        or "(no live data)"
     try:
         vin = read_vin(link, caps)
     except Exception:
