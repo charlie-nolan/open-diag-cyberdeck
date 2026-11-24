@@ -38,9 +38,9 @@ pull() {
     rsync -a --partial --ignore-missing-args --info=progress2,name1 -e ssh "$PC:$R/$1" "$2"
 }
 
-echo "== app, parts lookup, shopdeck, teamdeck (deck-side config.json kept)"
+echo "== app, parts lookup, teamdeck (deck-side config.json kept)"
 rsync -a --exclude __pycache__ --exclude config.json -e ssh \
-    "$PC:$R/app" "$PC:$R/parts_sourcing" "$PC:$R/shopdeck" "$PC:$R/teamdeck" "$L/" || exit 1
+    "$PC:$R/app" "$PC:$R/parts_sourcing" "$PC:$R/teamdeck" "$L/" || exit 1
 pull tools/deck_pull.sh "$L/tools/"
 pull tools/vpic_setup_deck.sh "$L/tools/"
 
