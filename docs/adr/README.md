@@ -11,9 +11,7 @@
 | [0007](0007-kb.md) | Knowledge DB builders (kb/) |
 | [0008](0008-cards.md) | Card baking and forum-fix extraction (card_baking/) |
 | [0009](0009-gm.md) | GM / Chevrolet pipeline and live data (chevrolet/) |
-| [0010](0010-diagent.md) | diagent guided diagnosis (diagent/) |
 | [0011](0011-parts.md) | Parts sourcing and junkyard quotes (parts_sourcing/) |
-| [0012](0012-shopdeck.md) | shopdeck (shopdeck/) |
 | [0013](0013-team.md) | Team mode (team/, teamdeck/) |
 | [0014](0014-tools.md) | Build and deck tools (tools/) |
 | [0015](0015-nhtsa-scrapers.md) | NHTSA and Reddit loaders (repo root scripts, cyberdeck_forge/) |

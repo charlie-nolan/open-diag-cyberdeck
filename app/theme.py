@@ -1,5 +1,5 @@
-"""The user's palette, shared by the Home app (cyberdeck_gui.py) and the diagent GUI, so the two never drift.
-Dark only, no light mode and no toggle (10-26). Briefs: handoff/HOME_THEME.md, DIAGENT_GUI.md.
+"""The user's palette, used by the Home app (cyberdeck_gui.py) and teamdeck, so they never drift.
+Dark only, no light mode and no toggle (10-26). Brief: handoff/HOME_THEME.md.
 Tune colours here and nowhere else."""
 
 BG = "#0f1412"

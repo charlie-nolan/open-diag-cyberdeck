@@ -15,6 +15,10 @@ knowledge database per make (`kb/subaru.db`, `kb/chevrolet.db`, ...), and builde
 > right to use. Want to build one yourself? **[docs/BUILD_GUIDE.md](docs/BUILD_GUIDE.md)** walks through it
 > from parts list to first scan.
 
+**What's in here.** One app, **Cyberdeck Home** (`app/`, run `cd app && ../venv/bin/python cyberdeck_gui.py`,
+add `--home` to use the PC's models). **Team mode** (`teamdeck/` + `team/`) is an optional way to run the same
+app with several PC models working each case together. Everything else is the builders that make its databases.
+
 ### No Orange Pi? Try it on a laptop with one car
 
 I started this to push the Orange Pi 5 and see what it could do, then experimented with streaming a self-hosted
@@ -23,7 +27,8 @@ my PC. The project was built around the Orange Pi 5, and that's a limiting facto
 But the streaming versions don't need the Pi: any LLM desktop app, local models on your PC, or an API key will do,
 so the app can run on an ordinary laptop and stream the answers. Build a database for just your own car (manual
 pages and their pictures in one small file), plug in a USB OBD cable, and try it. The step-by-step guide assumes no experience at all:
-**[docs/SINGLE_CAR_LAPTOP.md](docs/SINGLE_CAR_LAPTOP.md)**. Fair warning: it has only been tested on two older cars,
+**[docs/SINGLE_CAR_LAPTOP.md](docs/SINGLE_CAR_LAPTOP.md)**, with a ready-made laptop setup, tested at a pinned
+version of this repo, in **[open-diag-laptop](https://github.com/charlie-nolan/open-diag-laptop)**. Fair warning: it has only been tested on two older cars,
 and lots of cars, newer ones especially, may not work.
 
 ## Design principles
@@ -42,7 +47,7 @@ These ideas have been the core of the project since the first version, and every
   so the deck in the field only has to look things up. Everything the deck carries is compressed (8-bit models,
   8-bit vectors, WebP pictures), and the slow 4800-baud car link is worked around, not fought.
 - **Offline first.** Everything works on the deck with no connection. A bigger PC is a bonus when it's reachable.
-- **You can always skip the AI.** The manual search, spec lookups and the chart walker work with no model at all.
+- **You can always skip the AI.** The manual search and spec lookups work with no model at all.
 
 ## Why it's more than a code reader
 
@@ -130,7 +135,7 @@ that problem:
   up and resets, and a vague follow-up like "explain deeper" can't drag in unrelated manual pages.
 - **You can always skip the AI and read the manual yourself.** Typing `/fsm <words>`, `/torque <part>` or
   `/fluids <system>` in Chat returns the manual's own text and spec rows straight from the database, with no model
-  involved. `shopdeck` walks the factory diagnostic charts with no LLM at all.
+  involved.
 
 No language model is perfect. But here an answer has to point at a real source, so an unsupported claim is easy to spot
 and doesn't quietly turn into a repair step.
@@ -200,20 +205,12 @@ tab (or `/fsm` in Chat) and the deck pulls up that car's own factory procedure f
 with the steps, specs and pictures. It works like a Haynes or Chilton manual you can search, for every make in the
 database.
 
-**diagent** (`python -m diagent gui`), the strict one. It walks the manual's own diagnostic chart step by step. Python
-answers any step it can from the scan, checks every number you type against the cited spec, and watches live data
-for "until X reaches N" steps. The model can only cite sources it was handed; uncited values and invented steps are
-rejected by the harness. Every case ends with an HTML work order. There's a scripted test harness that generates
-scenarios across makes and code families (`python -m diagent gen`, `python -m diagent test`).
-
 **From diagnosis straight to parts.** Once there's a verdict or repair, the Parts screen pulls the part names out of
 the repair line by itself and looks up the OEM part numbers for that exact car in the make's database. It shows which
 other models share each part, then puts up a **QR code per part for each store**: O'Reilly, AutoZone, RockAuto and
 Row52 junkyard inventory near your ZIP. Scan one with your phone and you're on that part's search page, ready to
 check price and stock. There's also a junkyard quote (yard price list plus book labor hours) and a printable parts sheet
 with all the codes. `/part <name or number>` does the same from Chat.
-
-**shopdeck** (`python -m shopdeck`) is a no-LLM chart walker with a terminal UI for use over ssh. It's experimental.
 
 ### 4. Where answers come from, in priority order
 1. **The factory diagnostic tree** for the code (DTC procedure), with steps that ask "which codes are set?"
@@ -420,11 +417,9 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 
 | Path | What |
 |---|---|
-| `app/` | Home app, LLM backends (RKLLM ctypes, Ollama, OpenAI-compatible, Claude), retrieval, live data, voice, theme |
+| `app/` | **Cyberdeck Home, the main app** (`cyberdeck_gui.py`), LLM backends (RKLLM ctypes, Ollama, OpenAI-compatible, Claude), retrieval, live data, voice, theme |
 | `app/ssm/` | Subaru SSM2: telemetry logger, capability decoding, tests, cable detection, SSM-through-EX probe |
-| `diagent/` | Chart-walking diagnosis app with harness, tools, policy checks and scenario generator |
-| `teamdeck/`, `team/` | Team mode: the Home app with a team (Claude, Gemini, GPT-OSS, local Qwen) as its model; PC service, read-only MCP server, runner ([docs](docs/TEAM_MODE.md)) |
-| `shopdeck/` | No-LLM chart walker (GUI + TUI) |
+| `teamdeck/`, `team/` | Optional Team mode: the Home app with a team (Claude, Gemini, GPT-OSS, local Qwen) as its model; PC service, read-only MCP server, runner ([docs](docs/TEAM_MODE.md)) |
 | `kb/` | Knowledge-base builders, retriever, embedder, telemetry and community builders, tests |
 | `card_baking/` | Per-DTC card baker (PC GPU): forum/Reddit fix extraction with confirmation and quote checks, then sourced cards |
 | `chevrolet/` | The generic per-make pipeline, make profiles, and GM VPW / mode 22 live reader |
@@ -451,7 +446,7 @@ For everything else, see the [build guide](docs/BUILD_GUIDE.md).
 ## Status
 
 Working: car ID, OBD-II reads through the EX on real cars (a 2003 Tahoe on J1850 VPW), SSM2 live data over KKL on a
-2002 Forester, the two-way (actuator) tests on that Forester in test mode, both apps on the PC and the deck, Home mode,
+2002 Forester, the two-way (actuator) tests on that Forester in test mode, the Home app on the PC and the deck, Home mode,
 and builders for 50+ makes.
 Not yet proven on a car: SSM2 through the EX, and the 4B models on the NPU under load.
 
@@ -462,7 +457,7 @@ Photos (placeholders until proper screenshots and screen recordings):
 | ![The deck in the car, OBDLink EX in hand](docs/photos/deck-with-obdlink.jpg) | ![2002 Forester intake: codes and live data read by the deck (VIN blurred)](docs/photos/forester-intake.jpg) |
 | ![Forester verdict log, 2026-10-31: P0303/P0304 traced to a dead front O2 sensor](docs/photos/forester-verdict-log.jpg) | ![Forester live data over OBD-II: 17 PIDs](docs/photos/forester-live-data.jpg) |
 | ![Maintenance screen for the Forester at 289,160 mi](docs/photos/forester-maintenance.jpg) | ![Power wiring in the case: M12 pack, low-voltage cutoff, buck converters, USB hub](docs/photos/case-power-on.jpg) |
-**Team mode** (Nov 2026): a separate app, teamdeck, with the same screens, where Claude, Gemini, GPT-OSS and the local
+**Team mode** (Nov 2026, optional): teamdeck runs the same Home app, where Claude, Gemini, GPT-OSS and the local
 Qwen work each case together with read-only database lookups, and Claude makes the final call. In PC tests it had
 half the unsupported numbers of the local models alone. Details: [docs/TEAM_MODE.md](docs/TEAM_MODE.md).
 
@@ -485,7 +480,6 @@ about 7/10 if you're comfortable working around airbags, 8-9/10 if you're not, b
 
 ```bash
 venv/bin/python -m pytest                               # every suite (pytest.ini); no data files needed
-venv/bin/python -m diagent test                          # needs kb/subaru.db + generated scenarios
 ```
 
 The suite covers the quote checks behind the community data, the telemetry zone parser, unit handling in live

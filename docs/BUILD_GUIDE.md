@@ -319,12 +319,8 @@ Cable tips:
 - Pre-2005 Subarus often won't give a VIN or full data over generic OBD-II. Use SSM2 (either cable).
 - Only one program can use a cable at a time. Close FORScan and similar tools before READ CAR.
 
-The other two apps:
-```bash
-~/open-diag-cyberdeck/venv/bin/python -m diagent gui
-~/open-diag-cyberdeck/venv/bin/python -m diagent gui --install-icon      # add a menu icon (never autostarts)
-cd ~/open-diag-cyberdeck/shopdeck && ../venv/bin/python -m shopdeck [--tui]
-```
+Team mode (optional, PC models working together) is the same app with a different backend; see
+[TEAM_MODE.md](TEAM_MODE.md).
 
 ## 11. Home mode: big models from your PC
 
@@ -358,7 +354,7 @@ Nothing personal is hard-coded. Set these in your shell (or in `app/config.json`
 
 | Variable | Used by | Meaning |
 |---|---|---|
-| `CYBERDECK_HOME_URL` | app, diagent | Your PC's Ollama, e.g. `http://<pc-tailscale-ip>:11434` (default `127.0.0.1`) |
+| `CYBERDECK_HOME_URL` | app | Your PC's Ollama, e.g. `http://<pc-tailscale-ip>:11434` (default `127.0.0.1`) |
 | `CYBERDECK_PIC_URL` | app | The CHARM picture server on the PC (default `http://127.0.0.1:8765`) |
 | `CYBERDECK_PIC_HOST` | `tools/charm_pic_server.py` | Address the picture server listens on (default `127.0.0.1`) |
 | `CYBERDECK_PC` | `tools/deck_pull.sh` | `user@host` of the PC to pull databases from |
