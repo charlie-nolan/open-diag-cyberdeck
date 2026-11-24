@@ -3,7 +3,7 @@
 | ADR | Title |
 |---|---|
 | [0001](0001-no-code-comments.md) | No code comments; a ratchet keeps the count going down |
-| [0002](0002-gui.md) | Home app (app/cyberdeck_gui.py): config, models, case, screens |
+| [0002](0002-gui.md) | Home app (app/cyberdeck_gui.py, app/ui/): config, models, case, screens |
 | [0003](0003-ssm.md) | Subaru SSM2 over K-line and the OBDLink EX (app/ssm/) |
 | [0004](0004-backends.md) | Model backends (app/llm_backend.py) |
 | [0005](0005-app.md) | App checks, OBD-II, telemetry and voice (app/) |
