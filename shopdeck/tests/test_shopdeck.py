@@ -125,8 +125,8 @@ class Ticket:
         shutil.rmtree(mail.OUTBOX, ignore_errors=True)
         self.out = tempfile.mkdtemp()
         self.d = bare_desk(self.out, labor_rate=110, tax_rate=0.105, tax_labor=True, trip_fee=25,
-                           business={"name": "Charles Nolan", "phone": "206-555-0100", "email": "shop@example.com",
-                                     "area": "Mobile mechanic · Shoreline, WA", "warranty": ""})
+                           business={"name": "Test Mechanic", "phone": "206-555-0100", "email": "shop@example.com",
+                                     "area": "Mobile mechanic · Anytown", "warranty": ""})
         self.d.case.customer = "Jordan"
         self.d.case.customer_email = "jordan@example.com"
         self.d.add_job(job())
@@ -151,7 +151,7 @@ class Billing(Ticket, unittest.TestCase):
         est = read(self.d.bill("estimate"))
         self.assertIn("Customer authorization", est)
         self.assertIn("10%", est)
-        self.assertIn("Charles Nolan", est)
+        self.assertIn("Test Mechanic", est)
         self.assertNotIn("PAID", est)
         self.d.add_payment("Venmo", self.d.quote().total, "@jordan")
         rec = read(self.d.bill("receipt"))
@@ -191,7 +191,7 @@ class Email(Ticket, unittest.TestCase):
         self.assertEqual((how, to), ("sent", "jordan@example.com"))
         m = sent[0]
         self.assertEqual(m["Bcc"], "shop@example.com")
-        self.assertIn("Charles Nolan", m["From"])
+        self.assertIn("Test Mechanic", m["From"])
         self.assertIn("Invoice", m["Subject"])
         self.assertIn("TOTAL", m.get_body(("plain",)).get_content())
         self.assertEqual([p.get_filename() for p in m.iter_attachments()], [f"invoice-{self.d.case.doc_no}.html"])
