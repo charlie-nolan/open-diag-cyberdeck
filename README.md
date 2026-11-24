@@ -16,8 +16,7 @@ knowledge database per make (`kb/subaru.db`, `kb/chevrolet.db`, ...), and builde
 > from parts list to first scan.
 
 **What's in here.** One app, **Cyberdeck Home** (`app/`, run `cd app && ../venv/bin/python cyberdeck_gui.py`,
-add `--home` to use the PC's models). **shopdeck** (`shopdeck/`) walks the factory diagnostic charts with no
-model at all, in a window or over ssh. **Team mode** (`teamdeck/` + `team/`) is an optional way to run the same
+add `--home` to use the PC's models). **Team mode** (`teamdeck/` + `team/`) is an optional way to run the same
 app with several PC models working each case together. Everything else is the builders that make its databases.
 
 ### No Orange Pi? Try it on a laptop with one car
@@ -48,7 +47,7 @@ These ideas have been the core of the project since the first version, and every
   so the deck in the field only has to look things up. Everything the deck carries is compressed (8-bit models,
   8-bit vectors, WebP pictures), and the slow 4800-baud car link is worked around, not fought.
 - **Offline first.** Everything works on the deck with no connection. A bigger PC is a bonus when it's reachable.
-- **You can always skip the AI.** The manual search, spec lookups and the chart walker (shopdeck) work with no model at all.
+- **You can always skip the AI.** The manual search and spec lookups work with no model at all.
 
 ## Why it's more than a code reader
 
@@ -136,7 +135,7 @@ that problem:
   up and resets, and a vague follow-up like "explain deeper" can't drag in unrelated manual pages.
 - **You can always skip the AI and read the manual yourself.** Typing `/fsm <words>`, `/torque <part>` or
   `/fluids <system>` in Chat returns the manual's own text and spec rows straight from the database, with no model
-  involved. `shopdeck` walks the factory diagnostic charts with no LLM at all.
+  involved.
 
 No language model is perfect. But here an answer has to point at a real source, so an unsupported claim is easy to spot
 and doesn't quietly turn into a repair step.
@@ -212,8 +211,6 @@ other models share each part, then puts up a **QR code per part for each store**
 Row52 junkyard inventory near your ZIP. Scan one with your phone and you're on that part's search page, ready to
 check price and stock. There's also a junkyard quote (yard price list plus book labor hours) and a printable parts sheet
 with all the codes. `/part <name or number>` does the same from Chat.
-
-**shopdeck** (`python -m shopdeck`) is a no-LLM chart walker with a terminal UI for use over ssh. It's experimental.
 
 ### 4. Where answers come from, in priority order
 1. **The factory diagnostic tree** for the code (DTC procedure), with steps that ask "which codes are set?"
@@ -423,7 +420,6 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 | `app/` | **Cyberdeck Home, the main app** (`cyberdeck_gui.py`), LLM backends (RKLLM ctypes, Ollama, OpenAI-compatible, Claude), retrieval, live data, voice, theme |
 | `app/ssm/` | Subaru SSM2: telemetry logger, capability decoding, tests, cable detection, SSM-through-EX probe |
 | `teamdeck/`, `team/` | Optional Team mode: the Home app with a team (Claude, Gemini, GPT-OSS, local Qwen) as its model; PC service, read-only MCP server, runner ([docs](docs/TEAM_MODE.md)) |
-| `shopdeck/` | No-LLM chart walker (GUI + TUI) |
 | `kb/` | Knowledge-base builders, retriever, embedder, telemetry and community builders, tests |
 | `card_baking/` | Per-DTC card baker (PC GPU): forum/Reddit fix extraction with confirmation and quote checks, then sourced cards |
 | `chevrolet/` | The generic per-make pipeline, make profiles, and GM VPW / mode 22 live reader |
