@@ -4,8 +4,8 @@
     venv/bin/python team/replay.py run [--only NAME] [--web on|off|both]   # one case at a time, logs/team/replay/
     venv/bin/python team/replay.py report           # logs/team/replay/REPORT.md + grade sheet
 
-Cases: the diagent generator's script-picked cars and codes across makes (no hand-picking, rule 2), plus the
-deck's last saved case on this PC (session_active.db prev_case). Real deck visits (records/<VIN>.db) live on the
+Cases: any case JSON already in team/replay/cases/ (earlier runs wrote script-picked cars and codes across makes
+there; no hand-picking, rule 2), plus the deck's last saved case on this PC (session_active.db prev_case). Real deck visits (records/<VIN>.db) live on the
 deck; copy their case_json here to add them (any VIN is dropped by run.py before anything leaves the PC).
 """
 import argparse
@@ -23,28 +23,11 @@ ROOT = os.path.dirname(HERE)
 CASES = os.path.join(HERE, "replay", "cases")
 OUT = os.environ.get("TEAM_REPLAY_OUT") or os.path.join(ROOT, "logs", "team", "replay")
 PY = os.path.join(ROOT, "venv", "bin", "python")
-PICK = ["gen_pages_chevrolet_misfire_express_1999_p0306", "gen_pages_dodge_fuel_trim_charger_2006_p0174",
-        "gen_pages_ford_evap_escape_2010_p0453", "gen_pages_honda_idle_passport_2001_p0502",
-        "gen_pages_hyundai_sensor_circuit_sonata_2008_p0119", "gen_pages_mazda_misfire_626_2000_p0302",
-        "gen_pages_nissan_egr_sentra_1997_p0400", "gen_pages_toyota_o2_af_sienna_2011_p0031",
-        "gen_steps_sensor_circuit_legacy_2008_p0335", "gen_steps_evap_outback_2009_p0453",
-        "gen_steps_live_data_forester_1999_p0107"]
 
 
 def make_cases():
     os.makedirs(CASES, exist_ok=True)
-    n = 0
-    for name in PICK:
-        d = json.load(open(os.path.join(ROOT, "diagent", "scenarios", name + ".json")))
-        g = d["given"]
-        eng = next(iter(d.get("choose", {}).values()), "")
-        eng = re.sub(r"\\(.)", r"\1", eng).strip("^$") if eng else ""
-        case = {"vehicle_info": {"make": g["make"], "model": g["model"], "year": g["year"],
-                                 **({"engine": eng} if eng else {})},
-                "dtcs": ", ".join(d["codes"]), "source": f"diagent scenario {name} (script-picked)"}
-        json.dump(case, open(os.path.join(CASES, name.replace("gen_pages_", "").replace("gen_steps_", "") + ".json"),
-                             "w"), indent=1)
-        n += 1
+    n = len([f for f in glob.glob(os.path.join(CASES, "*.json")) if not f.endswith("saved_prev_case.json")])
     db = os.path.join(ROOT, "session_active.db")
     try:
         c = sqlite3.connect(f"file:{db}?mode=ro", uri=True)

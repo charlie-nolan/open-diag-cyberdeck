@@ -1,5 +1,5 @@
 """Layout helpers so a window fits landscape and portrait screens at any desktop scaling (The user's monitor:
-1920x1280 at 150%, so about 1280x853 or 853x1280 logical px). Shared by the Home app and the diagent GUI."""
+1920x1280 at 150%, so about 1280x853 or 853x1280 logical px). Used by the Home app and teamdeck."""
 from PyQt6.QtWidgets import QGridLayout, QLayout, QSizePolicy, QWidget
 
 

@@ -1,7 +1,7 @@
 """
 Live-telemetry reference: what a reading means for THIS car, worked out in Python from the make's manual.
 
-Both apps (cyberdeck_gui and diagent) import this one module, so they give the same answer:
+The Home app (cyberdeck_gui) and teamdeck import this one module, so they give the same answer:
     normalize()   cable/protocol readings -> one canonical form {key, value, unit, source, raw, raw_unit, t}
     condition()   the operating condition the readings show (key on engine off, idle, a stated rpm ...)
     judge()       each reading against the healthy zone from the car's manual: in / low / high / no zone

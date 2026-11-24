@@ -16,7 +16,6 @@ rkllm-env/
 
 # Local settings (copy app/config.example.json to app/config.json)
 app/config.json
-diagent/config.json
 *.bak*
 *.lock
 
@@ -38,8 +37,6 @@ kb/.*
 kb/community/
 kb/telemetry/
 kb/images/
-diagent/data/
-diagent/scenarios/*.json
 models/
 raw/
 cache/
