@@ -14,7 +14,7 @@ set -euo pipefail
 P=$CK/venv/bin/python
 KB=$CK/kb
 ALT="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build"
-PROF=$CK/chevrolet/profiles/makes
+PROF=$CK/makes/profiles/makes
 . "$CK/tools/gpu_guard.sh"
 export HF_HUB_OFFLINE=1
 STEP_TIMEOUT=${STEP_TIMEOUT:-24h}
@@ -62,8 +62,8 @@ one_make() {
     elif running "$CK/.reddit_loop.lock"; then
         say "c. Reddit: the all-makes Reddit pull is running and will load $SLUG; re-run after it"
     else
-        run "$P" "$CK/chevrolet/make_pipeline.py" "$PROF/$SLUG.json" reddit-get &&
-        run "$P" "$CK/chevrolet/make_pipeline.py" "$PROF/$SLUG.json" reddit || { say "c. FAILED"; return 1; }
+        run "$P" "$CK/makes/make_pipeline.py" "$PROF/$SLUG.json" reddit-get &&
+        run "$P" "$CK/makes/make_pipeline.py" "$PROF/$SLUG.json" reddit || { say "c. FAILED"; return 1; }
     fi
 
     for L in "inv|add_investigations.py|investigations" "se|add_stackexchange.py|StackExchange"; do

@@ -23,10 +23,6 @@ search the file for that name. When the code changes, update or remove the entry
 
 - `worker`: The busy check also sees our own reader model, which Ollama keeps loaded after each read (keep_alive): unload it and check again, so the queue isn't stuck waiting on itself.
 
-### `tools/community_gpu_on.sh`
-
-- A stale server of ours without its extraction loop: stop it so it doesn't count as another GPU job.
-
 ### `tools/deck_pull.sh`
 
 - 'make_full.sh --all' itself doesn't count: it works on one make at a time, and that make's own job (build_subaru_kb.py --db kb/<make>.db, extract_fixes, ...) names the DB it is writing.

@@ -53,7 +53,7 @@ start_server() {
 }
 
 wait_for_scrape() {
-  local q="${SCRAPE_PATTERN:-wayback|ultimatesubaru|scrape_reddit}"
+  local q="${SCRAPE_PATTERN:-wayback|ultimatesubaru|scrape_reddit|reddit_scrape}"
   while pgrep -u "$ME" -f -- "$q" | grep -vx "$$" >/dev/null; do
     echo "$(date +%T) waiting: forum scrape still running"; sleep 600
   done

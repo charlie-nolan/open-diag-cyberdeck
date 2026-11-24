@@ -155,7 +155,7 @@ and doesn't quietly turn into a repair step.
 ### 2. Read the car
 | Cable | What it gets |
 |---|---|
-| **OBDLink EX** | Generic OBD-II on any 1996+ car: stored and pending codes, **every mode 01 PID the car says it supports** (O2 sensors included), mode 06 test results, VIN. It also talks Subaru SSM2 through the same cable, and GM mode 22 extended PIDs (`chevrolet/gm_live.py`). |
+| **OBDLink EX** | Generic OBD-II on any 1996+ car: stored and pending codes, **every mode 01 PID the car says it supports** (O2 sensors included), mode 06 test results, VIN. It also talks Subaru SSM2 through the same cable, and GM mode 22 extended PIDs (`makes/gm_live.py`). |
 | **Plain KKL cable** | Subaru SSM2 on the K-line (4800 baud): the ECU's own DTC table, the switches, and every live value the ECU advertises in its init-reply capability bits. |
 
 - **TEST DRIVE** repeats the read every 30 s and writes each sample to a crash-safe JSONL drive file.
@@ -422,11 +422,10 @@ covers this). For this job, that's a fair price for a real NPU and 16 GB.
 | `teamdeck/`, `team/` | Optional Team mode: the Home app with a team (Claude, Gemini, GPT-OSS, local Qwen) as its model; PC service, read-only MCP server, runner ([docs](docs/TEAM_MODE.md)) |
 | `kb/` | Knowledge-base builders, retriever, embedder, telemetry and community builders, tests |
 | `card_baking/` | Per-DTC card baker (PC GPU): forum/Reddit fix extraction with confirmation and quote checks, then sourced cards |
-| `chevrolet/` | The generic per-make pipeline, make profiles, and GM VPW / mode 22 live reader |
+| `makes/` | The generic per-make pipeline (`make_pipeline.py`), 38 make profiles, and GM VPW / mode 22 live reader |
 | `parts_sourcing/` | Part-number interchange, QR links, junkyard sync and quotes |
 | `tools/` | Full per-make builds, deck sync, CHARM picture server, RKLLM model export, status |
-| `cyberdeck_forge/charm_ingest.py` | Reader for a CHARM LMDB archive |
-| `build_subaru_diag_db.py` | NHTSA flat files + RomRaider definitions -> sourced DTC/TSB DB |
+| `kb/sources/` | Source loaders: NHTSA flat files + RomRaider (`diag_db.py`), Reddit (`reddit_scrape.py`, `pushshift_load.py`), CHARM LMDB reader (`charm_ingest.py`) |
 | `docs/SINGLE_CAR_LAPTOP.md` | One car on any laptop: build one car's DB (`tools/build_car_db.sh`), pick a model backend, plug in a cable |
 | `docs/BUILD_GUIDE.md` | Step-by-step build: hardware, OS, models, databases, first scan |
 | `docs/DESIGN_HISTORY.md` | How the design evolved: origin, timeline, every idea's versions, dead ends, key decisions |

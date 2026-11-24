@@ -1,12 +1,10 @@
 {
- "card_baking/after_extract.sh": 5,
  "card_baking/free_resources.sh": 10,
  "card_baking/rebake.sh": 5,
  "card_baking/respec.sh": 3,
  "card_baking/run_bake.sh": 12,
  "card_baking/serve_cards.sh": 4,
  "card_baking/serve_extract.sh": 3,
- "chevrolet/run_all.sh": 3,
  "kb/load_manuals.sh": 3,
  "tools/bake_cards.sh": 9,
  "tools/build_car_db.sh": 51,

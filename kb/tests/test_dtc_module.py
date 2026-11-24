@@ -3,9 +3,9 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "kb", "sources"))
 
-from build_subaru_diag_db import module_for  # noqa: E402
+from diag_db import module_for  # noqa: E402
 
 
 def test_generic_groups():

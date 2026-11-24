@@ -15,11 +15,11 @@ Steps (run any subset, in any order; each one is re-runnable):
   index      rebuild DTC cross-links and the full-text search index
 
 Examples:
-  python3 build_subaru_diag_db.py fsm --knowledge-db test_subaru_knowledge.db \
+  python3 kb/sources/diag_db.py fsm --knowledge-db test_subaru_knowledge.db \
       --model Forester --chassis SF --years 2002 --engine EJ251
-  python3 build_subaru_diag_db.py download nhtsa index
-  python3 build_subaru_diag_db.py romraider --xml ~/Downloads/logger_STD_EN_v370.xml index
-  python3 build_subaru_diag_db.py lookup P0420 --model Forester --year 2002
+  python3 kb/sources/diag_db.py download nhtsa index
+  python3 kb/sources/diag_db.py romraider --xml ~/Downloads/logger_STD_EN_v370.xml index
+  python3 kb/sources/diag_db.py lookup P0420 --model Forester --year 2002
 """
 import argparse
 import csv
@@ -34,7 +34,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from datetime import datetime, timezone
 
-HOME = os.path.dirname(os.path.abspath(__file__))
+HOME = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_DB = os.path.join(HOME, "subaru_diag.db")
 DEFAULT_RAW = os.path.join(HOME, "raw")
 

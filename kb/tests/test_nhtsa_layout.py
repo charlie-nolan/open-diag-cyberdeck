@@ -1,5 +1,5 @@
-"""NHTSA flat files are read by field position (build_subaru_diag_db.iter_flat_rows, also used by
-kb/add_nhtsa.py and chevrolet/make_pipeline.py). A file whose columns moved must be skipped, not loaded.
+"""NHTSA flat files are read by field position (diag_db.iter_flat_rows, also used by
+kb/add_nhtsa.py and makes/make_pipeline.py). A file whose columns moved must be skipped, not loaded.
     python -m pytest kb/tests/test_nhtsa_layout.py
 Synthetic rows in a temp folder; no data files needed.
 """
@@ -12,8 +12,8 @@ import unittest
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, ROOT)
-import build_subaru_diag_db as bd  # noqa: E402
+sys.path.insert(0, os.path.join(ROOT, "kb", "sources"))
+import diag_db as bd  # noqa: E402
 
 
 def tsb_row(i, year="2004", make="EXAMPLEMAKE", date="20050117"):

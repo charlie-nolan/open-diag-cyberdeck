@@ -20,7 +20,7 @@ SLUG=${A[0]:-}; MODEL=${A[1]:-}; YEARS=${A[2]:-}
 DB=$KB/$SLUG.db; [ -f "$DB" ] || DB="${CYBERDECK_ARCHIVE:-$HOME/cyberdeck_archive}/kb_build/$SLUG.db"
 [ -f "$DB" ] || { echo "no DB for $SLUG yet (CHARM build not done)"; exit 1; }
 WORK=$KB/bake_work_$SLUG.db
-MAKE=$($P -c 'import json, sys; print(json.load(open(sys.argv[1]))["make"])' "$CK/chevrolet/profiles/makes/$SLUG.json" 2>/dev/null || echo "$SLUG")
+MAKE=$($P -c 'import json, sys; print(json.load(open(sys.argv[1]))["make"])' "$CK/makes/profiles/makes/$SLUG.json" 2>/dev/null || echo "$SLUG")
 
 if [ -z "$MODEL" ]; then
     echo "Models in $SLUG.db, most DTC procedures first (pick one; forum fixes count if step e ran):"

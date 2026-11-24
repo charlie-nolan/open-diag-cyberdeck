@@ -211,7 +211,7 @@ def pick_conv(convs, want_unit):
 
 def gm_pids():
     """GM mode $22 definitions: kb/gm_mode22_pids.json when tools/chevy_extras.sh has made it, otherwise read
-    PCMHammer (GPL-3) with the same parser (chevrolet/make_pipeline.pcmhammer_pids). DidNotWork entries are
+    PCMHammer (GPL-3) with the same parser (makes/make_pipeline.pcmhammer_pids). DidNotWork entries are
     returned separately (kept as not_supported)."""
     bad = []
     bad_xml = os.path.join(PCMH_DIR, "Parameters.DidNotWork.xml")
@@ -219,7 +219,7 @@ def gm_pids():
         bad = [e.get("pid") or e.get("id") for e in ET.parse(bad_xml).getroot().iter("Parameter")]
     if os.path.exists(GM_PID_JSON):
         return json.load(open(GM_PID_JSON))["pids"], bad, os.path.basename(GM_PID_JSON)
-    sys.path.insert(0, os.path.join(ROOT, "chevrolet"))
+    sys.path.insert(0, os.path.join(ROOT, "makes"))
     from make_pipeline import pcmhammer_pids
     return (pcmhammer_pids(os.path.join(PCMH_DIR, "Parameters.Standard.xml"), bad_xml, "6C10F1"), bad,
             "PCMHammer Parameters.Standard.xml (kb/gm_mode22_pids.json not built yet)")

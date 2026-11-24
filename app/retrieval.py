@@ -6,7 +6,7 @@ so a Subaru deck with just the old DBs still answers with cited DTC procedures a
 Deterministic lookups that feed the LLMs. Standard library only (runs on the Orange Pi).
 
 Sources, all read-only:
-  subaru_diag.db            DTC definitions + FSM diagnostic procedures (built by build_subaru_diag_db.py)
+  subaru_diag.db            DTC definitions + FSM diagnostic procedures (built by kb/sources/diag_db.py)
   test_subaru_knowledge.db  FSM chunks + fast_specs (built by ingest/build_test_db.py etc.)
 A small FTS5 cache over the FSM chunks is built once in cache/fsm_fts.db, so the
 knowledge DB itself is never modified.

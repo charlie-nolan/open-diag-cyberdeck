@@ -1,10 +1,13 @@
-# Chevrolet (2003 Tahoe beta) pipeline
+# Per-make pipeline
+
+`make_pipeline.py` builds any make from a profile (`profiles/makes/<slug>.json`). The 2003 Tahoe was the first
+beta car, so the examples below use its profile.
 
 Same steps as the Subaru build, driven by a profile. Nothing about the Tahoe is in the code: it all lives in
 `profiles/chevrolet_tahoe_gmt800.json` (make, years 2000-2006 = the GMT800 Tahoe, CHARM/NHTSA names, subreddits,
 forums, regexes). For another car or make, copy the profile.
 
-PC copy: `~/open-diag-cyberdeck/chevrolet/`. Output:
+PC copy: `~/open-diag-cyberdeck/makes/`. Output:
 
 | What | Where | Source |
 |---|---|---|
@@ -17,11 +20,8 @@ PC copy: `~/open-diag-cyberdeck/chevrolet/`. Output:
 
 ## Run
 
-```
-setsid nohup ~/open-diag-cyberdeck/chevrolet/run_all.sh > ~/open-diag-cyberdeck/logs/chevrolet_pipeline.log 2>&1 &
-```
-Add the Tahoe's VIN after `run_all.sh` to decode it too. The log ends with `ALL DONE`, then `status` prints one
-summary. Every step can be re-run alone: `python3 make_pipeline.py chevrolet_tahoe_gmt800.json <step>`.
+The full build for any make is `tools/make_full.sh <slug>`. Every step can also be run alone:
+`python3 make_pipeline.py chevrolet_tahoe_gmt800.json <step>`, and `status` prints one summary.
 
 Later, after the Subaru bake: `make_pipeline.py chevrolet_tahoe_gmt800.json embed` (GPU), then a Tahoe card bake.
 

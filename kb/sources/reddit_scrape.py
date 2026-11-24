@@ -14,9 +14,9 @@ Per subreddit:
 
 API docs: https://github.com/ArthurHeitmann/arctic_shift/blob/master/api/README.md
 
-  python3 scrape_reddit_subaru.py                     # all subreddits, resume where it left off
-  python3 scrape_reddit_subaru.py --subs SubaruForester
-  python3 scrape_reddit_subaru.py --stats
+  python3 kb/sources/reddit_scrape.py                     # all subreddits, resume where it left off
+  python3 kb/sources/reddit_scrape.py --subs SubaruForester
+  python3 kb/sources/reddit_scrape.py --stats
 """
 import argparse
 import hashlib
@@ -30,7 +30,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_DB = os.path.join(HERE, "raw", "reddit", "reddit_subaru.db")
 API = "https://arctic-shift.photon-reddit.com/api"
 REDDIT_START = 1104537600
