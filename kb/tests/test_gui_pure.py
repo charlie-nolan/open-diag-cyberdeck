@@ -155,3 +155,11 @@ class CaseMake(unittest.TestCase):
             self.assertEqual(G.case_make({}), "")
         finally:
             home.decode_vin = orig
+
+
+@unittest.skipIf(G is None, "cyberdeck_gui not importable (PyQt6 missing?)")
+class TeamdeckSwap(unittest.TestCase):
+    def test_window_builds_its_model_manager_from_cyberdeck_gui(self):
+        init = G.CyberdeckApp.__init__
+        self.assertIs(init.__globals__, vars(G))
+        self.assertIn("ModelManager", init.__code__.co_names)
