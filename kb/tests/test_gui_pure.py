@@ -144,8 +144,9 @@ class Screens(unittest.TestCase):
 @unittest.skipIf(G is None, "cyberdeck_gui not importable (PyQt6 missing?)")
 class CaseMake(unittest.TestCase):
     def test_make_from_case_then_vin_never_a_default(self):
-        orig = G.decode_vin
-        G.decode_vin = lambda vin, db=None: {"make": {"1GN": "Chevrolet", "JF2": "Subaru"}.get(vin[:3], "")}
+        home = sys.modules[G.case_make.__module__]
+        orig = home.decode_vin
+        home.decode_vin = lambda vin, db=None: {"make": {"1GN": "Chevrolet", "JF2": "Subaru"}.get(vin[:3], "")}
         try:
             self.assertEqual(G.case_make({"make": "Toyota", "vin": "JF2XXXXXXXXXXXXXX"}), "Toyota")
             self.assertEqual(G.case_make({"vin": "1GNXXXXXXXXXXXXXX"}), "Chevrolet")
@@ -153,4 +154,4 @@ class CaseMake(unittest.TestCase):
             self.assertEqual(G.case_make({"vin": "ZZZXXXXXXXXXXXXXX"}), "")
             self.assertEqual(G.case_make({}), "")
         finally:
-            G.decode_vin = orig
+            home.decode_vin = orig

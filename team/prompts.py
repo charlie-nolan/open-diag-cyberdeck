@@ -1,6 +1,6 @@
 """Team mode prompts. Rule 2: format and schema only; never a car, a code or a cause as an example.
 
-home_verdict() is the main app's Final Diagnosis prompt (cyberdeck_gui.CyberdeckApp.act_verdict, PC case: up to 5
+home_verdict() is the main app's Final Diagnosis prompt (app/ui/screens/verdict.py, VerdictScreen.act_verdict, PC case: up to 5
 issues, no maintenance block). It is copied, not imported, because it is built inline in the GUI method; check it
 against act_verdict when that changes.
 """
