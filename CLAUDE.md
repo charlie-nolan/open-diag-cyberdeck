@@ -1,7 +1,8 @@
 # Working in this repo
 
 Cyberdeck Home (`app/`, `cyberdeck_gui.py`) is the main app. Team mode (`teamdeck/`, `team/`) is an optional mode
-of the same app. shopdeck (`shopdeck/`) is the no-LLM chart walker and stays. Everything else builds the databases the app reads. The laptop guide
+of the same app. shopdeck (`shopdeck/`) is the no-LLM chart walker and stays. Everything else builds the
+databases the app reads. The laptop guide
 (github.com/charlie-nolan/open-diag-laptop) pins a commit of this repo (`CORE_VERSION`) and runs its entry points,
 config and CLI paths, so a move or rename of those needs a note in the PR and a re-pin there.
 
