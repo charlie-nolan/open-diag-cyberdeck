@@ -1,4 +1,4 @@
-# Deck app (app/) and teamdeck. Python 3.11+.
+# Deck app (app/), teamdeck and shopdeck. Python 3.11+.
 PyQt6>=6.5
 pyserial>=3.5
 obd>=0.7.1            # python-OBD, for the OBDLink EX
