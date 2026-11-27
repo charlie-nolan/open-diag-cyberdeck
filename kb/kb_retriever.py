@@ -100,7 +100,10 @@ def _thin(path, body, min_chars=40):
     rest = re.sub(r"\[fig\]|!\[[^\]]*\]\([^)]*\)|\b(part|step|steps|figure|fig)\s*[\d\s\-–]*:|wiring diagram:|"
                   r"\(s[0-9a-z]{6,}\)|malfunction of parts other than those listed is also possible\.?|"
                   r"after repair or replacement of faulty parts, conduct clear memory mode and inspection mode\.?|"
-                  r"check or repair only faulty parts\.?|\b(note|caution|warning):", " ", body, flags=re.I)
+                  r"check or repair only faulty parts\.?|"
+                  r"install(?:ation)? (?:is )?(?:in )?the reverse order of removal\.?|"
+                  r"for (?:disassembly|reassembly|installation|removal)[^.\n]{0,60}refer to[^.\n]{0,80}\.?|"
+                  r"\b(note|caution|warning):", " ", body, flags=re.I)
     words = [w for w in re.findall(r"[a-z0-9]+", rest.lower()) if w not in head]
     return sum(len(w) + 1 for w in words) < min_chars
 
@@ -168,6 +171,12 @@ class Retriever:
     def __init__(self, db_path, model=None, year=None, engine=None, embed=None):
         db_path = os.path.expanduser(db_path)
         self.db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
+        try:
+            self.db.execute("PRAGMA cache_size=-16384")
+            self.db.execute("PRAGMA mmap_size=67108864")
+            self.db.execute("PRAGMA temp_store=MEMORY")
+        except sqlite3.Error:
+            pass
         self.syn_re = load_synonyms(self.db)
         self.embed = None
         self._mats = {}

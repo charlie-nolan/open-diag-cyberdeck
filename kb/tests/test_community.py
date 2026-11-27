@@ -108,6 +108,37 @@ class TestCommunity(unittest.TestCase):
             self.assertEqual(r2["threads"], 3)
             self.assertEqual(r2["causes"][0]["car_match"], "other or unknown model")
 
+    def test_youtube_timestamp_jump(self):
+        with tempfile.TemporaryDirectory() as d:
+            B.KB, B.OUT, B.WORK = d, os.path.join(d, "community"), os.path.join(d, "community", "work")
+            B.LOG = os.path.join(d, "log.txt")
+            w = B.work_db("testmake")
+            segs = thread()
+            segs[0]["t_sec"] = 0
+            segs[1]["t_sec"] = 95
+            segs[2]["t_sec"] = 245
+            rec, ck = B.validate(model_reply(segs), segs, p90=10)
+            w.execute("INSERT INTO thread(src, tid, sub, url, title, n_replies, segs, tags) VALUES (?,?,?,?,?,?,?,?)",
+                      ("youtube", "abc123", "ShopChannel", "https://www.youtube.com/watch?v=abc123",
+                       f"2011 Examplecar {CODE} Fix", 2, json.dumps(segs), "{}"))
+            w.execute("INSERT INTO extract(src, tid, status, rec, checks, llm_model) VALUES (?,?,?,?,?,?)",
+                      ("youtube", "abc123", "ok", json.dumps(rec), json.dumps(ck), "fake"))
+            w.commit()
+            B.step_tables("testmake", types.SimpleNamespace(pilot=False, vec=False))
+            r = R.community(B.cdb_path("testmake"), code=CODE, model="Examplecar", year=2011)
+            self.assertEqual(len(r["videos"]), 1)
+            self.assertEqual(r["videos"][0]["t_sec"], 245)
+            self.assertEqual(r["videos"][0]["url"], "https://www.youtube.com/watch?v=abc123&t=245")
+            self.assertIn("&t=245", r["causes"][0]["urls"][0])
+            self.assertEqual(r["tests"][0]["t_sec"], 245)
+            self.assertEqual(r["tests"][0]["url"], "https://www.youtube.com/watch?v=abc123&t=245")
+
+    def test_thin_boilerplate(self):
+        import kb_retriever as KR
+        self.assertTrue(KR._thin("Alternator > Installation", "Install in the reverse order of removal."))
+        self.assertTrue(KR._thin("Alternator > Installation", "For installation, refer to Removal and Installation."))
+        self.assertFalse(KR._thin("Alternator > Installation", "Torque mounting bolts to 45 N·m."))
+
 
 if __name__ == "__main__":
     unittest.main()

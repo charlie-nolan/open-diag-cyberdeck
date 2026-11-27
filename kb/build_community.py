@@ -838,6 +838,8 @@ CREATE TABLE IF NOT EXISTS comm_outcome (thread_id INTEGER PRIMARY KEY, fix TEXT
 CREATE TABLE IF NOT EXISTS comm_chain (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, steps TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS comm_ref (id INTEGER PRIMARY KEY, thread_id INTEGER NOT NULL, kind TEXT, value TEXT,
   seg INTEGER, quote TEXT);
+CREATE TABLE IF NOT EXISTS comm_seg_time (thread_id INTEGER NOT NULL, seg INTEGER NOT NULL, t_sec INTEGER NOT NULL,
+  PRIMARY KEY (thread_id, seg));
 CREATE TABLE IF NOT EXISTS comm_cause (   -- one row per (thread, cause, role): what counts are made of
   thread_id INTEGER NOT NULL, cause_key TEXT NOT NULL, label TEXT NOT NULL, role TEXT NOT NULL,
   PRIMARY KEY (cause_key, role, thread_id));
@@ -853,9 +855,15 @@ CREATE TABLE IF NOT EXISTS comm_doc (id INTEGER PRIMARY KEY, thread_id INTEGER N
   ref_id INTEGER, text TEXT NOT NULL);
 CREATE VIRTUAL TABLE IF NOT EXISTS comm_doc_fts USING fts5(text, content='comm_doc', content_rowid='id',
   tokenize="porter unicode61 remove_diacritics 2");
+CREATE INDEX IF NOT EXISTS comm_symptom_th ON comm_symptom(thread_id);
+CREATE INDEX IF NOT EXISTS comm_test_th ON comm_test(thread_id);
+CREATE INDEX IF NOT EXISTS comm_ruled_out_th ON comm_ruled_out(thread_id);
+CREATE INDEX IF NOT EXISTS comm_suggestion_th ON comm_suggestion(thread_id);
+CREATE INDEX IF NOT EXISTS comm_cause_th ON comm_cause(thread_id);
+CREATE INDEX IF NOT EXISTS comm_chain_th ON comm_chain(thread_id);
 """
 COMM_TABLES = ["comm_meta", "comm_thread", "comm_code", "comm_symptom", "comm_test", "comm_ruled_out",
-               "comm_suggestion", "comm_outcome", "comm_chain", "comm_ref", "comm_cause", "comm_count",
+               "comm_suggestion", "comm_outcome", "comm_chain", "comm_ref", "comm_seg_time", "comm_cause", "comm_count",
                "comm_link", "comm_doc"]
 CAUSE_DROP = STOP | set("issue issues problem problems part parts possibly probably likely maybe check".split())
 
@@ -897,11 +905,11 @@ def step_tables(make, a):
     c = sqlite3.connect(tmp)
     c.executescript(COMM_SCHEMA)
     where = "t.pilot=1" if a.pilot else "1"
-    rows = w.execute(f"SELECT t.src, t.tid, t.sub, t.url, t.title, t.created, t.score, t.n_replies, t.tags, e.rec, "
+    rows = w.execute(f"SELECT t.src, t.tid, t.sub, t.url, t.title, t.created, t.score, t.n_replies, t.tags, t.segs, e.rec, "
                      f"e.llm_model FROM thread t JOIN extract e ON e.src=t.src AND e.tid=t.tid "
                      f"WHERE e.status='ok' AND {where}").fetchall()
     n = 0
-    for src, tid, sub, url, title, created, score, nrep, tags, rec, llm_model in rows:
+    for src, tid, sub, url, title, created, score, nrep, tags, segs_json, rec, llm_model in rows:
         r = json.loads(rec)
         if not r.get("relevant") or not r["n_fields"]:
             continue
@@ -922,6 +930,10 @@ def step_tables(make, a):
                          tg.get("models"), tg.get("years"), llm_model))
         th = cur.lastrowid
         n += 1
+        if segs_json and '"t_sec"' in segs_json:
+            for si, sg in enumerate(json.loads(segs_json)):
+                if isinstance(sg, dict) and sg.get("t_sec") is not None:
+                    c.execute("INSERT OR IGNORE INTO comm_seg_time VALUES (?,?,?)", (th, si, int(sg["t_sec"])))
         for x in r["codes"]:
             c.execute("INSERT OR IGNORE INTO comm_code VALUES (?,?,?,?,?,?)",
                       (th, x["code"], x["op_had"], x["seg"], x["who"], x["quote"]))
@@ -1051,6 +1063,12 @@ def links(c, make, a):
         if key not in cache:
             sk = ((model or "").title() or None, year)
             if sk not in rets:
+                if len(rets) >= 12:
+                    old_k = next(iter(rets))
+                    try:
+                        rets.pop(old_k).db.close()
+                    except sqlite3.Error:
+                        pass
                 rets[sk] = Retriever(master, model=sk[0], year=sk[1], embed=embed)
             try:
                 cache[key] = rets[sk].search_ids(text, k=3)
